@@ -2,13 +2,13 @@
 
 ```
 CHANGE   phase-1-bootstrap-otp-auth      BRANCH   feature/phase-1-bootstrap-otp-auth
-STATES   14   done 1  current 2  next 2  skipped 0  failed 0  pending 12
+STATES   14   done 2  current 3  next 2.1  skipped 0  failed 0  pending 11
 TASKS    39   done 0  open 39
 
   #   state                     mark     proof
   1   Propose                   done     openspec validate --strict: valid + HIL-1 approval (8 rounds)
-  2   Branch                    current  git init + feature branch in progress
-  3   Plan                      pending
+  2   Branch                    done     main baseline 55b2f99 + feature/phase-1-bootstrap-otp-auth
+  3   Plan                      current  next unchecked task is 2.1 (gradle restructure)
   4   Code                      pending
   5   Format                    pending  spotlessApply not run
   6   Test                      pending  ./gradlew test jacocoTestReport not run
@@ -28,9 +28,9 @@ TASKS    39   done 0  open 39
 
 ## 2. Gradle module restructure (PostgreSQL-only)
 
-- [ ] 2.1 Convert root `build.gradle.kts` to parent-only config (plugins `apply false`), add `include("service-scheduler-server")` in `settings.gradle.kts`, and create `service-scheduler-server/build.gradle.kts` carrying the moved dependencies plus new ones: `spring-boot-starter-data-redis`, `jjwt-api/impl/jackson`, `logstash-logback-encoder`, `micrometer-tracing-bridge-otel`, Testcontainers `postgresql` + `junit-jupiter`. Keep no H2 dependency anywhere. Verify `./gradlew :service-scheduler-server:dependencies` lists no H2 artifact and the tasks task succeeds.
-- [ ] 2.2 Create `service-scheduler-server/config/checkstyle/checkstyle.xml` (no wildcard imports, 120-char lines, import order) and `service-scheduler-server/config/pmd/pmd-ruleset.xml`. Verify `./gradlew :service-scheduler-server:checkstyleMain :service-scheduler-server:pmdMain` run without config errors.
-- [ ] 2.3 Add the `integrationTest` source set wired to Testcontainers (PostgreSQL 16 + Redis 7) matching ci.yml. Verify `./gradlew :service-scheduler-server:integrationTest` passes with zero tests.
+- [x] 2.1 Convert root `build.gradle.kts` to parent-only config (plugins `apply false`), add `include("service-scheduler-server")` in `settings.gradle.kts`, and create `service-scheduler-server/build.gradle.kts` carrying the moved dependencies plus new ones: `spring-boot-starter-data-redis`, `jjwt-api/impl/jackson`, `logstash-logback-encoder`, `micrometer-tracing-bridge-otel`, Testcontainers `postgresql` + `junit-jupiter`. Keep no H2 dependency anywhere. Verify `./gradlew :service-scheduler-server:dependencies` lists no H2 artifact and the tasks task succeeds. (done — commit daacced; runtimeClasspath proof: only `postgresql` present, zero `h2database` lines; Gradle-9 note: parent declares only external plugins with `apply false`, and the integrationTest Test task is registered explicitly.)
+- [x] 2.2 Create `service-scheduler-server/config/checkstyle/checkstyle.xml` (no wildcard imports, 120-char lines, import order) and `service-scheduler-server/config/pmd/pmd-ruleset.xml`. Verify `./gradlew :service-scheduler-server:checkstyleMain :service-scheduler-server:pmdMain` run without config errors. (done — checkstyleMain/checkstyleTest/pmdMain all pass, errorprone-category ruleset)
+- [x] 2.3 Add the `integrationTest` source set wired to Testcontainers (PostgreSQL 16 + Redis 7) matching ci.yml. Verify `./gradlew :service-scheduler-server:integrationTest` passes with zero tests. (done — integrationTest NO-SOURCE passes, wired to Testcontainers BOM 1.21.3)
 
 ## 3. Platform infrastructure (`platform-infrastructure`)
 
