@@ -1,0 +1,35 @@
+meta {
+  name: register-elevates-role
+  type: http
+  seq: 41
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Idempotency-Key: register-role-84900000999
+  X-Forwarded-For: 203.0.113.41
+}
+
+body:json {
+  {
+    "phone": "+84900000999",
+    "firstName": "Tai",
+    "lastName": "Le",
+    "code": "{{REGISTER_CODE_NEW}}",
+    "role": "ADMIN"
+  }
+}
+
+tests {
+  test("a role field responds 403", function() {
+    expect(res.getStatus()).to.equal(403);
+    expect(res.getHeader('content-type')).to.include("application/problem+json");
+  });
+  
+}

@@ -11,6 +11,11 @@
 
   <rule ref="category/java/bestpractices.xml">
     <exclude name="GuardLogStatement"/>
+    <!-- A test checks several fields of one response. -->
     <exclude name="UnitTestContainsTooManyAsserts"/>
+    <!-- MockMvc and AssertJ assertions are not visible to this rule. -->
+    <exclude name="UnitTestShouldIncludeAssert"/>
+    <!-- A test needs a fixed client address to exercise the rate limiter. -->
+    <exclude name="AvoidUsingHardCodedIP"/>
   </rule>
 </ruleset>

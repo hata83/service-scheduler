@@ -1,0 +1,23 @@
+meta {
+  name: logout-session-is-rejected
+  type: http
+  seq: 39
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/auth/me
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: jwt={{JWT_CUSTOMER}}
+}
+
+tests {
+  test("a revoked session responds 401", function() {
+    expect(res.getStatus()).to.equal(401);
+    expect(res.getHeader('content-type')).to.include("application/problem+json");
+  });
+  
+}

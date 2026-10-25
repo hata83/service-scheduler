@@ -1,0 +1,36 @@
+meta {
+  name: otp-send-login-technician
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/otp/send
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Idempotency-Key: otp-send-LOGIN-84900000003
+  X-Forwarded-For: 203.0.113.12
+}
+
+body:json {
+  {
+    "phone": "+84900000003",
+    "type": "LOGIN"
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("LOGIN_CODE_TECHNICIAN", res.getBody().otpCode);
+}
+
+tests {
+  test("send LOGIN code for the technician responds 202", function() {
+    expect(res.getStatus()).to.equal(202);
+    expect(res.getBody().otpCode).to.match(/^[0-9]{6}$/);
+  });
+  
+}

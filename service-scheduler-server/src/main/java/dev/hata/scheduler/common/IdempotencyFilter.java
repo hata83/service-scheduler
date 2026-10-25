@@ -1,11 +1,11 @@
+package dev.hata.scheduler.common;
+
 import java.io.IOException;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -13,17 +13,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Required `X-Idempotency-Key` header (ADR-008) for all writes. The filter
- * validates the header presence, stores it in MDC for logging, and delegates
- * the actual idempotency caching to the controller/service layer.
- * The RFC-7807 problem+json payload matches `openspec/config.yaml` error
- * conventions.
+ * Validates the required {@code X-Idempotency-Key} header on write endpoints
+ * (ADR-008). The filter rejects a write without the header with 400 and stores
+ * the key in MDC for logging. The service layer owns the cached replay.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
 public class IdempotencyFilter extends OncePerRequestFilter {
-
-    private static final Logger log = LoggerFactory.getLogger(IdempotencyFilter.class);
 
     public static final String HEADER = "X-Idempotency-Key";
     public static final String MDC_KEY = "idempotencyKey";
@@ -31,16 +27,19 @@ public class IdempotencyFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        String key = request.getHeader(HEADER);
-        if (key == null || key.isBlank()) {
-            sendProblem(
-                    response,
-                    400,
-                    "Idempotency key missing",
-                    "Request must include an X-Idempotency-Key header to prevent duplicate writes.");
-            return;
+        if (requiresKey(request)) {
+            String key = request.getHeader(HEADER);
+            if (key == null || key.isBlank()) {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                response.setContentType("application/problem+json");
+                response.getWriter()
+                        .write("{\"type\":\"/errors/400\",\"title\":\"Idempotency key missing\","
+                                + "\"status\":400,\"detail\":\"Request must include an X-Idempotency-Key header.\","
+                                + "\"instance\":\"" + request.getRequestURI() + "\"}");
+                return;
+            }
+            MDC.put(MDC_KEY, key);
         }
-        MDC.put(MDC_KEY, key);
         try {
             chain.doFilter(request, response);
         } finally {
@@ -48,12 +47,12 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         }
     }
 
-    private void sendProblem(HttpServletResponse response, int status, String title, String detail) throws IOException {
-        response.setStatus(status);
-        response.setContentType("application/problem+json");
-        String body = String.format(
-                "{\"type\":\"/errors/%d\",\"title\":\"%s\",\"detail\":\"%s\",\"timestamp\":\"%s\"}",
-                status, title, detail, java.time.Instant.now());
-        response.getWriter().write(body);
+    private boolean requiresKey(HttpServletRequest request) {
+        String method = request.getMethod();
+        if (!"POST".equals(method) && !"PATCH".equals(method) && !"PUT".equals(method)) {
+            return false;
+        }
+        String uri = request.getRequestURI();
+        return uri.startsWith("/api/v1/auth/") && !uri.endsWith("/logout");
     }
 }

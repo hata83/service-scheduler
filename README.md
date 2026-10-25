@@ -221,14 +221,17 @@ Integration testing verifies database constraints and API contracts:
 # 1. Start local PostgreSQL and Redis services
 docker compose up -d postgres redis
 
-# 2. Start the backend with local profile
-./gradlew bootRun --args='--spring.profiles.active=local'
+# 2. Start the backend with the test profile
+SPRING_PROFILES_ACTIVE=test ./gradlew bootRun
 
-# 3. Execute Bruno API contract test suite
-npx --yes @usebruno/cli@2.14.1 run service-scheduler-server/src/test/bruno --env local
+# 3. Reset the fixtures so the suite starts clean
+./gradlew :service-scheduler-server:resetAuthFixtures
 
-# 4. Run Testcontainers integration tests (requires Docker)
-./gradlew integrationTest
+# 4. Execute Bruno API contract test suite
+npx --yes @usebruno/cli@2.14.1 run service-scheduler-server/src/test/bruno --env local --disable-cookies
+
+# 5. Run Testcontainers integration tests (requires Docker)
+./gradlew test
 ```
 
 ---

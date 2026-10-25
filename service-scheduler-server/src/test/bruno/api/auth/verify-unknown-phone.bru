@@ -1,0 +1,37 @@
+meta {
+  name: verify-unknown-phone
+  type: http
+  seq: 29
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/otp/verify
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Idempotency-Key: otp-verify-unknown-84900000777
+  X-Forwarded-For: 203.0.113.29
+}
+
+body:json {
+  {
+    "phone": "+84900000777",
+    "code": "123456"
+  }
+}
+
+tests {
+  test("unregistered phone responds 401", function() {
+    expect(res.getStatus()).to.equal(401);
+    expect(res.getHeader('content-type')).to.include("application/problem+json");
+  });
+  
+
+  test("unregistered phone detail names registration", function() {
+    expect(res.getBody().detail.toLowerCase()).to.include("register");
+  });
+  
+}

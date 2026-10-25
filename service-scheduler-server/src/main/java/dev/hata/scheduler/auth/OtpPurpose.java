@@ -18,4 +18,20 @@ public enum OtpPurpose {
     public String value() {
         return slotName;
     }
+
+    /**
+     * Maps the wire type onto the purpose. A type outside REGISTER and LOGIN
+     * is a bad request.
+     */
+    public static OtpPurpose fromWire(String type) {
+        if (type == null) {
+            throw new IllegalArgumentException("type is required");
+        }
+        for (OtpPurpose purpose : values()) {
+            if (purpose.name().equalsIgnoreCase(type.trim())) {
+                return purpose;
+            }
+        }
+        throw new IllegalArgumentException("unknown OTP type " + type);
+    }
 }

@@ -1,0 +1,22 @@
+meta {
+  name: logout-revokes-session
+  type: http
+  seq: 38
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/logout
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: jwt={{JWT_CUSTOMER}}
+}
+
+tests {
+  test("logout responds 204", function() {
+    expect(res.getStatus()).to.equal(204);
+  });
+  
+}

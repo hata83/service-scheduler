@@ -1,0 +1,35 @@
+meta {
+  name: me-patch-updates-profile
+  type: http
+  seq: 34
+}
+
+patch {
+  url: {{BASE_URL}}/api/v1/auth/me
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Cookie: jwt={{JWT_CUSTOMER}}
+  X-Idempotency-Key: patch-me-customer-names
+}
+
+body:json {
+  {
+    "firstName": "My",
+    "lastName": "Nguyen",
+    "email": "my.nguyen@example.com"
+  }
+}
+
+tests {
+  test("patch responds 200 with the updated profile", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().firstName).to.equal("My");
+    expect(res.getBody().lastName).to.equal("Nguyen");
+    expect(res.getBody().email).to.equal("my.nguyen@example.com");
+  });
+  
+}

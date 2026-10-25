@@ -18,3 +18,6 @@ app:
   ratelimits:
     # Low-value windows so integration tests hit 429 in seconds (design D7)
     location: classpath:config/rate-limits-test.json
+    # The rate-limit Bruno file needs its own client identity, so the test
+    # profile trusts the forwarded address. The prod profile keeps this off.
+    trust-forwarded-for: true

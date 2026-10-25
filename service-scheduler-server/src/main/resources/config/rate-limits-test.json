@@ -1,0 +1,13 @@
+{
+  "default": {
+    "otpSendPerPhonePurpose": 2,
+    "otpSendPerPhonePurposeWindowSeconds": 10,
+    "otpSendPerIp": 20,
+    "otpSendPerIpWindowSeconds": 10,
+    "otpVerifyPerIp": 20,
+    "otpVerifyPerIpWindowSeconds": 10,
+    "registerPerIp": 3,
+    "registerPerIpWindowSeconds": 10
+  },
+  "dealerships": {}
+}

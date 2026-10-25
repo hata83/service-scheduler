@@ -262,8 +262,9 @@ Leave the project in a state that compiles and passes its tests.
 ./gradlew :service-scheduler-server:test  # includes ArchUnit
 
 # Bruno API tests (start backend first)
-./gradlew bootRun &
-npx --yes @usebruno/cli@2.14.1 run src/test/bruno --env local
+SPRING_PROFILES_ACTIVE=test ./gradlew bootRun &
+./gradlew :service-scheduler-server:resetAuthFixtures
+npx --yes @usebruno/cli@2.14.1 run src/test/bruno --env local --disable-cookies
 ```
 
 ### Backend Stack

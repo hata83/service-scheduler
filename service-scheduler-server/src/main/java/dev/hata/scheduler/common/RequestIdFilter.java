@@ -1,3 +1,5 @@
+package dev.hata.scheduler.common;
+
 import java.io.IOException;
 import java.util.UUID;
 

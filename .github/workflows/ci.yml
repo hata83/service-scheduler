@@ -134,6 +134,7 @@ jobs:
           npx --yes @usebruno/cli@2.14.1
           run service-scheduler-server/src/test/bruno
           --env local
+          --disable-cookies
           --reporter-junit service-scheduler-server/build/reports/bruno/results.xml
         env:
           BRUNO_BASE_URL: http://localhost:8080

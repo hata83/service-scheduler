@@ -57,9 +57,15 @@ app:
     otp:
       ttl: 5m
       echo: true
+      channel: zalo-stub
+    registration:
+      # Phase 1 seeds one dealership, so a new customer joins it (design D4)
+      default-dealership-id: "00000000-0000-0000-0000-000000000001"
   ratelimits:
     # Dealership-scoped JSON with a default block + per-dealership overrides (design D7)
     location: classpath:config/rate-limits.json
+    # The prod profile keeps the forwarded address untrusted
+    trust-forwarded-for: false
 
 springdoc:
   api-docs:

@@ -1,0 +1,35 @@
+meta {
+  name: register-idempotent-replay
+  type: http
+  seq: 46
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Idempotency-Key: register-84900000999
+  X-Forwarded-For: 203.0.113.46
+}
+
+body:json {
+  {
+    "phone": "+84900000999",
+    "firstName": "Tai",
+    "lastName": "Le",
+    "code": "{{REGISTER_CODE_NEW}}"
+  }
+}
+
+tests {
+  test("replayed registration responds 201 with the cached body", function() {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody().id).to.match(/^[0-9a-f-]{36}$/);
+    expect(res.getBody().role).to.equal("CUSTOMER");
+  });
+  
+}

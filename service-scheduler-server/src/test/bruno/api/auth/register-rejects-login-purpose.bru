@@ -1,0 +1,34 @@
+meta {
+  name: register-rejects-login-purpose
+  type: http
+  seq: 43
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Idempotency-Key: register-login-purpose-84900000999
+  X-Forwarded-For: 203.0.113.43
+}
+
+body:json {
+  {
+    "phone": "+84900000999",
+    "firstName": "Tai",
+    "lastName": "Le",
+    "code": "{{LOGIN_CODE_CUSTOMER}}"
+  }
+}
+
+tests {
+  test("a login-purpose code responds 401", function() {
+    expect(res.getStatus()).to.equal(401);
+    expect(res.getHeader('content-type')).to.include("application/problem+json");
+  });
+  
+}

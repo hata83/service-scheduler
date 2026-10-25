@@ -11,9 +11,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * unresolved-placeholder fail fast.
  */
 @ConfigurationProperties(prefix = "app.auth")
-public record AuthProperties(Jwt jwt, Otp otp) {
+public record AuthProperties(Jwt jwt, Otp otp, Registration registration) {
 
     public record Jwt(String secret, String issuer, Duration ttl, String cookieName) {}
 
-    public record Otp(Duration ttl, boolean echo) {}
+    public record Otp(Duration ttl, boolean echo, String channel) {}
+
+    /**
+     * Registration settings. Phase 1 seeds one dealership, so a new customer
+     * joins that dealership.
+     */
+    public record Registration(String defaultDealershipId) {}
 }
