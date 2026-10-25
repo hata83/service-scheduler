@@ -42,24 +42,6 @@ pmd {
     isConsoleOutput = true
 }
 
-// Declare the integrationTest source set first, so its configurations exist
-// for both the extendsFrom wiring and the dependency declarations below.
-sourceSets.create("integrationTest") {
-    val mainOutput = sourceSets.getByName("main").output
-    val testOutput = sourceSets.getByName("test").output
-    compileClasspath += mainOutput + testOutput
-    runtimeClasspath += mainOutput + testOutput
-}
-
-configurations["integrationTestImplementation"].extendsFrom(
-    configurations["implementation"],
-    configurations["testImplementation"],
-)
-configurations["integrationTestRuntimeOnly"].extendsFrom(
-    configurations["runtimeOnly"],
-    configurations["testRuntimeOnly"],
-)
-
 dependencies {
     // Spring Boot Core & Web MVC
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -93,22 +75,13 @@ dependencies {
     // Integration tests: Testcontainers core spins up PostgreSQL 16 + Redis 7
     // containers directly (design D3); versions come from the Boot BOM property
     // testcontainers.version (2.0.5)
-    "integrationTestImplementation"("org.testcontainers:testcontainers")
+    testImplementation("org.testcontainers:testcontainers")
 }
 
 tasks.withType<Test> {
     useJUnitPlatform()
     environment("SPRING_PROFILES_ACTIVE", "test")
     finalizedBy(tasks.jacocoTestReport)
-}
-
-tasks.register<Test>("integrationTest") {
-    group = "verification"
-    description = "Runs Testcontainers-backed integration tests against PostgreSQL 16 + Redis 7."
-    dependsOn(tasks.testClasses)
-    mustRunAfter(tasks.test)
-    testClassesDirs = sourceSets.getByName("integrationTest").output.classesDirs
-    classpath = sourceSets.getByName("integrationTest").runtimeClasspath
 }
 
 tasks.jacocoTestReport {
