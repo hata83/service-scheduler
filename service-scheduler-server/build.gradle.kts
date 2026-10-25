@@ -1,0 +1,147 @@
+import com.diffplug.gradle.spotless.SpotlessExtension
+
+plugins {
+    id("java")
+    id("org.springframework.boot")
+    id("io.spring.dependency-management")
+    id("jacoco")
+    id("com.diffplug.spotless")
+    checkstyle
+    pmd
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+extensions.configure<SpotlessExtension> {
+    java {
+        palantirJavaFormat("2.71.0")
+        formatAnnotations()
+        removeUnusedImports()
+        importOrder(
+            "java|javax",
+            "dev.hata.scheduler",
+            ""
+        )
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+checkstyle {
+    toolVersion = "10.21.0"
+    configDirectory = layout.projectDirectory.dir("config/checkstyle").asFile
+    isShowViolations = true
+}
+
+pmd {
+    toolVersion = "7.16.0"
+    ruleSetFiles = files(layout.projectDirectory.file("config/pmd/pmd-ruleset.xml"))
+    isConsoleOutput = true
+}
+
+// Declare the integrationTest source set first, so its configurations exist
+// for both the extendsFrom wiring and the dependency declarations below.
+sourceSets.create("integrationTest") {
+    val mainOutput = sourceSets.getByName("main").output
+    val testOutput = sourceSets.getByName("test").output
+    compileClasspath += mainOutput + testOutput
+    runtimeClasspath += mainOutput + testOutput
+}
+
+configurations["integrationTestImplementation"].extendsFrom(
+    configurations["implementation"],
+    configurations["testImplementation"],
+)
+configurations["integrationTestRuntimeOnly"].extendsFrom(
+    configurations["runtimeOnly"],
+    configurations["testRuntimeOnly"],
+)
+
+dependencies {
+    // Spring Boot Core & Web MVC
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+
+    // Database & Migrations — PostgreSQL only, no in-memory SQL engine (HIL-1 round 4)
+    runtimeOnly("org.postgresql:postgresql")
+    implementation("org.flywaydb:flyway-core")
+    implementation("org.flywaydb:flyway-database-postgresql")
+
+    // Auth: JWT session tokens (ADR-005)
+    implementation("io.jsonwebtoken:jjwt-api:0.13.0")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.13.0")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.13.0")
+
+    // Observability: JSON logging, tracing, Prometheus metrics (design D12)
+    implementation("net.logstash.logback:logstash-logback-encoder:8.1")
+    implementation("io.micrometer:micrometer-tracing-bridge-otel")
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
+
+    // OpenAPI 3.1 & Swagger UI
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5")
+
+    // Testing & Quality Gates
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.4.1")
+
+    // Integration tests: Testcontainers provisions PostgreSQL 16 + Redis 7 (design D3)
+    "integrationTestImplementation"(platform("org.testcontainers:testcontainers-bom:1.21.3"))
+    "integrationTestImplementation"("org.testcontainers:postgresql")
+    "integrationTestImplementation"("org.testcontainers:testcontainers")
+    "integrationTestImplementation"("org.testcontainers:junit-jupiter")
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
+    environment("SPRING_PROFILES_ACTIVE", "test")
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+tasks.register<Test>("integrationTest") {
+    group = "verification"
+    description = "Runs Testcontainers-backed integration tests against PostgreSQL 16 + Redis 7."
+    dependsOn(tasks.testClasses)
+    mustRunAfter(tasks.test)
+    testClassesDirs = sourceSets.getByName("integrationTest").output.classesDirs
+    classpath = sourceSets.getByName("integrationTest").runtimeClasspath
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+tasks.jacocoTestCoverageVerification {
+    dependsOn(tasks.jacocoTestReport)
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.80".toBigDecimal()
+            }
+        }
+        rule {
+            element = "CLASS"
+            includes = listOf("*Service*")
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "1.00".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.check {
+    dependsOn(tasks.jacocoTestCoverageVerification)
+}

@@ -13,3 +13,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "service-scheduler"
+
+include("service-scheduler-server")
