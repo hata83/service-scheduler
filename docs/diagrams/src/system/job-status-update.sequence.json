@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Service Job Status Update Sequence",
+    "output": "job-status-update.html",
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    { "id": "tech", "type": "external", "label": "Technician", "sublabel": "app" },
+    { "id": "api", "type": "backend", "label": "Jobs API", "sublabel": "PATCH job" },
+    { "id": "auth", "type": "security", "label": "Auth", "sublabel": "assigned only" },
+    { "id": "sm", "type": "backend", "label": "Job Machine", "sublabel": "transition guard" },
+    { "id": "pg", "type": "database", "label": "PostgreSQL", "sublabel": "service_jobs" },
+    { "id": "outbox", "type": "messagebus", "label": "Outbox", "sublabel": "event row" }
+  ],
+  "segments": [
+    { "from": 150, "to": 280, "label": "Check ownership" },
+    { "from": 300, "to": 460, "label": "Update the job" },
+    { "from": 480, "to": 600, "label": "Return" }
+  ],
+  "messages": [
+    { "id": "req", "from": "tech", "to": "api", "y": 170, "label": "PATCH /jobs/{id}/status", "variant": "emphasis" },
+    { "id": "authz", "from": "api", "to": "auth", "y": 210, "label": "is this my job", "variant": "security" },
+    { "id": "authz-ok", "from": "auth", "to": "api", "y": 250, "label": "assigned", "variant": "return" },
+    { "id": "guard", "from": "api", "to": "sm", "y": 320, "label": "validate job transition", "variant": "default" },
+    { "id": "legal", "from": "sm", "to": "api", "y": 360, "label": "legal or 422", "variant": "return" },
+    { "id": "clock", "from": "api", "to": "pg", "y": 400, "label": "set started or finished at", "variant": "default" },
+    { "id": "update", "from": "api", "to": "pg", "y": 440, "label": "update job status", "variant": "emphasis" },
+    { "id": "event", "from": "api", "to": "outbox", "y": 500, "label": "insert job event, same tx", "variant": "default" },
+    { "id": "commit", "from": "pg", "to": "api", "y": 540, "label": "commit", "variant": "return" },
+    { "id": "reply", "from": "api", "to": "tech", "y": 590, "label": "200 job status", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "tech", "from": 160, "to": 200, "type": "external" },
+    { "participant": "api", "from": 165, "to": 600, "type": "backend" },
+    { "participant": "auth", "from": 195, "to": 235, "type": "security" },
+    { "participant": "sm", "from": 305, "to": 345, "type": "backend" },
+    { "participant": "pg", "from": 385, "to": 530, "type": "database" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Job scope", "items": [
+      "A technician may update only the jobs assigned to that technician",
+      "The job clock records started_at and finished_at",
+      "actual_minutes holds the real duration after the work"
+    ]},
+    { "dot": "cyan", "title": "Job versus appointment", "items": [
+      "The technician moves the job, never the appointment state",
+      "Waiting Parts needs manager approval to return to In Progress",
+      "The appointment closes only when every job is Done"
+    ]},
+    { "dot": "orange", "title": "Event", "items": [
+      "The job event is written in the same transaction as the update",
+      "The outbox relay publishes it after the commit",
+      "A rollback emits nothing"
+    ]}
+  ]
+}

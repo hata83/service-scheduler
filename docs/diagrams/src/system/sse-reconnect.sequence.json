@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "SSE Reconnect and Recovery",
+    "output": "sse-reconnect.html",
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    {
+      "id": "browser",
+      "type": "external",
+      "label": "Browser",
+      "sublabel": "EventSource"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "SSE API",
+      "sublabel": "stream endpoint"
+    },
+    {
+      "id": "registry",
+      "type": "backend",
+      "label": "SSE Registry",
+      "sublabel": "clientId index"
+    },
+    {
+      "id": "sweeper",
+      "type": "backend",
+      "label": "Sweeper",
+      "sublabel": "stale cleanup"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 340,
+      "label": "Case A: server closed the stream"
+    },
+    {
+      "from": 360,
+      "to": 560,
+      "label": "Case B: server did not notice"
+    },
+    {
+      "from": 580,
+      "to": 800,
+      "label": "Recovery and two tabs"
+    }
+  ],
+  "messages": [
+    {
+      "id": "a-close",
+      "from": "registry",
+      "to": "browser",
+      "y": 170,
+      "label": "close stream",
+      "variant": "return"
+    },
+    {
+      "id": "a-retry",
+      "from": "browser",
+      "to": "api",
+      "y": 210,
+      "label": "auto retry, same clientId",
+      "variant": "emphasis"
+    },
+    {
+      "id": "a-reg",
+      "from": "api",
+      "to": "registry",
+      "y": 250,
+      "label": "register clientId",
+      "variant": "default"
+    },
+    {
+      "id": "a-ok",
+      "from": "registry",
+      "to": "api",
+      "y": 290,
+      "label": "no stale entry, accept",
+      "variant": "return"
+    },
+    {
+      "id": "a-open",
+      "from": "api",
+      "to": "browser",
+      "y": 330,
+      "label": "200 stream",
+      "variant": "return"
+    },
+    {
+      "id": "b-retry",
+      "from": "browser",
+      "to": "api",
+      "y": 390,
+      "label": "auto retry, same clientId",
+      "variant": "emphasis"
+    },
+    {
+      "id": "b-reg",
+      "from": "api",
+      "to": "registry",
+      "y": 430,
+      "label": "register clientId",
+      "variant": "default"
+    },
+    {
+      "id": "b-evict",
+      "from": "registry",
+      "to": "api",
+      "y": 470,
+      "label": "stale entry found, evict old",
+      "variant": "security"
+    },
+    {
+      "id": "b-open",
+      "from": "api",
+      "to": "browser",
+      "y": 510,
+      "label": "200 stream, no duplicate",
+      "variant": "return"
+    },
+    {
+      "id": "sweep",
+      "from": "sweeper",
+      "to": "registry",
+      "y": 600,
+      "label": "drop emitters with failed heartbeat",
+      "variant": "dashed"
+    },
+    {
+      "id": "sweep-done",
+      "from": "registry",
+      "to": "sweeper",
+      "y": 640,
+      "label": "removed count",
+      "variant": "return"
+    },
+    {
+      "id": "c-tab",
+      "from": "browser",
+      "to": "api",
+      "y": 700,
+      "label": "second tab, same clientId",
+      "variant": "emphasis"
+    },
+    {
+      "id": "c-reg",
+      "from": "api",
+      "to": "registry",
+      "y": 740,
+      "label": "register clientId",
+      "variant": "default"
+    },
+    {
+      "id": "c-replace",
+      "from": "registry",
+      "to": "api",
+      "y": 780,
+      "label": "first tab evicted, replaced",
+      "variant": "security"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "browser",
+      "from": 160,
+      "to": 790,
+      "type": "external"
+    },
+    {
+      "participant": "api",
+      "from": 200,
+      "to": 790,
+      "type": "backend"
+    },
+    {
+      "participant": "registry",
+      "from": 230,
+      "to": 790,
+      "type": "backend"
+    },
+    {
+      "participant": "sweeper",
+      "from": 590,
+      "to": 650,
+      "type": "backend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "The server always accepts",
+      "items": [
+        "The server never rejects a reconnect with 409",
+        "EventSource retries on any error, so a rejection loops forever",
+        "The registry evicts the stale entry and registers the new one"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "The server may not know",
+      "items": [
+        "The browser can drop the network while the server still holds the emitter",
+        "A zombie connection keeps receiving pushes that go nowhere",
+        "The heartbeat write fails, and the sweeper removes the entry"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Replay is not automatic",
+      "items": [
+        "SSE has no resume, and the server does not store the event history",
+        "The client sends Last-Event-ID, so the client knows it missed events",
+        "The client refetches the current state after every reconnect"
+      ]
+    }
+  ]
+}

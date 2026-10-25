@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "601e52b2-676a-46d9-ae7e-b05613f9229c",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\appointment-checkin.sequence.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\appointment-checkin.html",
+  "specification": {
+    "sha256": "dfae67a11a765e1dd41aa9a9311063bfd7a11fbc872049f2753c2ef1478e7741",
+    "bytes": 4251
+  },
+  "artifact": {
+    "sha256": "3c6eab1b1dcbeb64da9829f6a2f939ad7d710090e01711764af061133f76513f",
+    "bytes": 821163
+  }
+}

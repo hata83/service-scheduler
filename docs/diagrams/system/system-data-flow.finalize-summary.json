@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "dataflow",
+  "quality": "showcase",
+  "specification": {
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\system-data-flow.dataflow.json",
+    "sha256": "6b8a04685c17963290fe6a530810967da704633fe5081909c85280cae8e17086",
+    "bytes": 4969
+  },
+  "artifact": {
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-flow.html",
+    "sha256": "74c192b2e8e2791bc6bf69b2ae511aab4faa12d03fa3352e366da2419ba49836",
+    "bytes": 822259
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-flow.finalize.json",
+    "summaryReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-flow.finalize-summary.json",
+    "browserCheckReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-flow.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-25T09:29:22.168Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 3419,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  },
+  "visualReviewRecommendation": {
+    "action": "inspect-route-readability",
+    "signals": {
+      "resolvedCrossovers": 3,
+      "routesOverSuggestedBends": 1
+    },
+    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
+    "affectedRoutes": {
+      "crossings": [
+        {
+          "left": {
+            "id": "requirement",
+            "from": "zen",
+            "to": "booking",
+            "label": "bay type, skill, duration",
+            "collectionIndex": 3,
+            "artifactIndex": 4
+          },
+          "right": {
+            "id": "read-cache",
+            "from": "api",
+            "to": "redis",
+            "label": "read slot cache",
+            "collectionIndex": 6,
+            "artifactIndex": 7
+          },
+          "point": [
+            530,
+            280
+          ]
+        },
+        {
+          "left": {
+            "id": "overlap-query",
+            "from": "booking",
+            "to": "pg",
+            "label": "overlap query",
+            "collectionIndex": 4,
+            "artifactIndex": 5
+          },
+          "right": {
+            "id": "read-cache",
+            "from": "api",
+            "to": "redis",
+            "label": "read slot cache",
+            "collectionIndex": 6,
+            "artifactIndex": 7
+          },
+          "point": [
+            665,
+            376
+          ]
+        },
+        {
+          "left": {
+            "id": "commit-insert",
+            "from": "booking",
+            "to": "pg",
+            "label": "insert appointment and outbox",
+            "collectionIndex": 5,
+            "artifactIndex": 6
+          },
+          "right": {
+            "id": "read-cache",
+            "from": "api",
+            "to": "redis",
+            "label": "read slot cache",
+            "collectionIndex": 6,
+            "artifactIndex": 7
+          },
+          "point": [
+            637.5,
+            372
+          ]
+        }
+      ],
+      "detours": [
+        {
+          "relationship": {
+            "id": "evict-cache",
+            "from": "booking",
+            "to": "redis",
+            "label": "evict slot cache",
+            "collectionIndex": 7,
+            "artifactIndex": 8
+          },
+          "bends": 4,
+          "stretch": 1.299
+        }
+      ],
+      "truncated": false
+    },
+    "repair": "Advisory only: this mode places or routes these relationships itself. Report them; do not remove relationships or meaning to reduce crossings."
+  }
+}

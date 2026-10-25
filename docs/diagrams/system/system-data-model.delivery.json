@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "e22224f3-69a7-4a4c-8611-b96487ca4eab",
+  "status": "current",
+  "command": "deliver",
+  "type": "erd",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\system-data-model.erd.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-model.html",
+  "specification": {
+    "sha256": "9109ba7870b15063d8d051e6197359e14172b6f4b2f6626ac7a752a109913231",
+    "bytes": 16471
+  },
+  "artifact": {
+    "sha256": "0d9ab3feba3c345526bee6732cd7377ce1da210ec27cb0079736a744acd96dd2",
+    "bytes": 883341
+  }
+}

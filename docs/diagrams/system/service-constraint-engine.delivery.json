@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "81140da0-7ba9-4cfd-8092-51aa14aa6d74",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\service-constraint-engine.architecture.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\service-constraint-engine.html",
+  "specification": {
+    "sha256": "7644197d487766d02e3ba8ded6a919fc95a9cf5fcd6e52b366b2aebd1d307655",
+    "bytes": 4093
+  },
+  "artifact": {
+    "sha256": "6dd48c045219b23fb3a88d9c808b25f1047039cb1b1e2588393dac2f830dac30",
+    "bytes": 830106
+  }
+}

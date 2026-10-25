@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "b83d0bf6-b3c6-4097-9ebe-f5b99ac0616c",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\metadata-management.sequence.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\metadata-management.html",
+  "specification": {
+    "sha256": "93152790552106349b869c2a4948d9d654a761a45015e2c55aeeca92f4585125",
+    "bytes": 4802
+  },
+  "artifact": {
+    "sha256": "2dc09a7ae4975132c7d992804c59faf4367b0fcf05cb6de414e89dcb925c8e91",
+    "bytes": 823473
+  }
+}

@@ -1,0 +1,218 @@
+{
+  "schema_version": 3,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Appointment Lifecycle",
+    "output": "appointment-lifecycle.html",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "mainPath": [
+    "requested",
+    "confirmed",
+    "checked_in",
+    "in_progress",
+    "completed",
+    "invoiced"
+  ],
+  "states": [
+    {
+      "id": "requested",
+      "type": "start",
+      "label": "Requested",
+      "sublabel": "REQUESTED",
+      "tag": "entry",
+      "step": "01"
+    },
+    {
+      "id": "confirmed",
+      "type": "active",
+      "label": "Confirmed",
+      "sublabel": "slot locked",
+      "tag": "work",
+      "step": "02"
+    },
+    {
+      "id": "checked_in",
+      "type": "active",
+      "label": "Checked In",
+      "sublabel": "deal agreed",
+      "tag": "work",
+      "step": "03"
+    },
+    {
+      "id": "in_progress",
+      "type": "active",
+      "label": "In Progress",
+      "sublabel": "work started",
+      "tag": "work",
+      "step": "04"
+    },
+    {
+      "id": "completed",
+      "type": "active",
+      "label": "Completed",
+      "sublabel": "signed off",
+      "tag": "work",
+      "step": "05"
+    },
+    {
+      "id": "invoiced",
+      "type": "success",
+      "label": "Invoiced",
+      "sublabel": "finance",
+      "tag": "done",
+      "step": "06"
+    },
+    {
+      "id": "cancelled",
+      "type": "failure",
+      "label": "Cancelled",
+      "sublabel": "CANCELLED",
+      "tag": "terminal"
+    },
+    {
+      "id": "rejected",
+      "type": "failure",
+      "label": "Rejected",
+      "sublabel": "REJECTED",
+      "tag": "terminal"
+    },
+    {
+      "id": "on_hold",
+      "type": "waiting",
+      "label": "On Hold",
+      "sublabel": "paused",
+      "tag": "wait"
+    },
+    {
+      "id": "no_show",
+      "type": "failure",
+      "label": "No Show",
+      "sublabel": "absent / no deal",
+      "tag": "terminal"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "requested-confirmed",
+      "from": "requested",
+      "to": "confirmed",
+      "label": "confirm"
+    },
+    {
+      "id": "confirmed-checked-in",
+      "from": "confirmed",
+      "to": "checked_in",
+      "label": "arrive"
+    },
+    {
+      "id": "checked-in-progress",
+      "from": "checked_in",
+      "to": "in_progress",
+      "label": "start"
+    },
+    {
+      "id": "progress-completed",
+      "from": "in_progress",
+      "to": "completed",
+      "label": "done"
+    },
+    {
+      "id": "completed-invoiced",
+      "from": "completed",
+      "to": "invoiced",
+      "label": "bill"
+    },
+    {
+      "id": "progress-hold",
+      "from": "in_progress",
+      "to": "on_hold",
+      "label": "pause"
+    },
+    {
+      "id": "hold-progress",
+      "from": "on_hold",
+      "to": "in_progress",
+      "label": "resume"
+    },
+    {
+      "id": "requested-cancelled",
+      "from": "requested",
+      "to": "cancelled",
+      "label": "cancel",
+      "variant": "security"
+    },
+    {
+      "id": "confirmed-cancelled",
+      "from": "confirmed",
+      "to": "cancelled",
+      "label": "cancel",
+      "variant": "security"
+    },
+    {
+      "id": "requested-rejected",
+      "from": "requested",
+      "to": "rejected",
+      "label": "reject",
+      "variant": "security"
+    },
+    {
+      "id": "confirmed-no-show",
+      "from": "confirmed",
+      "to": "no_show",
+      "label": "no show",
+      "variant": "security"
+    },
+    {
+      "id": "confirmed-rejected",
+      "from": "confirmed",
+      "to": "rejected",
+      "label": "reject",
+      "variant": "security"
+    },
+    {
+      "id": "checked-in-no-show",
+      "from": "checked_in",
+      "to": "no_show",
+      "label": "no deal",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Main path",
+      "items": [
+        "Six primary states run from booking request to final invoice",
+        "Customer receives instant estimated cost when selecting service types",
+        "Appointment moves to CONFIRMED manually or via dealership auto-confirm config"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Arrival & Check-In",
+      "items": [
+        "Customer arrives at workshop for face-to-face check-in",
+        "Manager inspects vehicle and agrees on final deal cost (stored in total_cost)",
+        "If customer rejects deal or info mismatches, manager marks NO_SHOW"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Terminal states",
+      "items": [
+        "Cancelled, Rejected, and No Show end the appointment and release the bay immediately",
+        "Customer cancels from REQUESTED or CONFIRMED; Manager rejects or marks NO_SHOW",
+        "Once CHECKED_IN or later, appointment cannot transition to CANCELLED or REJECTED"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Holding state",
+      "items": [
+        "On Hold pauses work during workshop operations without releasing the bay reservation"
+      ]
+    }
+  ]
+}

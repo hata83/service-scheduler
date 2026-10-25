@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\system-architecture.architecture.json",
+    "sha256": "aebcf2c5ef229cc5b92bdaa984cac2ba4ede8a6b2616e523b64e3957ba176d96",
+    "bytes": 5331
+  },
+  "artifact": {
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-architecture.html",
+    "sha256": "a5623c386e3c30e5ee411f620b1025f083c81021a310307cc6210aa76b0a8b29",
+    "bytes": 838494
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-architecture.finalize.json",
+    "summaryReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-architecture.finalize-summary.json",
+    "browserCheckReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-architecture.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-24T04:45:37.141Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 4210,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  },
+  "visualReviewRecommendation": {
+    "action": "inspect-route-readability",
+    "signals": {
+      "resolvedCrossovers": 4,
+      "routesOverSuggestedBends": 2
+    },
+    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
+    "affectedRoutes": {
+      "crossings": [
+        {
+          "left": {
+            "from": "constraints",
+            "to": "booking",
+            "label": "bay type, skill, duration",
+            "collectionIndex": 3,
+            "artifactIndex": 4
+          },
+          "right": {
+            "from": "api",
+            "to": "metrics",
+            "label": "counters",
+            "collectionIndex": 10,
+            "artifactIndex": 11
+          },
+          "point": [
+            786,
+            246
+          ]
+        },
+        {
+          "left": {
+            "from": "api",
+            "to": "booking",
+            "label": "book",
+            "collectionIndex": 4,
+            "artifactIndex": 5
+          },
+          "right": {
+            "from": "api",
+            "to": "redis",
+            "label": "OTP, idempotency",
+            "collectionIndex": 8,
+            "artifactIndex": 9
+          },
+          "point": [
+            738,
+            490.00000000000006
+          ],
+          "sharedNode": "api"
+        },
+        {
+          "left": {
+            "from": "outbox",
+            "to": "notify",
+            "label": "dispatch",
+            "collectionIndex": 6,
+            "artifactIndex": 7
+          },
+          "right": {
+            "from": "api",
+            "to": "metrics",
+            "label": "counters",
+            "collectionIndex": 10,
+            "artifactIndex": 11
+          },
+          "point": [
+            1100,
+            246
+          ]
+        },
+        {
+          "left": {
+            "from": "booking",
+            "to": "pg",
+            "label": "insert and query",
+            "collectionIndex": 7,
+            "artifactIndex": 8
+          },
+          "right": {
+            "from": "api",
+            "to": "redis",
+            "label": "OTP, idempotency",
+            "collectionIndex": 8,
+            "artifactIndex": 9
+          },
+          "point": [
+            845,
+            604
+          ]
+        }
+      ],
+      "detours": [
+        {
+          "relationship": {
+            "from": "api",
+            "to": "redis",
+            "label": "OTP, idempotency",
+            "collectionIndex": 8,
+            "artifactIndex": 9
+          },
+          "bends": 4,
+          "stretch": 1
+        },
+        {
+          "relationship": {
+            "from": "api",
+            "to": "metrics",
+            "label": "counters",
+            "collectionIndex": 10,
+            "artifactIndex": 11
+          },
+          "bends": 4,
+          "stretch": 1
+        }
+      ],
+      "truncated": false
+    },
+    "hints": [
+      "constraints → booking crosses api → metrics: move the node of whichever is a branch, return, or second entrance to the other side of the main path, so that relationship runs through an empty corridor.",
+      "api → booking and api → redis cross next to api: move node booking or redis so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "outbox → notify crosses api → metrics: move the node of whichever is a branch, return, or second entrance to the other side of the main path, so that relationship runs through an empty corridor.",
+      "booking → pg crosses api → redis: move the node of whichever is a branch, return, or second entrance to the other side of the main path, so that relationship runs through an empty corridor.",
+      "api → redis needs 4 bends: move node api or redis so they share a row or column with matching centers, or sit diagonally with a clear corner.",
+      "api → metrics needs 4 bends: move node api or metrics so they share a row or column with matching centers, or sit diagonally with a clear corner."
+    ],
+    "repair": "Trace these relationships at the desktop viewport. For Architecture, use references/architecture-layout-repair.md: reflow a blocked main path or tangled connected scene, and repair an isolated defect locally only when the surrounding composition is accepted. Preserve all semantic content and user-fixed geometry. Rerun finalize once after the edit."
+  }
+}

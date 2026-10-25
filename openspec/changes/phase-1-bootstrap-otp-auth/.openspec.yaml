@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-10-25
+goal: Approved skeleton plus OTP auth capability, ready for backend leg execution.

@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Appointment Status Transition Sequence",
+    "output": "appointment-status-transition.html",
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    { "id": "client", "type": "external", "label": "Client", "sublabel": "portal" },
+    { "id": "api", "type": "backend", "label": "API", "sublabel": "PATCH status" },
+    { "id": "auth", "type": "security", "label": "Auth", "sublabel": "role check" },
+    { "id": "sm", "type": "backend", "label": "State Machine", "sublabel": "transition guard" },
+    { "id": "pg", "type": "database", "label": "PostgreSQL", "sublabel": "row version" },
+    { "id": "outbox", "type": "messagebus", "label": "Outbox", "sublabel": "event row" },
+    { "id": "sse", "type": "external", "label": "SSE", "sublabel": "manager board" }
+  ],
+  "segments": [
+    { "from": 150, "to": 280, "label": "Guard the transition" },
+    { "from": 300, "to": 450, "label": "Commit and dispatch" },
+    { "from": 470, "to": 600, "label": "Notify" }
+  ],
+  "messages": [
+    { "id": "req", "from": "client", "to": "api", "y": 170, "label": "PATCH status + idempotency key", "variant": "emphasis" },
+    { "id": "authz", "from": "api", "to": "auth", "y": 210, "label": "role may trigger", "variant": "security" },
+    { "id": "authz-ok", "from": "auth", "to": "api", "y": 250, "label": "allowed", "variant": "return" },
+    { "id": "guard", "from": "api", "to": "sm", "y": 320, "label": "validate transition", "variant": "default" },
+    { "id": "legal", "from": "sm", "to": "api", "y": 360, "label": "legal or 422", "variant": "return" },
+    { "id": "update", "from": "api", "to": "pg", "y": 400, "label": "update status, version + 1", "variant": "emphasis" },
+    { "id": "event", "from": "api", "to": "outbox", "y": 440, "label": "insert event, same tx", "variant": "default" },
+    { "id": "commit", "from": "pg", "to": "api", "y": 480, "label": "commit", "variant": "return" },
+    { "id": "broadcast", "from": "outbox", "to": "sse", "y": 540, "label": "push after commit", "variant": "dashed" },
+    { "id": "reply", "from": "api", "to": "client", "y": 580, "label": "200 new status", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "client", "from": 160, "to": 200, "type": "external" },
+    { "participant": "api", "from": 165, "to": 590, "type": "backend" },
+    { "participant": "auth", "from": 195, "to": 235, "type": "security" },
+    { "participant": "sm", "from": 305, "to": 345, "type": "backend" },
+    { "participant": "pg", "from": 385, "to": 470, "type": "database" }
+  ],
+  "cards": [
+    { "dot": "rose", "title": "Rejections", "items": [
+      "An illegal transition returns 422 Problem Details",
+      "A role that may not trigger it returns 403",
+      "A stale version returns 409, so the client refetches"
+    ]},
+    { "dot": "emerald", "title": "Ordering", "items": [
+      "The status change and the event row commit in one transaction",
+      "SSE fires only after the commit succeeds",
+      "A rollback emits nothing"
+    ]},
+    { "dot": "cyan", "title": "Actor rules", "items": [
+      "A customer may cancel only before Checked In",
+      "A technician moves a job, not the appointment, to In Progress",
+      "A manager may drive every transition"
+    ]}
+  ]
+}

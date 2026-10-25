@@ -1,0 +1,91 @@
+name: PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  code-review:
+    name: Alibaba OCR Delegate Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "20"
+
+      - name: Install open-code-review CLI
+        run: npm install -g @alibaba/open-code-review@latest
+
+      - name: Run OCR delegate preview
+        id: ocr
+        run: |
+          ocr delegate preview --format json > ocr-findings.json || true
+          echo "findings=$(cat ocr-findings.json | wc -l)" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Comment OCR findings on PR
+        uses: actions/github-script@v7.0.1
+        if: always()
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '## 🔍 Alibaba Open Code Review (delegate mode)\n\n';
+            try {
+              const findings = JSON.parse(fs.readFileSync('ocr-findings.json', 'utf8'));
+              if (findings.length === 0) {
+                body += '✅ No findings. All checks passed.\n';
+              } else {
+                const critical = findings.filter(f => f.severity === 'CRITICAL');
+                const high     = findings.filter(f => f.severity === 'HIGH');
+                const medium   = findings.filter(f => f.severity === 'MEDIUM');
+                body += `Found ${findings.length} finding(s): ${critical.length} critical, ${high.length} high, ${medium.length} medium.\n\n`;
+                if (critical.length + high.length > 0) {
+                  body += '> ⚠️ **Critical and high findings must be resolved before merge.**\n\n';
+                }
+                findings.slice(0, 20).forEach(f => {
+                  body += `**[${f.severity}]** \`${f.path}\` line ${f.line}: ${f.message}\n\n`;
+                });
+                if (findings.length > 20) body += `_...and ${findings.length - 20} more._\n`;
+              }
+            } catch (e) {
+              body += '_OCR delegate could not run or produced no output._\n';
+            }
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+  openspec-check:
+    name: OpenSpec Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "20"
+
+      - name: Install OpenSpec CLI
+        run: npm install -g openspec@latest
+
+      - name: Validate all specs
+        run: openspec validate --strict
+        continue-on-error: true
