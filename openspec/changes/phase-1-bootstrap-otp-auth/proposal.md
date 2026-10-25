@@ -32,7 +32,7 @@ The repository is docs-only today. CI, the AGENTS gates, and the Bruno contract 
 
 ### New Capabilities
 
-- `platform-infrastructure`: compose topology, Spring Boot skeleton, tracing/logging/monitoring, DB + Redis healthy connectivity, and the five seed fixtures with the customer scoped to the demo dealership. This capability owns platform-level runnability contracts as later domains land on top.
+- `platform-infrastructure`: compose topology, Spring Boot skeleton, tracing/logging/monitoring, DB + Redis healthy connectivity, and the seed fixtures with the customer scoped to the demo dealership. This capability owns platform-level runnability contracts as later domains land on top.
 - `customer-registration`: registration by phone plus profile info plus a REGISTER-purpose OTP behind one idempotency key, role pinning to CUSTOMER, duplicate-phone rejection, and the created session acting as the customer's first login.
 - `otp-login`: OTP issuance through the Zalo stub with a purpose type, verify-to-login with an `httpOnly` JWT cookie for all four roles (login-purpose OTP only), session introspection, user detail view and edit, and logout. This capability owns phone-OTP session lifecycle.
 

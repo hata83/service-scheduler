@@ -1,0 +1,20 @@
+meta {
+  name: prometheus-metrics
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{BASE_URL}}/actuator/prometheus
+  body: none
+  auth: none
+}
+
+test "prometheus responds 200 with JVM meters" {
+  expect(res.status).to.equal(200);
+  expect(res.body.includes("jvm_memory_used_bytes") || res.body.includes("jvm_gc_")).to.equal(true);
+}
+
+test "prometheus exposes HTTP server request metrics" {
+  expect(res.body.includes("http_server_requests")).to.equal(true);
+}

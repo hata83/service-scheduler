@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    # CI services or Testcontainers inject these env vars; fallback hits compose on host 5433
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/service_scheduler}
+    username: ${SPRING_DATASOURCE_USERNAME:scheduler}
+    password: ${SPRING_DATASOURCE_PASSWORD:scheduler}
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+app:
+  auth:
+    otp:
+      # Fast Bruno windows: echo every code, expire in 15 seconds (HIL-1 round 8)
+      ttl: 15s
+      echo: true
+  ratelimits:
+    # Low-value windows so integration tests hit 429 in seconds (design D7)
+    location: classpath:config/rate-limits-test.json

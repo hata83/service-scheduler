@@ -1,0 +1,49 @@
+# Capacity 1 platform: PostgreSQL 16 + Redis 7 for dev/local, plus the server image.
+# Local dev starts only the engines: `docker compose up -d postgres redis`.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: service_scheduler
+      POSTGRES_USER: scheduler
+      POSTGRES_PASSWORD: scheduler
+    # Host 5432 is taken by another local stack (nabinfarm); this project uses 5433.
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scheduler -d service_scheduler"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Optional full-stack service; compose profile `full` keeps it off the default
+  # `docker compose up -d postgres redis` path, so the jar never fights port 8080
+  # (AGENTS runtime safety + design D10)
+  server:
+    build: .
+    profiles:
+      - "full"
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:

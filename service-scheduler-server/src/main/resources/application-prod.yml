@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    # Unresolved placeholders fail startup with a clear message (design D3: fail-fast prod)
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+app:
+  auth:
+    jwt:
+      # JWT_SECRET is mandatory in prod; an unpadded base64 key of 32+ bytes
+      secret: ${JWT_SECRET}
+    otp:
+      echo: false
+  ratelimits:
+    location: classpath:config/rate-limits.json

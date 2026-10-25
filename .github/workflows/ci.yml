@@ -79,9 +79,11 @@ jobs:
         run: ./gradlew test
         env:
           SPRING_PROFILES_ACTIVE: test
-          SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb;MODE=PostgreSQL
-          SPRING_REDIS_HOST: localhost
-          SPRING_REDIS_PORT: 6379
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/scheduler_test
+          SPRING_DATASOURCE_USERNAME: scheduler
+          SPRING_DATASOURCE_PASSWORD: scheduler
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: "6379"
 
       - name: Integration tests (Testcontainers + PostgreSQL)
         run: ./gradlew integrationTest
@@ -121,7 +123,11 @@ jobs:
           done
         env:
           SPRING_PROFILES_ACTIVE: test
-          SPRING_REDIS_HOST: localhost
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/scheduler_test
+          SPRING_DATASOURCE_USERNAME: scheduler
+          SPRING_DATASOURCE_PASSWORD: scheduler
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: "6379"
 
       - name: Bruno API contract tests
         run: >

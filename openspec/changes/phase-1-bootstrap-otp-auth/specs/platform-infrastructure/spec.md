@@ -54,9 +54,9 @@ The system SHALL emit JSON logs carrying `requestId` and trace correlation field
 
 The system SHALL seed exactly 1 demo dealership and users 1 admin, 1 manager, 1 technician, and 1 customer with the fixed phones from the design, roles matching those phones, and profile rows for the customer and technician. The seeded customer SHALL belong to the demo dealership. Seed migrations SHALL not duplicate rows when reapplied on a preserved database.
 
-#### Scenario: Five seed accounts resolve
+#### Scenario: Seed accounts resolve
 - **WHEN** the integration test runs the migrations on PostgreSQL
-- **THEN** queries find exactly 1 dealership row and exactly 5 user rows with the pinned roles and phones, and the seeded customer references the demo dealership
+- **THEN** queries find exactly 1 dealership row and exactly 4 user rows with the pinned roles and phones, and the seeded customer references the demo dealership
 
 #### Scenario: Migration re-run stays single
 - **WHEN** the migration set applies again against an already-seeded database

@@ -70,8 +70,8 @@ dependencies {
 
     // Database & Migrations — PostgreSQL only, no in-memory SQL engine (HIL-1 round 4)
     runtimeOnly("org.postgresql:postgresql")
-    implementation("org.flywaydb:flyway-core")
-    implementation("org.flywaydb:flyway-database-postgresql")
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
+    runtimeOnly("org.flywaydb:flyway-database-postgresql")
 
     // Auth: JWT session tokens (ADR-005)
     implementation("io.jsonwebtoken:jjwt-api:0.13.0")
@@ -90,11 +90,10 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.4.1")
 
-    // Integration tests: Testcontainers provisions PostgreSQL 16 + Redis 7 (design D3)
-    "integrationTestImplementation"(platform("org.testcontainers:testcontainers-bom:1.21.3"))
-    "integrationTestImplementation"("org.testcontainers:postgresql")
+    // Integration tests: Testcontainers core spins up PostgreSQL 16 + Redis 7
+    // containers directly (design D3); versions come from the Boot BOM property
+    // testcontainers.version (2.0.5)
     "integrationTestImplementation"("org.testcontainers:testcontainers")
-    "integrationTestImplementation"("org.testcontainers:junit-jupiter")
 }
 
 tasks.withType<Test> {

@@ -46,7 +46,7 @@ TASKS    39   done 0  open 39
 ## 4. Schema and seed (Flyway, PostgreSQL-only)
 
 - [ ] 4.1 Add `V1__platform_and_auth_schema.sql` for `dealerships`, `users`, `customers`, `technicians`, `technician_skills` — PostgreSQL-only DDL per design D4 (UUID PKs, `timestamptz` audit columns, role CHECK). Verify `bootRun` (compose) and `integrationTest` (Testcontainers) both apply it, and that nothing references H2.
-- [ ] 4.2 Add `V2__seed_dealer_and_auth.sql` seeding 1 demo dealership, 1 admin, 1 manager, 1 technician (+skills row), and 1 customer scoped to that dealership, with the fixed UUIDs and phones from design D4. Verify `integrationTest` counts 5 user rows, the matching profile rows, and the customer's dealership reference after migration.
+- [ ] 4.2 Add `V2__seed_dealer_and_auth.sql` seeding 1 demo dealership, 1 admin, 1 manager, 1 technician (+skills row), and 1 customer scoped to that dealership, with the fixed UUIDs and phones from design D4. Verify `integrationTest` counts 4 user rows, the matching profile rows, and the customer's dealership reference after migration. (HIL-1 round 9 note: earlier text said 5 user rows; spec scenario, proposal wording, and design D4 all pin four accounts, so the stray count is corrected instead of seeding a phantom 5th user.)
 
 ## 5. OTP login capacity (`otp-login`)
 
