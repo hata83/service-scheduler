@@ -75,7 +75,7 @@ jobs:
       - name: Compile
         run: ./gradlew compileJava compileTestJava
 
-      - name: Unit tests + ArchUnit
+      - name: Unit tests + ArchUnit + Testcontainers
         run: ./gradlew test
         env:
           SPRING_PROFILES_ACTIVE: test
@@ -84,11 +84,6 @@ jobs:
           SPRING_DATASOURCE_PASSWORD: scheduler
           SPRING_DATA_REDIS_HOST: localhost
           SPRING_DATA_REDIS_PORT: "6379"
-
-      - name: Integration tests (Testcontainers + PostgreSQL)
-        run: ./gradlew integrationTest
-        env:
-          SPRING_PROFILES_ACTIVE: test
           TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
 
       - name: JaCoCo coverage report
