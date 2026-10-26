@@ -1,5 +1,5 @@
 CHANGE   phase-1-bootstrap-otp-auth             BRANCH   feature/phase-1-bootstrap-otp-auth
-STATES   14   done 8  current 9  next 10  skipped 0  failed 0  pending 6
+STATES   14   done 9  current 10  next 11  skipped 0  failed 0  pending 4
 TASKS    39   done 39  open 0
 
 # Agentic SDLC state block — reference openspec spec + design + proposal for full 39-task list
@@ -14,8 +14,8 @@ TASKS    39   done 39  open 0
   6  Test                      done     115 unit tests + 49 Bruno requests + 18 Playwright E2E: all green
   7  Review                    done     ocr delegate preview; findings fixed; review.md documented
   8  Verify                    done     clean build SUCCESS + 97.7% line + 100% @Service + OpenSpec valid
-  9  Approval                  current  HIL-2: approve the Phase 1 change before the push
- 10  Publish                   pending  push branch + open PR vs main after HIL-2
+  9  Approval                  done     HIL-2 approval granted by user
+ 10  Publish                   current  configure origin, push branch, open pull request
  11  PR-Verify                 pending  CI must pass (build gate + Bruno + Playwright)
  12  Archive                  pending  /opsx-archive after PR merged
  13  Review-Archive            pending  diagram SVG links + openwiki generation

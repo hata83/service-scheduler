@@ -2,7 +2,7 @@
 
 ```
 CHANGE   phase-1-bootstrap-otp-auth      BRANCH   feature/phase-1-bootstrap-otp-auth
-STATES   14   done 8  current 9  next 10  skipped 0  failed 0  pending 6
+STATES   14   done 9  current 10  next 11  skipped 0  failed 0  pending 4
 TASKS    39   done 39  open 0
 
   #   state                     mark     proof
@@ -14,8 +14,8 @@ TASKS    39   done 39  open 0
   6   Test                      done     115 unit tests + 49 Bruno requests + 18 Playwright E2E
   7   Review                    done     ocr delegate preview clean; review.md documented
   8   Verify                    done     clean build SUCCESS + 97.7% line + 100% @Service + OpenSpec valid
-  9   Request approval          current  HIL-2 pending the human gate
-  10  Publish                   pending  push branch + open PR after HIL-2
+  9   Request approval          done     HIL-2 approval granted by user
+  10  Publish                   current  configure origin, push branch, open pull request
   11  Verify PR                 pending  CI must pass (Bruno + Playwright + build gate)
   12  Archive                   pending  /opsx-archive after PR merged
   13  Review archive            pending  diagram SVG links + openwiki generation
