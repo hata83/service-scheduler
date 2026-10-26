@@ -43,6 +43,13 @@ jobs:
           ocr delegate rule service-scheduler-server/src/main/java/dev/hata/scheduler/auth/ > ocr-rules.txt 2>&1 || true
         continue-on-error: true
 
+      - name: Request GitHub Copilot PR review
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --add-reviewer '@copilot' || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
       - name: Comment OCR findings on PR
         uses: actions/github-script@v7.0.1
         if: always()

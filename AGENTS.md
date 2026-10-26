@@ -157,11 +157,20 @@ Present the change, its diff, and State 8 results. Wait. Do not push before a hu
 Commit the verified tree. Push the branch. Open a pull request against `main`.
 
 **State 11 — Verify the Pull Request**
-Read the CI check result for the pull request. Inspect all review comments in the pull request.
-GitHub Copilot reviews code directly on files in the pull request diff.
-Fix every GitHub Copilot review comment and every reviewer comment before you ask for approval to archive.
-- Every required check passed and all PR review comments are resolved → go to State 12.
-- Any check failed or any Copilot review comment remains open → take the findings back to State 4, fix the code, test, push again, re-enter State 11.
+Read CI check results for the pull request.
+GitHub Copilot agent on GitHub.com reviews the code directly on changed files in the pull request diff.
+Inspect all review comments via GitHub CLI:
+```sh
+gh pr view --comments
+gh api repos/:owner/:repo/pulls/:number/comments
+```
+Fix every finding reported by GitHub Copilot on the PR diff:
+1. Locate the file and line in the local workspace.
+2. Apply the fix following the verification ladder (TDD, Spotless, tests).
+3. Record the finding, fix diff, and proof in `openspec/changes/<change-slug>/review.md`.
+4. Commit, push the branch, and resolve the PR review thread.
+- All CI checks passed and all Copilot review comments are resolved → go to State 12.
+- Any check failed or any Copilot review comment remains open → fix code in State 4, push again, re-enter State 11.
 
 **State 12 — Archive**
 Verify that all CI checks pass and all Copilot PR review comments are resolved. Run `/opsx-archive`. Move Archify diagrams this change produced to `docs/diagrams/`. Link the interactive HTML viewer in the relevant document.
@@ -405,6 +414,17 @@ ocr delegate run --format json
 Fix every critical and high finding. Repeat from preview until a pass reports nothing critical or high.
 Document every review run in `openspec/changes/<change-slug>/review.md`. Include finding lists, severity ranks, status results, reproduction steps, and re-check proofs.
 All code reviews, Bruno integration tests, and Playwright E2E tests must pass. If any check fails, return to the loop (`code → format → test → review → fix → code → ...`).
+
+### `copilot-pr-review` (Cloud GitHub Copilot Review)
+
+GitHub Copilot agent reviews pull requests on GitHub.com.
+Configure `.github/copilot-instructions.md` and `.github/workflows/copilot-setup-steps.yml`.
+The cloud Copilot agent posts inline review comments on code files in the pull request diff.
+Fetch cloud review comments locally:
+```sh
+gh api repos/:owner/:repo/pulls/:number/comments
+```
+The local agent fixes each finding, tests it, documents it in `openspec/changes/<change-slug>/review.md`, and pushes the fix.
 
 ### `agent-architecture-audit` (ECC)
 
