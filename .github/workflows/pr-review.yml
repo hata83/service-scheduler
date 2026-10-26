@@ -87,5 +87,5 @@ jobs:
         run: npm install -g openspec@latest
 
       - name: Validate all specs
-        run: openspec validate --strict
+        run: openspec validate --all --strict
         continue-on-error: true

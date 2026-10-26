@@ -4,7 +4,7 @@ on:
   push:
     branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: [master, main]
 
 permissions:
   contents: read
@@ -172,7 +172,7 @@ jobs:
           reporter: java-junit
 
       - name: openspec validate
-        run: openspec validate --strict
+        run: npx --yes openspec validate --all --strict
         continue-on-error: true
 
       - name: Full build gate
