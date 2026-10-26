@@ -16,10 +16,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.util.Map;
 
-import dev.hata.scheduler.auth.model.AuthPrincipal;
 import dev.hata.scheduler.auth.service.AuthService;
 import dev.hata.scheduler.common.exception.AuthException;
 import dev.hata.scheduler.common.exception.GlobalExceptionHandler;
+import dev.hata.scheduler.common.filter.AuthFilter;
+import dev.hata.scheduler.common.security.AuthPrincipal;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

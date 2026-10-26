@@ -23,7 +23,7 @@ INSERT INTO dealerships (
 
 UPDATE users
    SET dealership_id = '00000000-0000-0000-0000-000000000001'
- WHERE role IN ('MANAGER', 'TECHNICIAN', 'CUSTOMER');
+ WHERE role IN ('MANAGER', 'TECHNICIAN');
 
 INSERT INTO technicians (
   user_id, dealership_id, employee_id, first_name, last_name, created_by, updated_by
@@ -51,7 +51,7 @@ INSERT INTO customers (
   user_id, dealership_id, first_name, last_name, created_by, updated_by
 ) VALUES (
   '00000000-0000-0000-0000-000000000005',
-  '00000000-0000-0000-0000-000000000001',
+  NULL,
   'Demo',
   'Customer',
   '00000000-0000-0000-0000-000000000002',

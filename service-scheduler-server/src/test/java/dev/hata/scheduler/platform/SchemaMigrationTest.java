@@ -89,13 +89,22 @@ class SchemaMigrationTest {
     }
 
     @Test
-    void seededCustomerReferencesTheDemoDealership() {
-        String dealershipId = jdbc.queryForObject(
-                "SELECT u.dealership_id::text FROM users u WHERE u.phone = '+84900000004'", String.class);
+    void staffReferenceDemoDealershipWhileCustomerAndAdminAreGlobal() {
         String demoDealershipId = jdbc.queryForObject(
                 "SELECT id::text FROM dealerships WHERE name = 'Hata Demo Service Center'", String.class);
+        String customerDealershipId = jdbc.queryForObject(
+                "SELECT u.dealership_id::text FROM users u WHERE u.phone = '+84900000004'", String.class);
+        String adminDealershipId = jdbc.queryForObject(
+                "SELECT u.dealership_id::text FROM users u WHERE u.phone = '+84900000001'", String.class);
+        String managerDealershipId = jdbc.queryForObject(
+                "SELECT u.dealership_id::text FROM users u WHERE u.phone = '+84900000002'", String.class);
+        String techDealershipId = jdbc.queryForObject(
+                "SELECT u.dealership_id::text FROM users u WHERE u.phone = '+84900000003'", String.class);
 
-        assertThat(dealershipId).isEqualTo(demoDealershipId);
+        assertThat(customerDealershipId).isNull();
+        assertThat(adminDealershipId).isNull();
+        assertThat(managerDealershipId).isEqualTo(demoDealershipId);
+        assertThat(techDealershipId).isEqualTo(demoDealershipId);
     }
 
     @Test

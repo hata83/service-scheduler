@@ -1,26 +1,23 @@
 package dev.hata.scheduler.auth.service;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
-import dev.hata.scheduler.auth.config.AuthProperties;
-import dev.hata.scheduler.auth.model.AuthPrincipal;
-import dev.hata.scheduler.auth.model.OtpPurpose;
 import dev.hata.scheduler.auth.model.User;
-import dev.hata.scheduler.auth.repository.OtpStorage;
-import dev.hata.scheduler.auth.repository.SessionStore;
 import dev.hata.scheduler.auth.repository.UserRepository;
-import dev.hata.scheduler.common.config.RateLimitProperties;
 import dev.hata.scheduler.common.exception.AuthException;
+import dev.hata.scheduler.common.idempotency.IdempotencyService;
+import dev.hata.scheduler.common.idempotency.IdempotencyStore;
+import dev.hata.scheduler.common.otp.OtpService;
+import dev.hata.scheduler.common.otp.OtpType;
 import dev.hata.scheduler.common.port.CustomerProfileProvider;
-import dev.hata.scheduler.common.port.DealershipFeaturesProvider;
-import dev.hata.scheduler.common.port.IdempotencyStore;
-import dev.hata.scheduler.common.port.WindowCounter;
+import dev.hata.scheduler.common.ratelimit.RateLimitService;
+import dev.hata.scheduler.common.security.AuthPrincipal;
+import dev.hata.scheduler.common.security.JwtService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -40,100 +37,51 @@ public class AuthService {
     private static final Pattern E164 = Pattern.compile("^\\+[1-9]\\d{7,14}$");
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private final OtpStorage otp;
-    private final OtpChannel channel;
+    private final OtpService otp;
     private final JwtService jwt;
-    private final SessionStore sessions;
     private final UserRepository users;
     private final CustomerProfileProvider profiles;
-    private final IdempotencyStore idempotency;
-    private final WindowCounter counter;
-    private final DealershipFeaturesProvider dealershipFeatures;
-    private final RateLimitProperties rateLimits;
-    private final AuthProperties properties;
+    private final IdempotencyService idempotency;
+    private final RateLimitService rateLimits;
 
-    AuthService(
-            OtpStorage otp,
-            OtpChannel channel,
+    public AuthService(
+            OtpService otp,
             JwtService jwt,
-            SessionStore sessions,
             UserRepository users,
             CustomerProfileProvider profiles,
-            IdempotencyStore idempotency,
-            WindowCounter counter,
-            DealershipFeaturesProvider dealershipFeatures,
-            RateLimitProperties rateLimits,
-            AuthProperties properties) {
+            IdempotencyService idempotency,
+            RateLimitService rateLimits) {
         this.otp = otp;
-        this.channel = channel;
         this.jwt = jwt;
-        this.sessions = sessions;
         this.users = users;
         this.profiles = profiles;
         this.idempotency = idempotency;
-        this.counter = counter;
-        this.dealershipFeatures = dealershipFeatures;
         this.rateLimits = rateLimits;
-        this.properties = properties;
     }
 
     /**
-     * Resolves caller identity from a JWT session token.
+     * Issues a purpose-scoped OTP and publishes an event for channel dispatch (design D7).
+     * A replayed idempotency key returns the cached 202 body and dispatches nothing.
      */
-    public Optional<AuthPrincipal> authenticate(String token) {
-        if (token == null || token.isBlank()) {
-            return Optional.empty();
-        }
-        return jwt.read(token).filter(claims -> sessions.exists(claims.getId())).map(claims -> {
-            String dealershipId = claims.get("did", String.class);
-            return new AuthPrincipal(
-                    UUID.fromString(claims.getSubject()),
-                    claims.get("role", String.class),
-                    claims.get("ph", String.class),
-                    dealershipId == null || dealershipId.isBlank() ? null : UUID.fromString(dealershipId),
-                    claims.getId());
-        });
-    }
-
-    /**
-     * Issues a purpose-scoped OTP and dispatches it through the channel stub
-     * (design D7). A replayed idempotency key returns the cached 202 body and
-     * dispatches nothing.
-     */
-    public Result sendOtp(String phone, String type, String idempotencyKey, HttpServletRequest request) {
+    public Result sendOtp(String phone, String typeWire, String idempotencyKey, HttpServletRequest request) {
         String slot = idempotency.slot("otp-send", phone, idempotencyKey);
-        Optional<IdempotencyStore.CachedResponse> cached = Optional.ofNullable(idempotency.load(slot));
+        Optional<IdempotencyStore.CachedResponse> cached = idempotency.load(slot);
         if (cached.isPresent()) {
             return Result.fromCached(cached.get());
         }
         requirePhone(phone);
-        OtpPurpose purpose = OtpPurpose.fromWire(type);
-        String ip = clientIp(request);
+        OtpType type = OtpType.fromWire(typeWire);
+        String ip = rateLimits.clientIp(request);
 
-        RateLimitProperties.Resolved limits = limitsFor(phone);
-        if (!counter.tryAcquire(
-                "ratelimit:otp-send:phone:" + phone + ":" + purpose.value(),
-                limits.otpSendPerPhonePurpose(),
-                limits.otpSendPerPhonePurposeWindow())) {
-            throw new AuthException(
-                    HttpStatus.TOO_MANY_REQUESTS,
-                    "Rate limit exceeded",
-                    "Too many OTP requests for this phone and purpose. Try again later.");
-        }
-        if (!counter.tryAcquire("ratelimit:otp-send:ip:" + ip, limits.otpSendPerIp(), limits.otpSendPerIpWindow())) {
-            throw new AuthException(
-                    HttpStatus.TOO_MANY_REQUESTS,
-                    "Rate limit exceeded",
-                    "Too many OTP requests from this address. Try again later.");
-        }
+        UUID dealershipId = findDealershipId(phone);
+        rateLimits.checkOtpSend(phone, type.value(), ip, dealershipId);
 
-        String code = otp.save(phone, purpose);
-        channel.send(phone, code);
+        String code = otp.generateAndSend(phone, type);
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("phone", phone);
-        body.put("type", purpose.name());
-        if (properties.otp().echo()) {
+        body.put("type", type.name());
+        if (otp.isEchoEnabled()) {
             body.put("otpCode", code);
         }
         Result result = new Result(202, body, null);
@@ -142,38 +90,31 @@ public class AuthService {
     }
 
     /**
-     * Logs in a seeded account. Verify never creates a user row (spec: login by
-     * verified OTP).
+     * Logs in a seeded account. Verify never creates a user row (spec: login by verified OTP).
      */
     @Transactional
     public Result verifyOtp(String phone, String code, String idempotencyKey, HttpServletRequest request) {
         String slot = idempotency.slot("otp-verify", phone, idempotencyKey);
-        Optional<IdempotencyStore.CachedResponse> cached = Optional.ofNullable(idempotency.load(slot));
+        Optional<IdempotencyStore.CachedResponse> cached = idempotency.load(slot);
         if (cached.isPresent()) {
             return Result.fromCached(cached.get());
         }
         requirePhone(phone);
-        String ip = clientIp(request);
+        String ip = rateLimits.clientIp(request);
 
-        RateLimitProperties.Resolved limits = limitsFor(phone);
-        if (!counter.tryAcquire(
-                "ratelimit:otp-verify:ip:" + ip, limits.otpVerifyPerIp(), limits.otpVerifyPerIpWindow())) {
-            throw new AuthException(
-                    HttpStatus.TOO_MANY_REQUESTS,
-                    "Rate limit exceeded",
-                    "Too many verification requests from this address. Try again later.");
-        }
+        UUID dealershipId = findDealershipId(phone);
+        rateLimits.checkOtpVerify(ip, dealershipId);
 
         Optional<User> found = users.findByPhone(phone);
         if (found.isEmpty()) {
-            otp.consume(phone, OtpPurpose.LOGIN, code);
+            otp.verify(phone, OtpType.LOGIN, code);
             throw new AuthException(
                     HttpStatus.UNAUTHORIZED,
                     "Phone is not registered",
                     "This phone has no account. Register the customer first, then log in.");
         }
         User user = found.get();
-        if (!otp.consume(phone, OtpPurpose.LOGIN, code)) {
+        if (!otp.verify(phone, OtpType.LOGIN, code)) {
             throw new AuthException(
                     HttpStatus.UNAUTHORIZED,
                     "OTP verification failed",
@@ -187,6 +128,7 @@ public class AuthService {
     /**
      * Creates the customer account and the login session in one call
      * (design D11 / spec: one-shot registration).
+     * Customer accounts are global across dealerships (dealershipId is null).
      */
     @Transactional
     public Result register(
@@ -198,7 +140,7 @@ public class AuthService {
             String idempotencyKey,
             HttpServletRequest request) {
         String slot = idempotency.slot("register", phone, idempotencyKey);
-        Optional<IdempotencyStore.CachedResponse> cached = Optional.ofNullable(idempotency.load(slot));
+        Optional<IdempotencyStore.CachedResponse> cached = idempotency.load(slot);
         if (cached.isPresent()) {
             return Result.fromCached(cached.get());
         }
@@ -213,15 +155,8 @@ public class AuthService {
             throw new AuthException(
                     HttpStatus.BAD_REQUEST, "Invalid request body", "The request needs a firstName and a lastName.");
         }
-        String ip = clientIp(request);
-
-        RateLimitProperties.Resolved limits = limitsFor(null);
-        if (!counter.tryAcquire("ratelimit:register:ip:" + ip, limits.registerPerIp(), limits.registerPerIpWindow())) {
-            throw new AuthException(
-                    HttpStatus.TOO_MANY_REQUESTS,
-                    "Rate limit exceeded",
-                    "Too many registration requests from this address. Try again later.");
-        }
+        String ip = rateLimits.clientIp(request);
+        rateLimits.checkRegister(ip);
 
         if (users.existsByPhone(phone)) {
             throw new AuthException(
@@ -229,18 +164,17 @@ public class AuthService {
                     "Phone already registered",
                     "This phone already belongs to an account. Use the login flow instead.");
         }
-        if (!otp.consume(phone, OtpPurpose.REGISTER, code)) {
+        if (!otp.verify(phone, OtpType.REGISTER, code)) {
             throw new AuthException(
                     HttpStatus.UNAUTHORIZED,
                     "OTP verification failed",
                     "The code is wrong, expired, or was issued for another purpose.");
         }
 
-        UUID dealershipId = UUID.fromString(properties.registration().defaultDealershipId());
         UUID userId = UUID.randomUUID();
-        User user = newUser(userId, phone, "CUSTOMER", dealershipId);
+        User user = newUser(userId, phone, "CUSTOMER", null);
         users.save(user);
-        profiles.createProfile(userId, dealershipId, firstName.trim(), lastName.trim());
+        profiles.createProfile(userId, null, firstName.trim(), lastName.trim());
 
         Result result = issueSession(user, 201);
         idempotency.store(slot, result.toCached());
@@ -315,25 +249,24 @@ public class AuthService {
     }
 
     /**
-     * Revokes the session and clears the cookie (spec: logout revocation).
-     */
-    public void logout(AuthPrincipal principal) {
-        sessions.revoke(principal.jti());
-    }
-
-    /**
      * Builds the session cookie header.
      */
     public String sessionCookie(String token, Duration maxAge) {
-        return properties.jwt().cookieName() + "=" + token + "; Path=/; HttpOnly; SameSite=Strict; Max-Age="
-                + maxAge.toSeconds();
+        return jwt.cookieName() + "=" + token + "; Path=/; HttpOnly; SameSite=Strict; Max-Age=" + maxAge.toSeconds();
+    }
+
+    /**
+     * Stateless logout: client-side cookie clearing handles revocation.
+     */
+    public void logout(AuthPrincipal principal) {
+        // In a stateless JWT architecture, logout clears the cookie on the client.
     }
 
     /**
      * Builds the cookie header that clears the session cookie.
      */
     public String clearedCookie() {
-        return properties.jwt().cookieName() + "=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0";
+        return jwt.cookieName() + "=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0";
     }
 
     private Result issueSession(User user, int status) {
@@ -342,7 +275,6 @@ public class AuthService {
                 user.getRole(),
                 user.getPhone(),
                 user.getDealershipId() == null ? null : user.getDealershipId().toString());
-        sessions.save(issued.jti(), user.getId().toString(), Duration.between(Instant.now(), issued.expiresAt()));
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("id", user.getId().toString());
         body.put("role", user.getRole());
@@ -350,26 +282,11 @@ public class AuthService {
         body.put(
                 "dealershipId",
                 user.getDealershipId() == null ? null : user.getDealershipId().toString());
-        return new Result(
-                status, body, sessionCookie(issued.token(), properties.jwt().ttl()));
+        return new Result(status, body, sessionCookie(issued.token(), jwt.ttl()));
     }
 
-    private RateLimitProperties.Resolved limitsFor(String phone) {
-        UUID dealershipId = null;
-        if (phone != null) {
-            dealershipId = users.findByPhone(phone).map(User::getDealershipId).orElse(null);
-        }
-        return dealershipFeatures.resolveRateLimits(dealershipId);
-    }
-
-    private String clientIp(HttpServletRequest request) {
-        if (rateLimits.trustForwardedFor()) {
-            String forwarded = request.getHeader("X-Forwarded-For");
-            if (forwarded != null && !forwarded.isBlank()) {
-                return forwarded.split(",")[0].trim();
-            }
-        }
-        return request.getRemoteAddr();
+    private UUID findDealershipId(String phone) {
+        return users.findByPhone(phone).map(User::getDealershipId).orElse(null);
     }
 
     private void requirePhone(String phone) {

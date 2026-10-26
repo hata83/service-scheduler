@@ -4,8 +4,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import dev.hata.scheduler.common.config.RateLimitProperties;
 import dev.hata.scheduler.common.port.DealershipFeaturesProvider;
+import dev.hata.scheduler.common.ratelimit.RateLimitProperties;
 import dev.hata.scheduler.dealership.model.Dealership;
 import dev.hata.scheduler.dealership.repository.DealershipRepository;
 

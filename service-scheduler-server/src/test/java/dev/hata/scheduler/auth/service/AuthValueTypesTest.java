@@ -1,22 +1,25 @@
 package dev.hata.scheduler.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Duration;
 import java.util.UUID;
 
-import dev.hata.scheduler.auth.config.AuthProperties;
-import dev.hata.scheduler.auth.model.AuthPrincipal;
-import dev.hata.scheduler.auth.model.OtpPurpose;
 import dev.hata.scheduler.auth.model.User;
 import dev.hata.scheduler.common.exception.ApiProblem;
 import dev.hata.scheduler.common.exception.AuthException;
+import dev.hata.scheduler.common.otp.OtpProperties;
+import dev.hata.scheduler.common.otp.OtpType;
+import dev.hata.scheduler.common.security.AuthPrincipal;
+import dev.hata.scheduler.common.security.JwtProperties;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 
 /**
- * Covers the small value types of the auth feature: the entities, the OTP
- * purpose mapping, the session store contract and the problem body.
+ * Covers the small value types of the auth and common features: the entities, the OTP
+ * type mapping, properties, and the problem body.
  */
 class AuthValueTypesTest {
 
@@ -40,41 +43,29 @@ class AuthValueTypesTest {
     }
 
     @Test
-    void otpPurposeMapsTheWireType() {
-        assertThat(OtpPurpose.fromWire("LOGIN")).isEqualTo(OtpPurpose.LOGIN);
-        assertThat(OtpPurpose.fromWire("register")).isEqualTo(OtpPurpose.REGISTER);
-        assertThat(OtpPurpose.LOGIN.value()).isEqualTo("login");
-        assertThat(OtpPurpose.REGISTER.value()).isEqualTo("register");
+    void otpTypeMapsTheWireType() {
+        assertThat(OtpType.fromWire("LOGIN")).isEqualTo(OtpType.LOGIN);
+        assertThat(OtpType.fromWire("register")).isEqualTo(OtpType.REGISTER);
+        assertThat(OtpType.LOGIN.value()).isEqualTo("login");
+        assertThat(OtpType.REGISTER.value()).isEqualTo("register");
     }
 
     @Test
-    void otpPurposeRejectsAnUnknownType() {
-        assertThat(org.junit.jupiter.api.Assertions.assertThrows(
-                        IllegalArgumentException.class, () -> OtpPurpose.fromWire("NOPE")))
+    void otpTypeRejectsAnUnknownType() {
+        assertThat(assertThrows(IllegalArgumentException.class, () -> OtpType.fromWire("NOPE")))
                 .hasMessageContaining("NOPE");
-        assertThat(org.junit.jupiter.api.Assertions.assertThrows(
-                        IllegalArgumentException.class, () -> OtpPurpose.fromWire(null)))
-                .hasMessageContaining("required");
-    }
-
-    @Test
-    void zaloStubPrintsTheCode() {
-        ZaloStubOtpChannel channel = new ZaloStubOtpChannel();
-
-        channel.send("+84900000004", "483920");
+        assertThat(assertThrows(IllegalArgumentException.class, () -> OtpType.fromWire(null)))
+                .hasMessageContaining("missing");
     }
 
     @Test
     void authExceptionCarriesItsStatusAndTitle() {
-        AuthException exception = new AuthException(
-                org.springframework.http.HttpStatus.UNAUTHORIZED, "OTP verification failed", "The code is wrong.");
+        AuthException exception =
+                new AuthException(HttpStatus.UNAUTHORIZED, "OTP verification failed", "The code is wrong.");
         AuthException withCause = new AuthException(
-                org.springframework.http.HttpStatus.BAD_REQUEST,
-                "Unknown OTP type",
-                "bad",
-                new IllegalArgumentException("bad"));
+                HttpStatus.BAD_REQUEST, "Unknown OTP type", "bad", new IllegalArgumentException("bad"));
 
-        assertThat(exception.httpStatus()).isEqualTo(org.springframework.http.HttpStatus.UNAUTHORIZED);
+        assertThat(exception.httpStatus()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(exception.problemTitle()).isEqualTo("OTP verification failed");
         assertThat(exception.getMessage()).isEqualTo("The code is wrong.");
         assertThat(withCause.getCause()).isInstanceOf(IllegalArgumentException.class);
@@ -104,16 +95,21 @@ class AuthValueTypesTest {
     }
 
     @Test
-    void authPropertiesCarryTheConfiguredValues() {
-        AuthProperties properties = new AuthProperties(
-                new AuthProperties.Jwt("secret", "service-scheduler", Duration.ofHours(8), "jwt"),
-                new AuthProperties.Otp(Duration.ofMinutes(5), true, "zalo-stub"),
-                new AuthProperties.Registration(DEALERSHIP.toString()));
+    void jwtPropertiesCarryTheConfiguredValues() {
+        JwtProperties properties = new JwtProperties(
+                "secret-key-123456789012345678901234567890", "service-scheduler", Duration.ofHours(8), "jwt");
 
-        assertThat(properties.jwt().cookieName()).isEqualTo("jwt");
-        assertThat(properties.jwt().ttl()).isEqualTo(Duration.ofHours(8));
-        assertThat(properties.otp().echo()).isTrue();
-        assertThat(properties.otp().channel()).isEqualTo("zalo-stub");
-        assertThat(properties.registration().defaultDealershipId()).isEqualTo(DEALERSHIP.toString());
+        assertThat(properties.cookieName()).isEqualTo("jwt");
+        assertThat(properties.ttl()).isEqualTo(Duration.ofHours(8));
+        assertThat(properties.issuer()).isEqualTo("service-scheduler");
+    }
+
+    @Test
+    void otpPropertiesCarryTheConfiguredValues() {
+        OtpProperties properties = new OtpProperties(Duration.ofMinutes(5), true, "zalo-stub");
+
+        assertThat(properties.ttl()).isEqualTo(Duration.ofMinutes(5));
+        assertThat(properties.echo()).isTrue();
+        assertThat(properties.channel()).isEqualTo("zalo-stub");
     }
 }

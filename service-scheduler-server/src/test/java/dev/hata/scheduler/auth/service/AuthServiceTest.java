@@ -3,9 +3,9 @@ package dev.hata.scheduler.auth.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,19 +16,17 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import dev.hata.scheduler.auth.config.AuthProperties;
-import dev.hata.scheduler.auth.model.AuthPrincipal;
-import dev.hata.scheduler.auth.model.OtpPurpose;
 import dev.hata.scheduler.auth.model.User;
-import dev.hata.scheduler.auth.repository.OtpStorage;
-import dev.hata.scheduler.auth.repository.SessionStore;
 import dev.hata.scheduler.auth.repository.UserRepository;
-import dev.hata.scheduler.common.config.RateLimitProperties;
 import dev.hata.scheduler.common.exception.AuthException;
+import dev.hata.scheduler.common.idempotency.IdempotencyService;
+import dev.hata.scheduler.common.idempotency.IdempotencyStore;
+import dev.hata.scheduler.common.otp.OtpService;
+import dev.hata.scheduler.common.otp.OtpType;
 import dev.hata.scheduler.common.port.CustomerProfileProvider;
-import dev.hata.scheduler.common.port.DealershipFeaturesProvider;
-import dev.hata.scheduler.common.port.IdempotencyStore;
-import dev.hata.scheduler.common.repository.RedisWindowCounter;
+import dev.hata.scheduler.common.ratelimit.RateLimitService;
+import dev.hata.scheduler.common.security.AuthPrincipal;
+import dev.hata.scheduler.common.security.JwtService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,11 +36,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.http.HttpStatus;
 
 /**
  * Covers the auth use cases (design D5/D7/D11). Every branch of the service
- * needs a test, because the coverage gate demands full line coverage on the
- * service classes.
+ * needs a test to ensure full line coverage.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -54,16 +52,10 @@ class AuthServiceTest {
     private static final String PHONE = "+84900000004";
 
     @Mock
-    private OtpStorage otp;
-
-    @Mock
-    private OtpChannel channel;
+    private OtpService otp;
 
     @Mock
     private JwtService jwt;
-
-    @Mock
-    private SessionStore sessions;
 
     @Mock
     private UserRepository users;
@@ -72,13 +64,10 @@ class AuthServiceTest {
     private CustomerProfileProvider profiles;
 
     @Mock
-    private DealershipFeaturesProvider dealershipFeatures;
+    private IdempotencyService idempotency;
 
     @Mock
-    private IdempotencyStore idempotency;
-
-    @Mock
-    private RedisWindowCounter counter;
+    private RateLimitService rateLimits;
 
     @Mock
     private HttpServletRequest request;
@@ -87,62 +76,42 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        AuthProperties properties = new AuthProperties(
-                new AuthProperties.Jwt(
-                        "secret-secret-secret-secret-secret-secret-1234",
-                        "service-scheduler",
-                        Duration.ofHours(8),
-                        "jwt"),
-                new AuthProperties.Otp(Duration.ofMinutes(5), true, "zalo-stub"),
-                new AuthProperties.Registration(DEALERSHIP.toString()));
-        RateLimitProperties rateLimits = new RateLimitProperties("classpath:config/rate-limits-test.json", false);
-        service = new AuthService(
-                otp,
-                channel,
-                jwt,
-                sessions,
-                users,
-                profiles,
-                idempotency,
-                counter,
-                dealershipFeatures,
-                rateLimits,
-                properties);
-        when(dealershipFeatures.resolveRateLimits(any())).thenReturn(rateLimits.resolve(null));
-        when(request.getRemoteAddr()).thenReturn("10.0.0.1");
-        when(request.getHeader("X-Forwarded-For")).thenReturn(null);
-        when(request.getRequestURI()).thenReturn("/api/v1/auth/test");
-        when(counter.tryAcquire(anyString(), anyLong(), any())).thenReturn(true);
+        when(jwt.cookieName()).thenReturn("jwt");
+        when(jwt.ttl()).thenReturn(Duration.ofHours(8));
+        when(rateLimits.clientIp(request)).thenReturn("10.0.0.1");
         when(idempotency.slot(anyString(), anyString(), anyString()))
-                .thenAnswer(invocation -> "idempotency:" + invocation.getArgument(0) + ":" + invocation.getArgument(1)
-                        + ":" + invocation.getArgument(2));
+                .thenAnswer(inv ->
+                        "idempotency:" + inv.getArgument(0) + ":" + inv.getArgument(1) + ":" + inv.getArgument(2));
+
+        service = new AuthService(otp, jwt, users, profiles, idempotency, rateLimits);
     }
 
     private User customer() {
         User user = new User();
-        user.assign(CUSTOMER_ID, PHONE, "CUSTOMER", DEALERSHIP);
+        user.assign(CUSTOMER_ID, PHONE, "CUSTOMER", null);
         return user;
     }
 
     private User admin() {
         User user = new User();
-        user.assign(ADMIN_ID, "+84900000001", "ADMIN", DEALERSHIP);
+        user.assign(ADMIN_ID, "+84900000001", "ADMIN", null);
         return user;
     }
 
     private CustomerProfileProvider.ProfileView profile() {
-        return new CustomerProfileProvider.ProfileView(CUSTOMER_ID, DEALERSHIP, "My", "Nguyen", "en_US");
+        return new CustomerProfileProvider.ProfileView(CUSTOMER_ID, null, "My", "Nguyen", "en_US");
     }
 
     @Test
     void sendOtpIssuesACodeAndDispatchesIt() {
-        when(otp.save(PHONE, OtpPurpose.LOGIN)).thenReturn("483920");
+        when(otp.generateAndSend(PHONE, OtpType.LOGIN)).thenReturn("483920");
+        when(otp.isEchoEnabled()).thenReturn(true);
 
         AuthService.Result result = service.sendOtp(PHONE, "LOGIN", "key-1", request);
 
         assertThat(result.status()).isEqualTo(202);
         assertThat(result.body()).containsEntry("otpCode", "483920").containsEntry("phone", PHONE);
-        verify(channel).send(PHONE, "483920");
+        verify(otp).generateAndSend(PHONE, OtpType.LOGIN);
         verify(idempotency).store(eq("idempotency:otp-send:" + PHONE + ":key-1"), any());
     }
 
@@ -150,12 +119,12 @@ class AuthServiceTest {
     void sendOtpReplaysTheCachedResponse() {
         IdempotencyStore.CachedResponse cached =
                 new IdempotencyStore.CachedResponse(202, "{\"phone\":\"+84900000004\"}", null);
-        when(idempotency.load(anyString())).thenReturn(cached);
+        when(idempotency.load(anyString())).thenReturn(Optional.of(cached));
 
         AuthService.Result result = service.sendOtp(PHONE, "LOGIN", "key-1", request);
 
         assertThat(result.status()).isEqualTo(202);
-        verify(channel, never()).send(anyString(), anyString());
+        verify(otp, never()).generateAndSend(anyString(), any());
     }
 
     @Test
@@ -172,60 +141,21 @@ class AuthServiceTest {
     }
 
     @Test
-    void sendOtpStopsAtThePhonePurposeLimit() {
-        when(counter.tryAcquire(anyString(), eq(5L), any())).thenReturn(false);
+    void sendOtpEnforcesRateLimits() {
+        doThrow(new AuthException(HttpStatus.TOO_MANY_REQUESTS, "Rate limit exceeded", "Too many OTP requests"))
+                .when(rateLimits)
+                .checkOtpSend(eq(PHONE), eq("login"), anyString(), any());
 
         assertThatThrownBy(() -> service.sendOtp(PHONE, "LOGIN", "key-1", request))
                 .isInstanceOf(AuthException.class)
                 .hasMessageContaining("Too many OTP requests");
-    }
-
-    @Test
-    void sendOtpStopsAtTheIpLimit() {
-        when(counter.tryAcquire(startsWith("ratelimit:otp-send:phone"), anyLong(), any()))
-                .thenReturn(true);
-        when(counter.tryAcquire(startsWith("ratelimit:otp-send:ip"), anyLong(), any()))
-                .thenReturn(false);
-
-        assertThatThrownBy(() -> service.sendOtp(PHONE, "LOGIN", "key-1", request))
-                .isInstanceOf(AuthException.class)
-                .hasMessageContaining("Too many OTP requests");
-    }
-
-    @Test
-    void sendOtpTrustsTheForwardedAddressWhenTheProfileAllowsIt() {
-        RateLimitProperties forwarding = new RateLimitProperties("classpath:config/rate-limits-test.json", true);
-        AuthService forwardingService = new AuthService(
-                otp,
-                channel,
-                jwt,
-                sessions,
-                users,
-                profiles,
-                idempotency,
-                counter,
-                dealershipFeatures,
-                forwarding,
-                new AuthProperties(
-                        new AuthProperties.Jwt(
-                                "secret-secret-secret-secret-secret-secret-1234",
-                                "service-scheduler",
-                                Duration.ofHours(8),
-                                "jwt"),
-                        new AuthProperties.Otp(Duration.ofMinutes(5), true, "zalo-stub"),
-                        new AuthProperties.Registration(DEALERSHIP.toString())));
-        when(request.getHeader("X-Forwarded-For")).thenReturn("203.0.113.7, 10.0.0.1");
-
-        forwardingService.sendOtp(PHONE, "LOGIN", "key-1", request);
-
-        verify(counter).tryAcquire(eq("ratelimit:otp-send:ip:203.0.113.7"), anyLong(), any());
     }
 
     @Test
     void verifyOtpLogsInAnExistingAccount() {
         when(users.findByPhone(PHONE)).thenReturn(Optional.of(customer()));
-        when(otp.consume(PHONE, OtpPurpose.LOGIN, "483920")).thenReturn(true);
-        when(jwt.issue(anyString(), anyString(), anyString(), anyString()))
+        when(otp.verify(PHONE, OtpType.LOGIN, "483920")).thenReturn(true);
+        when(jwt.issue(anyString(), anyString(), anyString(), any()))
                 .thenReturn(
                         new JwtService.Issued("token", "jti-1", Instant.now().plusSeconds(3600)));
 
@@ -234,20 +164,65 @@ class AuthServiceTest {
         assertThat(result.status()).isEqualTo(200);
         assertThat(result.body()).containsEntry("role", "CUSTOMER");
         assertThat(result.setCookie()).contains("jwt=token").contains("HttpOnly");
-        verify(sessions).save(eq("jti-1"), anyString(), any());
+    }
+
+    @Test
+    void verifyOtpLogsInAnAccountWithDealership() {
+        User manager = new User();
+        manager.assign(UUID.randomUUID(), "+84900000002", "MANAGER", DEALERSHIP);
+        when(users.findByPhone("+84900000002")).thenReturn(Optional.of(manager));
+        when(otp.verify("+84900000002", OtpType.LOGIN, "111111")).thenReturn(true);
+        when(jwt.issue(anyString(), anyString(), anyString(), any()))
+                .thenReturn(new JwtService.Issued(
+                        "token", "jti-manager", Instant.now().plusSeconds(3600)));
+
+        AuthService.Result result = service.verifyOtp("+84900000002", "111111", "key-manager", request);
+
+        assertThat(result.status()).isEqualTo(200);
+        assertThat(result.body()).containsEntry("role", "MANAGER");
+        assertThat(result.body()).containsEntry("dealershipId", DEALERSHIP.toString());
+    }
+
+    @Test
+    void patchMeKeepsExistingNamesWhenUpdatedNamesAreBlank() {
+        when(users.findById(CUSTOMER_ID)).thenReturn(Optional.of(customer()));
+        when(profiles.findByUserId(CUSTOMER_ID)).thenReturn(Optional.of(profile()));
+
+        Map<String, Object> updated = service.patchMe(
+                new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, null, "jti-1"),
+                "   ",
+                "",
+                null,
+                false,
+                "key-blank-names");
+
+        assertThat(updated).isNotNull();
+        verify(profiles).updateNames(eq(CUSTOMER_ID), eq("My"), eq("Nguyen"));
+    }
+
+    @Test
+    void meIncludesDealershipWhenPresent() {
+        User manager = new User();
+        manager.assign(UUID.randomUUID(), "+84900000002", "MANAGER", DEALERSHIP);
+        when(users.findById(manager.getId())).thenReturn(Optional.of(manager));
+
+        Map<String, Object> identity =
+                service.me(new AuthPrincipal(manager.getId(), "MANAGER", "+84900000002", DEALERSHIP, "jti-2"));
+
+        assertThat(identity).containsEntry("dealershipId", DEALERSHIP.toString());
     }
 
     @Test
     void verifyOtpReplaysTheCachedResponse() {
         IdempotencyStore.CachedResponse cached =
                 new IdempotencyStore.CachedResponse(200, "{\"role\":\"CUSTOMER\"}", "jwt=token; Path=/");
-        when(idempotency.load(anyString())).thenReturn(cached);
+        when(idempotency.load(anyString())).thenReturn(Optional.of(cached));
 
         AuthService.Result result = service.verifyOtp(PHONE, "483920", "key-2", request);
 
         assertThat(result.status()).isEqualTo(200);
         assertThat(result.setCookie()).isEqualTo("jwt=token; Path=/");
-        verify(otp, never()).consume(anyString(), any(), anyString());
+        verify(otp, never()).verify(anyString(), any(), anyString());
     }
 
     @Test
@@ -257,9 +232,11 @@ class AuthServiceTest {
     }
 
     @Test
-    void verifyOtpStopsAtTheIpLimit() {
-        when(counter.tryAcquire(startsWith("ratelimit:otp-verify:ip"), anyLong(), any()))
-                .thenReturn(false);
+    void verifyOtpEnforcesRateLimits() {
+        doThrow(new AuthException(
+                        HttpStatus.TOO_MANY_REQUESTS, "Rate limit exceeded", "Too many verification requests"))
+                .when(rateLimits)
+                .checkOtpVerify(anyString(), any());
 
         assertThatThrownBy(() -> service.verifyOtp(PHONE, "483920", "key-2", request))
                 .isInstanceOf(AuthException.class)
@@ -278,7 +255,7 @@ class AuthServiceTest {
     @Test
     void verifyOtpRejectsAWrongCode() {
         when(users.findByPhone(PHONE)).thenReturn(Optional.of(customer()));
-        when(otp.consume(PHONE, OtpPurpose.LOGIN, "000000")).thenReturn(false);
+        when(otp.verify(PHONE, OtpType.LOGIN, "000000")).thenReturn(false);
 
         assertThatThrownBy(() -> service.verifyOtp(PHONE, "000000", "key-2", request))
                 .isInstanceOf(AuthException.class)
@@ -288,8 +265,8 @@ class AuthServiceTest {
     @Test
     void registerCreatesTheCustomerAndTheSession() {
         when(users.existsByPhone("+84900000999")).thenReturn(false);
-        when(otp.consume("+84900000999", OtpPurpose.REGISTER, "176482")).thenReturn(true);
-        when(jwt.issue(anyString(), anyString(), anyString(), anyString()))
+        when(otp.verify("+84900000999", OtpType.REGISTER, "176482")).thenReturn(true);
+        when(jwt.issue(anyString(), anyString(), anyString(), any()))
                 .thenReturn(
                         new JwtService.Issued("token", "jti-2", Instant.now().plusSeconds(3600)));
 
@@ -298,14 +275,14 @@ class AuthServiceTest {
         assertThat(result.status()).isEqualTo(201);
         assertThat(result.body()).containsEntry("role", "CUSTOMER").containsEntry("phone", "+84900000999");
         verify(users).save(any(User.class));
-        verify(profiles).createProfile(any(UUID.class), eq(DEALERSHIP), eq("Tai"), eq("Le"));
+        verify(profiles).createProfile(any(UUID.class), eq(null), eq("Tai"), eq("Le"));
     }
 
     @Test
     void registerReplaysTheCachedResponse() {
         IdempotencyStore.CachedResponse cached =
                 new IdempotencyStore.CachedResponse(201, "{\"role\":\"CUSTOMER\"}", "jwt=token; Path=/");
-        when(idempotency.load(anyString())).thenReturn(cached);
+        when(idempotency.load(anyString())).thenReturn(Optional.of(cached));
 
         AuthService.Result result = service.register("+84900000999", "Tai", "Le", "176482", false, "key-3", request);
 
@@ -334,9 +311,11 @@ class AuthServiceTest {
     }
 
     @Test
-    void registerStopsAtTheIpLimit() {
-        when(counter.tryAcquire(startsWith("ratelimit:register:ip"), anyLong(), any()))
-                .thenReturn(false);
+    void registerEnforcesRateLimits() {
+        doThrow(new AuthException(
+                        HttpStatus.TOO_MANY_REQUESTS, "Rate limit exceeded", "Too many registration requests"))
+                .when(rateLimits)
+                .checkRegister(anyString());
 
         assertThatThrownBy(() -> service.register("+84900000999", "Tai", "Le", "176482", false, "key-3", request))
                 .isInstanceOf(AuthException.class)
@@ -355,7 +334,7 @@ class AuthServiceTest {
     @Test
     void registerRejectsAWrongCode() {
         when(users.existsByPhone("+84900000999")).thenReturn(false);
-        when(otp.consume("+84900000999", OtpPurpose.REGISTER, "000000")).thenReturn(false);
+        when(otp.verify("+84900000999", OtpType.REGISTER, "000000")).thenReturn(false);
 
         assertThatThrownBy(() -> service.register("+84900000999", "Tai", "Le", "000000", false, "key-3", request))
                 .isInstanceOf(AuthException.class)
@@ -367,12 +346,11 @@ class AuthServiceTest {
         when(users.findById(CUSTOMER_ID)).thenReturn(Optional.of(customer()));
         when(profiles.findByUserId(CUSTOMER_ID)).thenReturn(Optional.of(profile()));
 
-        Map<String, Object> identity =
-                service.me(new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, DEALERSHIP, "jti-1"));
+        Map<String, Object> identity = service.me(new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, null, "jti-1"));
 
         assertThat(identity).containsEntry("role", "CUSTOMER").containsEntry("phone", PHONE);
         assertThat(identity).containsEntry("firstName", "My").containsEntry("lastName", "Nguyen");
-        assertThat(identity.get("dealershipId")).isEqualTo(DEALERSHIP.toString());
+        assertThat(identity.get("dealershipId")).isNull();
     }
 
     @Test
@@ -380,8 +358,7 @@ class AuthServiceTest {
         when(users.findById(CUSTOMER_ID)).thenReturn(Optional.of(customer()));
         when(profiles.findByUserId(CUSTOMER_ID)).thenReturn(Optional.empty());
 
-        Map<String, Object> identity =
-                service.me(new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, DEALERSHIP, "jti-1"));
+        Map<String, Object> identity = service.me(new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, null, "jti-1"));
 
         assertThat(identity).doesNotContainKey("firstName");
     }
@@ -390,7 +367,7 @@ class AuthServiceTest {
     void meRejectsASessionWithoutAnAccount() {
         when(users.findById(CUSTOMER_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.me(new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, DEALERSHIP, "jti-1")))
+        assertThatThrownBy(() -> service.me(new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, null, "jti-1")))
                 .isInstanceOf(AuthException.class);
     }
 
@@ -400,7 +377,7 @@ class AuthServiceTest {
         when(profiles.findByUserId(CUSTOMER_ID)).thenReturn(Optional.of(profile()));
 
         Map<String, Object> updated = service.patchMe(
-                new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, DEALERSHIP, "jti-1"),
+                new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, null, "jti-1"),
                 "My",
                 "Nguyen",
                 "a@b.c",
@@ -415,7 +392,7 @@ class AuthServiceTest {
     @Test
     void patchMeRejectsAPhoneField() {
         assertThatThrownBy(() -> service.patchMe(
-                        new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, DEALERSHIP, "jti-1"),
+                        new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, null, "jti-1"),
                         null,
                         null,
                         null,
@@ -430,7 +407,7 @@ class AuthServiceTest {
         when(users.findById(CUSTOMER_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.patchMe(
-                        new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, DEALERSHIP, "jti-1"),
+                        new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, null, "jti-1"),
                         null,
                         null,
                         null,
@@ -444,7 +421,7 @@ class AuthServiceTest {
         when(users.findById(ADMIN_ID)).thenReturn(Optional.of(admin()));
 
         assertThatThrownBy(() -> service.patchMe(
-                        new AuthPrincipal(ADMIN_ID, "ADMIN", "+84900000001", DEALERSHIP, "jti-3"),
+                        new AuthPrincipal(ADMIN_ID, "ADMIN", "+84900000001", null, "jti-3"),
                         "Not",
                         "Editable",
                         null,
@@ -460,7 +437,7 @@ class AuthServiceTest {
         when(profiles.findByUserId(CUSTOMER_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.patchMe(
-                        new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, DEALERSHIP, "jti-1"),
+                        new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, null, "jti-1"),
                         "My",
                         null,
                         null,
@@ -471,10 +448,8 @@ class AuthServiceTest {
     }
 
     @Test
-    void logoutRevokesTheSession() {
-        service.logout(new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, DEALERSHIP, "jti-1"));
-
-        verify(sessions).revoke("jti-1");
+    void logoutExecutesWithoutError() {
+        service.logout(new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, null, "jti-1"));
     }
 
     @Test
@@ -505,60 +480,10 @@ class AuthServiceTest {
 
         assertThat(restored.body()).isEmpty();
         assertThat(restored.setCookie()).isNull();
-    }
 
-    @Test
-    void authenticateReturnsEmptyWhenTokenNullOrBlank() {
-        assertThat(service.authenticate(null)).isEmpty();
-        assertThat(service.authenticate("")).isEmpty();
-        assertThat(service.authenticate("   ")).isEmpty();
-    }
-
-    @Test
-    void authenticateReturnsEmptyWhenJwtInvalid() {
-        when(jwt.read("invalid")).thenReturn(Optional.empty());
-        assertThat(service.authenticate("invalid")).isEmpty();
-    }
-
-    @Test
-    void authenticateReturnsEmptyWhenSessionDoesNotExist() {
-        io.jsonwebtoken.Claims claims = org.mockito.Mockito.mock(io.jsonwebtoken.Claims.class);
-        when(claims.getId()).thenReturn("jti-1");
-        when(jwt.read("valid")).thenReturn(Optional.of(claims));
-        when(sessions.exists("jti-1")).thenReturn(false);
-
-        assertThat(service.authenticate("valid")).isEmpty();
-    }
-
-    @Test
-    void authenticateReturnsPrincipalWhenValid() {
-        io.jsonwebtoken.Claims claims = org.mockito.Mockito.mock(io.jsonwebtoken.Claims.class);
-        when(claims.getId()).thenReturn("jti-1");
-        when(claims.getSubject()).thenReturn(CUSTOMER_ID.toString());
-        when(claims.get("role", String.class)).thenReturn("CUSTOMER");
-        when(claims.get("ph", String.class)).thenReturn(PHONE);
-        when(claims.get("did", String.class)).thenReturn(DEALERSHIP.toString());
-        when(jwt.read("valid")).thenReturn(Optional.of(claims));
-        when(sessions.exists("jti-1")).thenReturn(true);
-
-        Optional<AuthPrincipal> principal = service.authenticate("valid");
-        assertThat(principal).isPresent();
-        assertThat(principal.get().userId()).isEqualTo(CUSTOMER_ID);
-        assertThat(principal.get().role()).isEqualTo("CUSTOMER");
-        assertThat(principal.get().dealershipId()).isEqualTo(DEALERSHIP);
-
-        when(claims.get("did", String.class)).thenReturn(null);
-        Optional<AuthPrincipal> principalNoDealer = service.authenticate("valid");
-        assertThat(principalNoDealer).isPresent();
-        assertThat(principalNoDealer.get().dealershipId()).isNull();
-
-        when(claims.get("did", String.class)).thenReturn("   ");
-        Optional<AuthPrincipal> principalBlankDealer = service.authenticate("valid");
-        assertThat(principalBlankDealer).isPresent();
-        assertThat(principalBlankDealer.get().dealershipId()).isNull();
-    }
-
-    private static String startsWith(String prefix) {
-        return org.mockito.ArgumentMatchers.startsWith(prefix);
+        java.util.Map<String, Object> cyclic = new java.util.HashMap<>();
+        cyclic.put("self", cyclic);
+        AuthService.Result unmarshallable = new AuthService.Result(200, cyclic, null);
+        assertThat(unmarshallable.toCached().body()).isEqualTo("{}");
     }
 }

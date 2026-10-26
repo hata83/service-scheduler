@@ -7,9 +7,10 @@ import dev.hata.scheduler.auth.dto.OtpSendRequest;
 import dev.hata.scheduler.auth.dto.OtpVerifyRequest;
 import dev.hata.scheduler.auth.dto.ProfilePatchRequest;
 import dev.hata.scheduler.auth.dto.RegisterRequest;
-import dev.hata.scheduler.auth.model.AuthPrincipal;
 import dev.hata.scheduler.auth.service.AuthService;
 import dev.hata.scheduler.common.exception.AuthException;
+import dev.hata.scheduler.common.filter.AuthFilter;
+import dev.hata.scheduler.common.security.AuthPrincipal;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

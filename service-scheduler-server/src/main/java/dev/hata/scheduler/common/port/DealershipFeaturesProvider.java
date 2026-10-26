@@ -2,7 +2,7 @@ package dev.hata.scheduler.common.port;
 
 import java.util.UUID;
 
-import dev.hata.scheduler.common.config.RateLimitProperties;
+import dev.hata.scheduler.common.ratelimit.RateLimitProperties;
 
 /**
  * Shared contract for dealership feature configuration (design D7/ADR-013).

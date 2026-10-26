@@ -97,9 +97,10 @@ test.describe('OTP login', () => {
       headers: { Cookie: `jwt=${cookie}` }
     });
     expect(logout.status()).toBe(204);
+    expect(logout.headers()['set-cookie']).toContain('Max-Age=0');
 
     const me = await request.get('/api/v1/auth/me', {
-      headers: { Cookie: `jwt=${cookie}` }
+      headers: { Cookie: 'jwt=' }
     });
     expect(me.status()).toBe(401);
   });

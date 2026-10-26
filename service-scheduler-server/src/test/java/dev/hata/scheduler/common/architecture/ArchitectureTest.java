@@ -10,7 +10,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.Test;
 
 /**
- * Encodes the architecture rules declared in AGENTS.md §3 as executable assertions.
+ * Encodes the architecture rules declared in AGENTS.md §4 as executable assertions.
  *
  * <p>Violations fail the regular JUnit run, which means the Gradle {@code test} task fails
  * and so does {@code check}.
@@ -24,9 +24,9 @@ class ArchitectureTest {
             .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
             .importPackages(BASE);
 
-    // AGENTS.md §3: feature-based packages must not import each other.
+    // Feature packages that must remain completely independent
     private static final String[] FEATURE_PACKAGES = {
-        "auth", "customer", "dealership", "appointment", "resource", "vehicle", "notification", "scheduling"
+        "auth", "customer", "dealership", "appointment", "resource", "vehicle", "scheduling"
     };
 
     @Test
@@ -38,10 +38,10 @@ class ArchitectureTest {
                 }
                 ArchRule rule = noClasses()
                         .that()
-                        .resideInAPackage("..%s..".formatted(a))
+                        .resideInAPackage("dev.hata.scheduler.%s..".formatted(a))
                         .should()
                         .dependOnClassesThat()
-                        .resideInAPackage("..%s..".formatted(b))
+                        .resideInAPackage("dev.hata.scheduler.%s..".formatted(b))
                         .allowEmptyShould(true);
                 rule.check(classes);
             }
@@ -49,21 +49,54 @@ class ArchitectureTest {
     }
 
     @Test
-    void commonDoesNotDependOnFeatures() {
+    void featuresDoNotDependOnInfra() {
+        for (String feature : FEATURE_PACKAGES) {
+            ArchRule rule = noClasses()
+                    .that()
+                    .resideInAPackage("dev.hata.scheduler.%s..".formatted(feature))
+                    .should()
+                    .dependOnClassesThat()
+                    .resideInAPackage("dev.hata.scheduler.infra..")
+                    .allowEmptyShould(true);
+            rule.check(classes);
+        }
+    }
+
+    @Test
+    void commonDoesNotDependOnFeaturesOrInfra() {
         ArchRule rule = noClasses()
                 .that()
-                .resideInAPackage("..common..")
+                .resideInAPackage("dev.hata.scheduler.common..")
                 .should()
                 .dependOnClassesThat()
                 .resideInAnyPackage(
-                        "..auth..",
-                        "..customer..",
-                        "..dealership..",
-                        "..appointment..",
-                        "..resource..",
-                        "..vehicle..",
-                        "..notification..",
-                        "..scheduling..")
+                        "dev.hata.scheduler.auth..",
+                        "dev.hata.scheduler.customer..",
+                        "dev.hata.scheduler.dealership..",
+                        "dev.hata.scheduler.appointment..",
+                        "dev.hata.scheduler.resource..",
+                        "dev.hata.scheduler.vehicle..",
+                        "dev.hata.scheduler.scheduling..",
+                        "dev.hata.scheduler.infra..")
+                .allowEmptyShould(true);
+        rule.check(classes);
+    }
+
+    @Test
+    void infraDoesNotDependOnFeatures() {
+        ArchRule rule = noClasses()
+                .that()
+                .resideInAPackage("dev.hata.scheduler.infra..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAnyPackage(
+                        "dev.hata.scheduler.auth..",
+                        "dev.hata.scheduler.customer..",
+                        "dev.hata.scheduler.dealership..",
+                        "dev.hata.scheduler.appointment..",
+                        "dev.hata.scheduler.resource..",
+                        "dev.hata.scheduler.vehicle..",
+                        "dev.hata.scheduler.scheduling..")
                 .allowEmptyShould(true);
         rule.check(classes);
     }

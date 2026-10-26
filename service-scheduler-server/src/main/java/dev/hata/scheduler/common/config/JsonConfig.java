@@ -12,14 +12,14 @@ import tools.jackson.databind.ObjectMapper;
  * Reads a bundled JSON resource. The rate-limit loader uses this helper
  * (design D7), so the limits stay in a file instead of Java constants.
  */
-final class JsonConfig {
+public final class JsonConfig {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final DefaultResourceLoader LOADER = new DefaultResourceLoader();
 
     private JsonConfig() {}
 
-    static Map<String, Object> readObject(String location) {
+    public static Map<String, Object> readObject(String location) {
         Resource resource = LOADER.getResource(location);
         try (InputStream in = resource.getInputStream()) {
             return MAPPER.readValue(in, new TypeReference<Map<String, Object>>() {});
