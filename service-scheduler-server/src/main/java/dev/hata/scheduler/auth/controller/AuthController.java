@@ -142,6 +142,10 @@ public class AuthController {
     })
     @RateLimited({
         @RateLimited.Rule(
+                policy = "register-phone",
+                keyExpression = "#body != null && #body.phone() != null ? #body.phone() : null",
+                message = "Too many registration attempts for this phone. Wait before trying again."),
+        @RateLimited.Rule(
                 policy = "register-ip",
                 message = "Too many registration attempts from this IP. Wait before trying again.")
     })
@@ -208,7 +212,8 @@ public class AuthController {
     })
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
-        principal(request);
+        AuthPrincipal principal = principal(request);
+        jwt.revoke(principal.jti());
         clearSessionCookie(response);
         return ResponseEntity.noContent().build();
     }

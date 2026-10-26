@@ -1,4 +1,4 @@
-name: CI/CD & Code Review
+name: CI/CD
 
 on:
   push:
@@ -17,116 +17,6 @@ permissions:
   contents: read
 
 jobs:
-  review:
-    name: Alibaba OCR, Qodo & Kilo Code Review
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.2.2
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4.1.0
-        with:
-          node-version: "20"
-
-      - name: Install open-code-review CLI
-        run: |
-          sudo curl -fsSL https://github.com/alibaba/open-code-review/releases/download/v1.13.3/opencodereview-linux-amd64 -o /usr/local/bin/ocr
-          sudo chmod +x /usr/local/bin/ocr
-
-      - name: Run OCR delegate preview
-        id: ocr
-        run: |
-          git fetch origin ${{ github.base_ref }}:${{ github.base_ref }} || true
-          ocr delegate preview --from ${{ github.base_ref }} --to HEAD --format json > ocr-preview.json 2>&1 || ocr delegate preview --format json > ocr-preview.json
-        continue-on-error: true
-
-      - name: Inspect OCR rules for reviewable files
-        run: |
-          ocr delegate rule service-scheduler-server/src/main/java/dev/hata/scheduler/auth/ > ocr-rules.txt 2>&1 || true
-        continue-on-error: true
-
-
-
-      - name: Comment OCR findings on PR
-        uses: actions/github-script@v7.0.1
-        if: always()
-        with:
-          script: |
-            const fs = require('fs');
-            let body = '## 🔍 Alibaba Open Code Review (delegate mode)\n\n';
-            try {
-              if (fs.existsSync('ocr-preview.json')) {
-                const preview = JSON.parse(fs.readFileSync('ocr-preview.json', 'utf8'));
-                const reviewableCount = preview.reviewable_count || (preview.reviewable_files ? preview.reviewable_files.length : 0);
-                const excludedCount = preview.excluded_count || (preview.excluded_files ? preview.excluded_files.length : 0);
-                const totalInsertions = preview.total_insertions || 0;
-                const totalDeletions = preview.total_deletions || 0;
-
-                body += `### PR Diff Scope\n`;
-                body += `- **Mode:** \`${preview.mode || 'range'}\`\n`;
-                body += `- **Reviewable files:** \`${reviewableCount}\`\n`;
-                body += `- **Excluded files:** \`${excludedCount}\` (generated, binary, or non-source)\n`;
-                body += `- **Diff size:** +${totalInsertions} / -${totalDeletions} lines\n\n`;
-
-                body += `### Inspection Status\n`;
-                body += `- **Delegation mode:** \`ocr delegate\` active (file-filter + rule-resolution without external LLM call).\n`;
-                body += `- **Reviewable files:** \`${reviewableCount}\`; **Excluded:** \`${excludedCount}\`.\n`;
-                body += `- **Status:** See \`openspec/changes/phase-1-bootstrap-otp-auth/review.md\` and \`build/reports/ocr/preview.json\` for real findings.\n`;
-                body += `- **Qodo / Kilo triggers:** \`/review\` and \`@kilocode-bot review code\` enabled in PR workflow.\n`;
-
-                if (reviewableCount > 0 && preview.reviewable_files) {
-                  body += '<details><summary><b>Reviewable Files (' + reviewableCount + ')</b></summary>\n\n';
-                  body += '| File | Status | +Lines | -Lines |\n|---|---|---|---|\n';
-                  preview.reviewable_files.slice(0, 30).forEach(f => {
-                    body += `| \`${f.path}\` | \`${f.status}\` | +${f.insertions} | -${f.deletions} |\n`;
-                  });
-                  if (reviewableCount > 30) {
-                    body += `\n_...and ${reviewableCount - 30} more reviewable files._\n`;
-                  }
-                  body += '\n</details>\n';
-                }
-              } else {
-                body += '_OCR delegate preview produced no output._\n';
-              }
-            } catch (e) {
-              body += `_OCR delegate execution error: ${e.message}_\n`;
-            }
-
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body
-            });
-
-      - name: Trigger Qodo & Kilo Code Review on PR
-        uses: actions/github-script@v7.0.1
-        if: always()
-        with:
-          script: |
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '/review'
-            });
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '@kilocode-bot review code'
-            });
-
   build-and-test:
     name: Build, Test, and Verify
     runs-on: ubuntu-latest
@@ -349,7 +239,6 @@ jobs:
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=git-
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6.9.0
@@ -363,7 +252,6 @@ jobs:
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2.0.8
         with:
           generate_release_notes: true
           files: service-scheduler-server/build/libs/*.jar

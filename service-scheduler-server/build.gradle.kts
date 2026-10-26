@@ -121,7 +121,7 @@ tasks.jacocoTestCoverageVerification {
         rule {
             element = "CLASS"
             includes = listOf("*Service")
-            excludes = listOf("dev.hata.scheduler.common.security.JwtService")
+            excludes = listOf("dev.hata.scheduler.common.security.JwtService", "dev.hata.scheduler.auth.service.AuthService")
             limit {
                 counter = "LINE"
                 value = "COVEREDRATIO"
@@ -135,6 +135,15 @@ tasks.jacocoTestCoverageVerification {
                 counter = "LINE"
                 value = "COVEREDRATIO"
                 minimum = "0.95".toBigDecimal()
+            }
+        }
+        rule {
+            element = "CLASS"
+            includes = listOf("dev.hata.scheduler.auth.service.AuthService")
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.99".toBigDecimal()
             }
         }
     }

@@ -175,6 +175,18 @@ public class AuthService {
      */
     @Transactional
     public IdentityResponse patchMe(AuthPrincipal principal, ProfilePatchRequest patch) {
+        if (patch.firstName() != null
+                && !patch.firstName().isBlank()
+                && patch.firstName().trim().length() > 100) {
+            throw new AuthException(
+                    HttpStatus.BAD_REQUEST, "Name too long", "First name must not exceed 100 characters.");
+        }
+        if (patch.lastName() != null
+                && !patch.lastName().isBlank()
+                && patch.lastName().trim().length() > 100) {
+            throw new AuthException(
+                    HttpStatus.BAD_REQUEST, "Name too long", "Last name must not exceed 100 characters.");
+        }
         if (patch.phone() != null) {
             throw new AuthException(
                     HttpStatus.BAD_REQUEST,

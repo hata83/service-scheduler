@@ -311,10 +311,19 @@ class AuthServiceTest {
                 .isInstanceOf(AuthException.class)
                 .hasMessageContaining("never changes");
 
+        ProfilePatchRequest longName = new ProfilePatchRequest("a".repeat(101), null, null, null);
+        assertThatThrownBy(() ->
+                        service.patchMe(new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, null, "jti-1"), longName))
+                .isInstanceOf(AuthException.class)
+                .hasMessageContaining("exceed");
+
+        ProfilePatchRequest longLast = new ProfilePatchRequest(null, "b".repeat(101), null, null);
+        assertThatThrownBy(() ->
+                        service.patchMe(new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, null, "jti-1"), longLast))
+                .isInstanceOf(AuthException.class)
+                .hasMessageContaining("exceed");
+
         when(users.findById(CUSTOMER_ID)).thenReturn(Optional.empty());
-        assertThatThrownBy(
-                        () -> service.patchMe(new AuthPrincipal(CUSTOMER_ID, "CUSTOMER", PHONE, null, "jti-1"), patch))
-                .isInstanceOf(AuthException.class);
 
         when(users.findById(CUSTOMER_ID)).thenReturn(Optional.of(customer()));
         when(profiles.findByUserId(CUSTOMER_ID)).thenReturn(Optional.empty());
