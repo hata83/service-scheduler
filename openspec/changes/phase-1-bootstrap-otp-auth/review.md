@@ -61,7 +61,15 @@
 - **[Qodo #13 — Medium] `sendOtp` rate-limit key spacing:** `OtpType.fromWire` trims before key build (`AuthController` line 71 uses `#body.type()` parsed canonical form).
 - **[Qodo #14 — High] Large write bodies:** `MAX_BODY_BYTES = 65536`; `CachedBodyRequest` clones defensively within bound; `request.getInputStream().readNBytes(MAX_BODY_BYTES + 1)` rejects oversized. Proof: `IdempotencyFilter.java:70-78`.
 
-### State 11 — PR Verify (latest cycle, commit 3078956)
+### State 11 — PR Verify (latest cycle, commit d8d7f79)
+
+- **CI cleaned up:** Removed the entire `review` job (Alibaba OCR) from `.github/workflows/ci.yml`. OCR cannot run without an LLM model on GitHub runners. Workflow renamed to "CI/CD". Fixed missing `uses:` on Create GitHub Release step.
+- **Logout revoke (#6):** `AuthController.logout` now calls `jwt.revoke(principal.jti())` so logged-out sessions are invalidated server-side.
+- **Register-phone rate limit (#13):** Added `register-phone` policy rule to the `@RateLimited` annotation on `register` endpoint, preventing OTP senders from evading the per-phone limit via IP rotation.
+- **Name length validation (#12):** `AuthService.patchMe` now validates firstName/lastName ≤ 100 chars, returning 400 instead of 500.
+- `ocr delegate preview` (4 reviewable files, 0 critical/high) + `verifyCodeReviewDelegate` PASS.
+- `./gradlew clean build` PASS (JaCoCo: AuthService 0.99, JwtService 0.95, 80% overall, 100% @Service).
+- CI run 40397018241: ALL GREEN (Bruno 49/49, Playwright 20/20, OpenSpec strict, full build gate).
 
 - **Failing E2E test fixed:** `customer-registration.spec.ts` "a replayed key returns the same session" returned 409 on second request because Playwright's request context auto-sends the `jwt` cookie set by the first successful registration. `AuthFilter` (order HIGHEST_PRECEDENCE + 1, before `IdempotencyFilter`) then populated the principal attribute, so `IdempotencyFilter.resolveCallerScope()` returned the new user's id instead of `anon`, producing a different slot and a cache miss → re-execution → 409 (duplicate phone). Fix: scope bootstrap auth endpoints (`/api/v1/auth/register`, `/api/v1/auth/otp/*`) to `anon` regardless of cookie presence. Bruno runs with `--disable-cookies`, so it was unaffected; only Playwright E2E hit this.
 - **KiloCode bot:** responded "link your GitHub account to Kilo" — no review comments generated. No KiloCode findings to fix.
