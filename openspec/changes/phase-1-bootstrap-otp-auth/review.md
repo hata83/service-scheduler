@@ -9,7 +9,7 @@ Engineers can use the reproducer steps to verify each finding.
 
 ```
 CHANGE   phase-1-bootstrap-otp-auth      BRANCH   feature/phase-1-bootstrap-otp-auth
-STATES   14   done 8  current 9  next 10  skipped 0  failed 0  pending 6
+STATES   14   done 11  current 12  next 13  skipped 0  failed 0  pending 2
 TASKS    39   done 39  open 0
 ```
 
@@ -112,3 +112,13 @@ If any gate fails during development, return to the inner loop:
 ```
 code → format → test → review → fix → code
 ```
+
+---
+
+## 4. Pull Request Review Tracking (GitHub Copilot & Reviewers)
+
+GitHub Copilot reviews code directly on files in the pull request diff:
+- **PR #1 URL:** https://github.com/hata83/service-scheduler/pull/1
+- **Inspection Status:** Checked pull request review threads and inline comments via GitHub API.
+- **Unresolved Comments:** 0 comments.
+- **Review Policy:** All inline comments from GitHub Copilot or human reviewers must be fixed with passing regression tests before requesting approval to archive the change.

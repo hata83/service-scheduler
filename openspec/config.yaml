@@ -83,6 +83,7 @@ rules:
     - "Every task that adds or changes a domain feature MUST have a sub-task that publishes one Archify diagram under `docs/diagrams/<group>/<slug>`. The diagram type MUST follow the question the diagram answers, not default to sequence. See the diagram type table below."
     - "Start `tasks.md` with the 14-state Agentic SDLC block from AGENTS.md Section 3 and update its marks when a state changes to track progress."
     - "Document all review findings, reproducer steps, and resolution proofs in `openspec/changes/<change-slug>/review.md` before closing State 7."
+    - "Inspect pull request review comments and fix all GitHub Copilot inline review comments before asking for approval to archive."
 
 # Which diagram type, and why. A change that picks a type MUST say which row
 # it matched, so no change defaults to sequence without a reason.

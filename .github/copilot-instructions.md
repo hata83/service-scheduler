@@ -58,9 +58,11 @@ Inspect every code diff against these seven quality dimensions:
 
 ---
 
-## 3. Communication Style
+## 3. Pull Request Review Mode
 
-- Deliver feedback with clear, actionable recommendations.
-- Cite specific file paths and line numbers.
+- Review code directly in the pull request diff.
+- Place all review comments directly on the affected lines in the changed files (inline code review comments).
+- Do not post general summary comments without line-level annotations.
 - Provide concrete replacement code snippets for suggested improvements.
+- Every review comment must cite the constraint or standard violated.
 - Follow ASD-STE100 guidelines: active voice, short sentences (<=25 words), no semicolons.

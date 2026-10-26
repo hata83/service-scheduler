@@ -12,7 +12,7 @@ Three rules gate every change:
 
 1. **Never assume a requirement.** Read it from `openspec/specs/`. If it is missing, ask the user or run `/opsx-propose`.
 2. **Propose before you build.** A new feature needs an approved proposal in `openspec/changes/` before you write code.
-3. **Review before you finish.** Run `open-code-review-delegate` over your diff. Fix every critical and high finding.
+3. **Review before you finish.** Run `open-code-review-delegate` over your diff. Fix every critical and high finding. Track local reviews in `openspec/changes/<change-slug>/review.md`. Fix all GitHub Copilot inline review comments in the pull request before asking for approval to archive.
 
 ---
 
@@ -157,12 +157,14 @@ Present the change, its diff, and State 8 results. Wait. Do not push before a hu
 Commit the verified tree. Push the branch. Open a pull request against `main`.
 
 **State 11 — Verify the Pull Request**
-Read the CI check result for the pull request.
-- Every required check passed → go to State 12.
-- Any check failed → take the failure report back to State 4, push again, re-enter State 11.
+Read the CI check result for the pull request. Inspect all review comments in the pull request.
+GitHub Copilot reviews code directly on files in the pull request diff.
+Fix every GitHub Copilot review comment and every reviewer comment before you ask for approval to archive.
+- Every required check passed and all PR review comments are resolved → go to State 12.
+- Any check failed or any Copilot review comment remains open → take the findings back to State 4, fix the code, test, push again, re-enter State 11.
 
 **State 12 — Archive**
-Run `/opsx-archive`. Move Archify diagrams this change produced to `docs/diagrams/`. Link the interactive HTML viewer in the relevant document.
+Verify that all CI checks pass and all Copilot PR review comments are resolved. Run `/opsx-archive`. Move Archify diagrams this change produced to `docs/diagrams/`. Link the interactive HTML viewer in the relevant document.
 
 **State 13 — Review the Archive**
 Push the archived spec and diagram move to the same pull request. Re-enter State 11.
