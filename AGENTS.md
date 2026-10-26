@@ -169,11 +169,11 @@ Fix every finding reported by GitHub Copilot on the PR diff:
 2. Apply the fix following the verification ladder (TDD, Spotless, tests).
 3. Record the finding, fix diff, and proof in `openspec/changes/<change-slug>/review.md`.
 4. Commit, push the branch, and resolve the PR review thread.
-- All CI checks passed and all Copilot review comments are resolved → go to State 12.
+- You resolved all Copilot review comments and all CI checks passed → go to State 12.
 - Any check failed or any Copilot review comment remains open → fix code in State 4, push again, re-enter State 11.
 
 **State 12 — Archive**
-Verify that all CI checks pass and all Copilot PR review comments are resolved. Run `/opsx-archive`. Move Archify diagrams this change produced to `docs/diagrams/`. Link the interactive HTML viewer in the relevant document.
+Verify that all CI checks pass and you resolved all Copilot PR review comments. Run `/opsx-archive`. Move Archify diagrams this change produced to `docs/diagrams/`. Link the interactive HTML viewer in the relevant document.
 
 **State 13 — Review the Archive**
 Push the archived spec and diagram move to the same pull request. Re-enter State 11.
