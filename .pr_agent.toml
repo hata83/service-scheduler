@@ -1,13 +1,7 @@
-# Qodo code review configuration for Unified Service Scheduler
+# PR-Agent configuration for Unified Service Scheduler
 #
-# This configuration integrates Qodo with the repository's existing
+# This configuration integrates PR-Agent with the repository's existing
 # review guidelines from .github/copilot-instructions.md and AGENTS.md
-
-[github_app]
-pr_commands = [
-    "/agentic_describe",
-    "/agentic_review"
-]
 
 [config]
 # Include existing review guidelines as context
@@ -24,18 +18,26 @@ ignore_pr_title = [
     "^dependabot"
 ]
 
-[review_agent]
-# Show feedback in both summary and inline comments
-comments_location_policy = "both"
+# Model configuration (choose one)
+# Option 1: OpenAI (default, requires OPENAI_KEY)
+model = "gpt-4o"
+fallback_models = ["gpt-4o-mini"]
 
-# Severity threshold for inline comments:
-# 3 = action_required (only critical issues inline)
-# 2 = remediation_recommended (medium+ issues inline)
-# 1 = informational (all issues inline)
-inline_comments_severity_threshold = 2
+# Option 2: Groq (free, fast - requires GROQ_API_KEY)
+# model = "groq/llama3-70b-8192"
+# fallback_models = ["groq/llama3-8b-8192"]
 
+# Option 3: Anthropic Claude (requires ANTHROPIC_API_KEY)
+# model = "anthropic/claude-sonnet-4-20250514"
+# fallback_models = ["anthropic/claude-3-haiku-20240307"]
+
+# Option 4: OpenRouter (requires OPENROUTER_API_KEY)
+# model = "openrouter/deepseek/deepseek-chat"
+# fallback_models = ["openrouter/meta-llama/llama-3-8b-instruct"]
+
+[pr_reviewer]
 # Enforce the architecture constraints from AGENTS.md
-issues_user_guidelines = """
+extra_instructions = """
 You are a senior staff engineer and code reviewer for the Unified Service Scheduler repository.
 Enforce these architecture constraints strictly:
 
@@ -62,25 +64,19 @@ Write all review comments in ASD-STE100 Simplified Technical English:
 - No semicolons
 """
 
-compliance_user_guidelines = """
-Ensure all code changes comply with:
-- Spring Boot 4.1.1 MVC patterns
-- Java 25 LTS best practices
-- PostgreSQL 16+ specific SQL (no H2 dialect workarounds)
-- Flyway migration conventions (V{number}__{description}.sql)
-- Resilience4j patterns for resilience
-- Micrometer metrics patterns
-- Structured JSON logging conventions
+# Disable tests review (handled by CI)
+require_tests_review = "false"
+
+[pr_description]
+# Enable automatic PR description generation
+extra_instructions = """
+Generate PR descriptions following the Unified Service Scheduler conventions.
+Include a summary of changes, key capabilities, and verification gates passed.
 """
 
-[review_agent_ux]
-# Show focused review experience
-finding_overflow_count = 5
-expand_description = true
-expand_code = true
-expand_evidence = true
-expand_prompt = false
-
-# Show dividers for readability
-show_dividers = true
-show_daily_tips = false
+[pr_code_suggestions]
+# Enable code suggestions
+num_code_suggestions_per_chunk = 3
+extra_instructions = """
+Suggest improvements following Spring Boot 4.1.1 patterns and Java 25 best practices.
+"""

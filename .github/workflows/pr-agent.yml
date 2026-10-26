@@ -1,0 +1,44 @@
+name: PR Agent
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  issue_comment:
+    types: [created]
+
+jobs:
+  pr_agent_job:
+    if: ${{ github.event.sender.type != 'Bot' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: PR Agent action step
+        id: pragent
+        uses: the-pr-agent/pr-agent@main
+        env:
+          # Choose your LLM provider by setting the appropriate secret
+          # Option 1: OpenAI (recommended)
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          # Option 2: Groq (free, fast - set model to groq/llama3-70b-8192 in .pr_agent.toml)
+          # GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          # Option 3: Anthropic Claude
+          # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Option 4: OpenRouter (supports many free models)
+          # OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          # Enable automatic review on PR open
+          github_action_config.auto_review: "true"
+          # Enable automatic description generation
+          github_action_config.auto_describe: "true"
+          # Disable automatic improve (can be triggered manually)
+          github_action_config.auto_improve: "false"
+          # Trigger on these PR events
+          github_action_config.pr_actions: '["opened", "reopened", "ready_for_review", "synchronize"]'
+          # Use existing .pr_agent.toml configuration
+          CONFIG_FILE: ".pr_agent.toml"
