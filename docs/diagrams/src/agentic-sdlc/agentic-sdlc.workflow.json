@@ -3,7 +3,7 @@
   "diagram_type": "workflow",
   "meta": {
     "title": "Agentic SDLC Workflow",
-    "output": "delivery-loop.html",
+    "output": "agentic-sdlc.html",
     "quality_profile": "showcase"
   },
   "lanes": [

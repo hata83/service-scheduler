@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "546aabd1-4711-4dce-b856-94becdc82d7e",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\agentic-sdlc\\agentic-sdlc.workflow.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\agentic-sdlc\\agentic-sdlc.html",
+  "specification": {
+    "sha256": "fb89f91d9234896fc6b90bc10c7ca2f1081949566c314f7fd1106b4cc21744b0",
+    "bytes": 5690
+  },
+  "artifact": {
+    "sha256": "9ea99f4cf78f8e8e3eddb9eaaa1c53df2fd63b931e799bcdf0fadcbe7beeae01",
+    "bytes": 834384
+  }
+}

@@ -1469,21 +1469,24 @@ Resilience4j and Redis enforce IP-based, user-based, and phone-based request lim
 - `POST /api/v1/appointments`: 10 booking attempts per minute per authenticated user.
 
 #### OTP Send Rate Limiting & DDoS Prevention (`POST /api/v1/auth/otp/send`)
-Attackers often abuse SMS endpoints for toll fraud, SMS bombing, carrier fee inflation, and denial-of-service attacks. The scheduler enforces a four-tier defense using Redis counters and idempotency keys:
+Attackers often abuse SMS endpoints for toll fraud, SMS bombing, carrier fee inflation, and denial-of-service attacks. The scheduler enforces defense layers using Redis counters and idempotency keys:
 
-1. **Strict Per-Phone Cooldown:**
-   - The application checks `otp:cooldown:{phone}` in Redis with a 60-second TTL.
-   - If this key exists, the API rejects subsequent send attempts immediately with HTTP 429 Too Many Requests (`Retry-After: 60`).
-2. **Per-Phone Sliding Window Quota:**
-   - The application tracks `otp:rate:phone:{phone}` using Redis atomic increment with a 600-second (10-minute) TTL.
-   - The system permits at most 3 OTP send requests per 10 minutes per phone number.
-3. **Per-IP Sliding Window Quota:**
-   - The application tracks `otp:rate:ip:{ip}` with a 600-second TTL.
-   - The system permits at most 10 OTP send requests per 10 minutes per IP address to block distributed sweeps across multiple phone numbers.
-4. **Mandatory Idempotency Protection:**
-   - The endpoint enforces the `X-Idempotency-Key` header with a client UUID v4.
-   - Redis stores `idempotency:otp:{key}` with a 5-minute TTL.
-   - If a retry arrives with the same idempotency key within 5 minutes, the API returns the cached HTTP 200 response immediately. The service never invokes the SMS gateway or regenerates the OTP for duplicated requests.
+1. **Per-Phone and Purpose Sliding Window Quota:**
+   - The application tracks `ratelimit:otp-send:phone:{phone}:{purpose}` using Redis atomic increment with configurable window seconds (default 600s, 10 minutes).
+   - The system permits at most 5 OTP send requests per window per phone number and purpose (from `config/rate-limits.json`).
+2. **Per-IP Sliding Window Quota for OTP Send:**
+   - The application tracks `ratelimit:otp-send:ip:{ip}` with a 60-second window.
+   - The system permits at most 30 OTP send requests per minute per IP address to block distributed sweeps across multiple phone numbers.
+3. **Per-IP Sliding Window Quota for OTP Verify:**
+   - The application tracks `ratelimit:otp-verify:ip:{ip}` with a 60-second window.
+   - The system permits at most 10 verification requests per minute per IP address to prevent brute-force attacks against codes.
+4. **Per-IP Sliding Window Quota for Registration:**
+   - The application tracks `ratelimit:register:ip:{ip}` with a 60-second window.
+   - The system permits at most 10 registration requests per minute per IP address.
+5. **Mandatory Idempotency Protection:**
+   - Every write endpoint enforces the `X-Idempotency-Key` header with a client-generated UUID v4.
+   - Redis stores `idempotency:otp-send:{phone}:{purpose}:{key}`, `idempotency:otp-verify:{phone}:{key}`, and `idempotency:register:{phone}:{key}` with a 24-hour TTL.
+   - If a retry arrives with the same key, the API returns the cached response immediately. The service never regenerates the OTP or creates duplicate records.
 
 ### 11.3 Idempotency Keys
 
@@ -1501,13 +1504,17 @@ The scheduler implements multi-tier Redis caching to support high query concurre
 |---|---|---|---|---|
 | `dealership:config:{id}` | Redis | 3 days (default) | Caches operating hours, intervals, advance days, and auto-booking settings. | Dealership configuration update. Evicts config and all slot grids for that dealership. |
 | `slot:grid:{dealershipId}:{date}:{serviceType}` | Redis | 1 hour (default) | Caches calculated available slot windows for a specific service type on a date. | Date-level eviction on: booking committed, appointment cancelled/rejected/noshow/check-in with slot adjustment, or PostgreSQL overlap constraint collision. Dealership-wide eviction on bay/technician/config updates. |
-| `idempotency:{uuid}` | Redis | 24 hours | Caches API responses for idempotent write retries. | Natural TTL expiration. |
-| `idempotency:otp:{uuid}` | Redis | 5 minutes | Caches OTP send responses to prevent duplicate SMS delivery and toll abuse. | Natural TTL expiration. |
-| `otp:{phone}` | Redis | 5 minutes | Stores 6-digit one-time password. | Successful verification or TTL expiration. |
-| `otp:cooldown:{phone}` | Redis | 60 seconds | Enforces 60-second cooldown between consecutive OTP send requests per phone. | Natural TTL expiration. |
-| `otp:rate:phone:{phone}` | Redis | 10 minutes | Sliding window limit: maximum 3 OTP send requests per phone number. | Natural TTL expiration. |
-| `otp:rate:ip:{ip}` | Redis | 10 minutes | Sliding window limit: maximum 10 OTP send requests per IP address. | Natural TTL expiration. |
-| `rate:{ip}:{action}` | Redis | 60 seconds | General API sliding window rate limit counters. | Natural TTL expiration. |
+| `idempotency:{uuid}` | Redis | 24 hours | Caches API responses for idempotent write retries on appointment and booking endpoints. | Natural TTL expiration. |
+| `idempotency:otp-send:{phone}:{purpose}:{key}` | Redis | 24 hours | Caches OTP send responses to prevent duplicate SMS delivery and toll abuse. | Natural TTL expiration. |
+| `idempotency:otp-verify:{phone}:{key}` | Redis | 24 hours | Caches OTP verify responses to return identical session bodies on network retries. | Natural TTL expiration. |
+| `idempotency:register:{phone}:{key}` | Redis | 24 hours | Caches customer registration responses to prevent duplicate account creation on replay. | Natural TTL expiration. |
+| `otp:login:{phone}` | Redis | 5 minutes (default) | Stores 6-digit one-time password for the LOGIN purpose. | Atomic compare-and-delete on successful verification, or natural TTL expiration. |
+| `otp:register:{phone}` | Redis | 5 minutes (default) | Stores 6-digit one-time password for the REGISTER purpose. | Atomic compare-and-delete on successful registration, or natural TTL expiration. |
+| `auth:session:{jti}` | Redis | 8 hours (default) | Stores active user session token referenced by JWT session claims. | User logout or natural TTL expiration. |
+| `ratelimit:otp-send:phone:{phone}:{purpose}` | Redis | 10 minutes (default) | Sliding window counter for OTP send requests per phone and purpose. | Natural TTL expiration. |
+| `ratelimit:otp-send:ip:{ip}` | Redis | 60 seconds (default) | Sliding window counter for OTP send requests per IP address. | Natural TTL expiration. |
+| `ratelimit:otp-verify:ip:{ip}` | Redis | 60 seconds (default) | Sliding window counter for OTP verification requests per IP address. | Natural TTL expiration. |
+| `ratelimit:register:ip:{ip}` | Redis | 60 seconds (default) | Sliding window counter for customer registration requests per IP address. | Natural TTL expiration. |
 
 ### 12.1 Slot Grid Cache: Init, Read, and Evict
 
@@ -1773,6 +1780,7 @@ Each diagram has three layers: the inline SVG in this document, the interactive 
 - [Customer Registration](diagrams/system/customer-registration.html)
 - [Walk-In Customer Registration](diagrams/system/walkin-customer-registration.html)
 - [Workshop Metadata Management](diagrams/system/metadata-management.html)
+- [Agentic SDLC Workflow](diagrams/agentic-sdlc/agentic-sdlc.html)
 
 ---
 

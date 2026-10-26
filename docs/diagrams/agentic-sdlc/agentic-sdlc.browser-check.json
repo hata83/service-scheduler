@@ -6,9 +6,9 @@
   "status": "pass",
   "visualReview": "not-requested",
   "provenance": "current",
-  "deliveryReceiptId": "96e7f0c0-acaf-4d4a-88db-4767ee42ef5a",
+  "deliveryReceiptId": "546aabd1-4711-4dce-b856-94becdc82d7e",
   "artifact": {
-    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\delivery-loop\\delivery-loop.html",
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\agentic-sdlc\\agentic-sdlc.html",
     "sha256": "9ea99f4cf78f8e8e3eddb9eaaa1c53df2fd63b931e799bcdf0fadcbe7beeae01",
     "bytes": 834384
   },
@@ -1243,7 +1243,7 @@
     "contactSheet": null
   },
   "sidecars": {
-    "receipt": "delivery-loop.browser-check.json",
+    "receipt": "agentic-sdlc.browser-check.json",
     "files": []
   }
 }

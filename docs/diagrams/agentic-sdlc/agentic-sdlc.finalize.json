@@ -5,14 +5,14 @@
   "status": "pass",
   "type": "workflow",
   "quality": "showcase",
-  "startedAt": "2026-10-25T11:21:25.483Z",
+  "startedAt": "2026-10-26T01:22:16.439Z",
   "specification": {
-    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\delivery-loop\\delivery-loop.json",
-    "sha256": "e0168e0263f65b507a0ec1f6c8c65548fd40d7240f7ac90f36cc19ff68d20ee1",
-    "bytes": 5974
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\agentic-sdlc\\agentic-sdlc.workflow.json",
+    "sha256": "fb89f91d9234896fc6b90bc10c7ca2f1081949566c314f7fd1106b4cc21744b0",
+    "bytes": 5690
   },
   "artifact": {
-    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\delivery-loop\\delivery-loop.html",
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\agentic-sdlc\\agentic-sdlc.html",
     "sha256": "9ea99f4cf78f8e8e3eddb9eaaa1c53df2fd63b931e799bcdf0fadcbe7beeae01",
     "bytes": 834384
   },
@@ -27,8 +27,8 @@
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
         "deliver",
         "workflow",
-        "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\delivery-loop\\delivery-loop.json",
-        "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\delivery-loop\\delivery-loop.html",
+        "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\agentic-sdlc\\agentic-sdlc.workflow.json",
+        "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\agentic-sdlc\\agentic-sdlc.html",
         "--quality",
         "showcase",
         "--json"
@@ -38,8 +38,8 @@
         "ok": true,
         "command": "validate",
         "specification": {
-          "sha256": "e0168e0263f65b507a0ec1f6c8c65548fd40d7240f7ac90f36cc19ff68d20ee1",
-          "bytes": 5974
+          "sha256": "fb89f91d9234896fc6b90bc10c7ca2f1081949566c314f7fd1106b4cc21744b0",
+          "bytes": 5690
         },
         "validation": {
           "checksPassed": 9,
@@ -54,29 +54,29 @@
     "deliver": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 907,
+      "durationMs": 1106,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
         "deliver",
         "workflow",
-        "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\delivery-loop\\delivery-loop.json",
-        "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\delivery-loop\\delivery-loop.html",
+        "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\agentic-sdlc\\agentic-sdlc.workflow.json",
+        "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\agentic-sdlc\\agentic-sdlc.html",
         "--quality",
         "showcase",
         "--json"
       ],
       "receipt": {
         "schemaVersion": 1,
-        "receiptId": "96e7f0c0-acaf-4d4a-88db-4767ee42ef5a",
+        "receiptId": "546aabd1-4711-4dce-b856-94becdc82d7e",
         "ok": true,
         "command": "deliver",
         "type": "workflow",
-        "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\delivery-loop\\delivery-loop.json",
-        "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\delivery-loop\\delivery-loop.html",
+        "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\agentic-sdlc\\agentic-sdlc.workflow.json",
+        "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\agentic-sdlc\\agentic-sdlc.html",
         "specification": {
-          "sha256": "e0168e0263f65b507a0ec1f6c8c65548fd40d7240f7ac90f36cc19ff68d20ee1",
-          "bytes": 5974
+          "sha256": "fb89f91d9234896fc6b90bc10c7ca2f1081949566c314f7fd1106b4cc21744b0",
+          "bytes": 5690
         },
         "artifact": {
           "sha256": "9ea99f4cf78f8e8e3eddb9eaaa1c53df2fd63b931e799bcdf0fadcbe7beeae01",
@@ -106,17 +106,17 @@
     "check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 178,
+      "durationMs": 201,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
         "check",
-        "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\delivery-loop\\delivery-loop.html",
+        "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\agentic-sdlc\\agentic-sdlc.html",
         "--require-provenance"
       ],
       "receipt": {
         "ok": true,
-        "file": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\delivery-loop\\delivery-loop.html",
+        "file": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\agentic-sdlc\\agentic-sdlc.html",
         "artifact": {
           "sha256": "9ea99f4cf78f8e8e3eddb9eaaa1c53df2fd63b931e799bcdf0fadcbe7beeae01",
           "bytes": 834384
@@ -236,18 +236,18 @@
           "issues": []
         },
         "provenance": "current",
-        "deliveryReceiptId": "96e7f0c0-acaf-4d4a-88db-4767ee42ef5a"
+        "deliveryReceiptId": "546aabd1-4711-4dce-b856-94becdc82d7e"
       }
     },
     "browser-check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 1928,
+      "durationMs": 2617,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
         "browser-check",
-        "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\delivery-loop\\delivery-loop.html",
+        "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\agentic-sdlc\\agentic-sdlc.html",
         "--json",
         "--require-provenance"
       ],
@@ -260,9 +260,9 @@
         "status": "pass",
         "visualReview": "not-requested",
         "provenance": "current",
-        "deliveryReceiptId": "96e7f0c0-acaf-4d4a-88db-4767ee42ef5a",
+        "deliveryReceiptId": "546aabd1-4711-4dce-b856-94becdc82d7e",
         "artifact": {
-          "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\delivery-loop\\delivery-loop.html",
+          "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\agentic-sdlc\\agentic-sdlc.html",
           "sha256": "9ea99f4cf78f8e8e3eddb9eaaa1c53df2fd63b931e799bcdf0fadcbe7beeae01",
           "bytes": 834384
         },
@@ -1497,7 +1497,7 @@
           "contactSheet": null
         },
         "sidecars": {
-          "receipt": "delivery-loop.browser-check.json",
+          "receipt": "agentic-sdlc.browser-check.json",
           "files": []
         }
       }
@@ -1509,13 +1509,13 @@
   },
   "diagnostics": [],
   "evidence": {
-    "receipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\delivery-loop\\delivery-loop.finalize.json",
-    "summaryReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\delivery-loop\\delivery-loop.finalize-summary.json",
-    "browserCheckReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\delivery-loop\\delivery-loop.browser-check.json"
+    "receipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\agentic-sdlc\\agentic-sdlc.finalize.json",
+    "summaryReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\agentic-sdlc\\agentic-sdlc.finalize-summary.json",
+    "browserCheckReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\agentic-sdlc\\agentic-sdlc.browser-check.json"
   },
   "visualReview": "not-requested",
-  "finishedAt": "2026-10-25T11:21:29.163Z",
-  "durationMs": 3679,
+  "finishedAt": "2026-10-26T01:22:21.249Z",
+  "durationMs": 4809,
   "update": {
     "status": "current",
     "installedVersion": "3.2.0",

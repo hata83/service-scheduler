@@ -128,7 +128,7 @@ Applied ECC architect persona + AGENTS.md specialized skills (karpathy-ponytail,
 
 | Diagram | Type | Status |
 |---|---|---|
-| `delivery-loop.json` | workflow | ✅ PASS |
+| `agentic-sdlc.workflow.json` | workflow | ✅ PASS |
 | `appointment-lifecycle.json` | lifecycle | ✅ PASS |
 | `appointment-status-transition.json` | sequence | ✅ PASS |
 | `availability-check.json` | sequence | ✅ PASS |

@@ -47,7 +47,7 @@ context: |
 # injects them as prompt text when an agent builds that artifact. Nothing
 # validates them. `openspec validate --strict` does not read this file.
 #
-# Two consequences follow, and the delivery loop depends on both:
+# Two consequences follow, and the Agentic SDLC depends on both:
 #   1. A rule is followed because an agent read it, not because a tool
 #      enforced it. An agent that skips these produces an invalid artifact and
 #      no tool will stop it.
@@ -92,7 +92,7 @@ rules:
 # | What states exist, and what transitions them? | lifecycle | `appointment-lifecycle` |
 # | What components exist, and how do they connect? | architecture | `system-architecture` |
 # | Where does data come from, and who consumes it? | dataflow | `system-data-flow` |
-# | What approval gates or CI steps control the process? | workflow | `delivery-loop` |
+# | What approval gates or CI steps control the process? | workflow | `agentic-sdlc` |
 # | What tables exist, and how do they relate? | erd | `system-data-model` |
 #
 # A change that adds an endpoint, an SSE event, or a check-in negotiation path

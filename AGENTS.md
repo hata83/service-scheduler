@@ -110,7 +110,7 @@ propose → branch → plan → code → format → test → review
 → verify → approval → publish → pr-verify → archive → review-archive → merge
 ```
 
-See `docs/diagrams/delivery-loop/delivery-loop.html` for the interactive Agentic SDLC diagram.
+See `docs/diagrams/agentic-sdlc/agentic-sdlc.html` for the interactive Agentic SDLC diagram.
 
 ### State Descriptions
 
