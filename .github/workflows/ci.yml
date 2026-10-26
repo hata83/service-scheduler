@@ -79,12 +79,10 @@ jobs:
                 body += `- **Diff size:** +${totalInsertions} / -${totalDeletions} lines\n\n`;
 
                 body += `### Inspection Status\n`;
-                body += `✅ **Alibaba Open Code Review delegation active.**\n`;
-                body += `- Zero critical or high findings recorded in \`openspec/changes/*/review.md\`.\n`;
-                body += `- Virtual thread non-pinning verified (no \`synchronized\` in hot paths).\n`;
-                body += `- Package independence verified by ArchUnit.\n`;
-                body += `- RFC 7807 problem details and \`X-Idempotency-Key\` verified.\n`;
-                body += `- Automated PR reviews triggered for Qodo (\`/review\`) and Kilo Code (\`@kilocode-bot review code\`).\n\n`;
+                body += `- **Delegation mode:** \`ocr delegate\` active (file-filter + rule-resolution without external LLM call).\n`;
+                body += `- **Reviewable files:** \`${reviewableCount}\`; **Excluded:** \`${excludedCount}\`.\n`;
+                body += `- **Status:** See \`openspec/changes/phase-1-bootstrap-otp-auth/review.md\` and \`build/reports/ocr/preview.json\` for real findings.\n`;
+                body += `- **Qodo / Kilo triggers:** \`/review\` and \`@kilocode-bot review code\` enabled in PR workflow.\n`;
 
                 if (reviewableCount > 0 && preview.reviewable_files) {
                   body += '<details><summary><b>Reviewable Files (' + reviewableCount + ')</b></summary>\n\n';
