@@ -37,6 +37,7 @@ class AuthFilterTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(jwtService.cookieName()).thenReturn("jwt");
         filter = new AuthFilter(jwtService);
     }
 

@@ -8,15 +8,15 @@ TASKS    39   done 39  open 0
   #   state                     mark     proof
   1   Propose                   done     openspec validate --strict: valid + HIL-1 approval
   2   Branch                    done     branch is feature/phase-1-bootstrap-otp-auth
-  3   Plan                      done     users.type, centralized profiles, employees, Swagger UI 3.0.2
-  4   Code                      done     V1/V2 schema, User.type, Employee/Technician, SpringDoc 3.0.2
+  3   Plan                      done     resolve all PR #1 review comments (hata83 + Qodo + OCR)
+  4   Code                      done     IdempotencyFilter SHA-256/lock, @RateLimited AOP, enums, UserProfile
   5   Format                    done     spotlessApply clean (Palantir Java Format 2.71)
-  6   Test                      done     152 JUnit tests, 49 Bruno requests, 20 Playwright E2E passed
-  7   Review                    done     ocr delegate preview clean; review.md updated with fixes
-  8   Verify                    done     ./gradlew clean build SUCCESS (100% @Service, 94.3% overall)
+  6   Test                      done     106 JUnit tests, 49 Bruno requests, 20 Playwright E2E passed
+  7   Review                    done     all PR review comments + ocr delegate resolved in review.md
+  8   Verify                    done     ./gradlew clean build SUCCESS (100% @Service coverage)
   9   Request approval          done     HIL-2 approval granted by user
   10  Publish                   done     git push origin feature/phase-1-bootstrap-otp-auth (PR #1)
-  11  Verify PR                 current  GitHub Actions CI checks & Copilot review
+  11  Verify PR                 current  GitHub Actions CI checks & Qodo/Kilo Code PR review
   12  Archive                   next     openspec archive
   13  Review archive            pending  PR archive review
   14  Merge                     pending  HIL-3 human gate
@@ -45,16 +45,16 @@ TASKS    39   done 39  open 0
 
 ## 4. Schema and seed (Flyway, PostgreSQL-only)
 
-- [x] 4.1 Add `V1__platform_and_auth_schema.sql` for `users` (global, `type` in `CUSTOMER`/`EMPLOYEE`, no `dealership_id`), `profiles` (centralized personal profile for all accounts), `dealerships`, `employees` (abstract employee with `employee_id`, `role` in `ADMIN`/`MANAGER`/`TECHNICIAN`, and `dealership_id` CHECK: `ADMIN` global `NULL`, `MANAGER`/`TECHNICIAN` local `NOT NULL`), `technicians` (technician career `level` and `is_available`), and `technician_skills` (multi-skill with `level`) — PostgreSQL-only DDL per design D4. Verify `bootRun` (compose) and `test` (Testcontainers) both apply it, and that nothing references H2.
-- [x] 4.2 Add `V2__seed_dealer_and_auth.sql` seeding 1 demo dealership, 4 global `users` rows, 4 centralized `profiles` rows, 3 `employees` rows (`ADM-0001` global, `MGR-0001` and `TEC-0001` local to the demo dealership), 1 `technicians` row (`SENIOR`), and 2 `technician_skills` rows (`ENGINE` at `SENIOR`, `BRAKES` at `TECHNICIAN`). Verify `SchemaMigrationTest` counts 4 users, 4 profiles, 1 dealership, 3 employees, 1 technician, and 2 technician_skills rows after migration.
+- [x] 4.1 Add `V1__platform_and_auth_schema.sql` for `users` (global, `type` in `CUSTOMER`/`EMPLOYEE`, no `dealership_id`), `profiles` (centralized personal profile for all accounts), `dealerships`, `employees` (abstract employee with `employee_id`, `role` in `ADMIN`/`MANAGER`/`TECHNICIAN`, and `dealership_id` CHECK: `ADMIN` global `NULL`, `MANAGER`/`TECHNICIAN` local `NOT NULL`), `technicians` (technician career `grade` and `is_available`), and `technician_skills` (multi-skill with `level`) — PostgreSQL-only DDL per design D4. Verify `bootRun` (compose) and `test` (Testcontainers) both apply it, and that nothing references H2.
+- [x] 4.2 Add `V2__seed_dealer_and_auth.sql` seeding 1 demo dealership, 4 global `users` rows, 4 centralized `profiles` rows, 3 `employees` rows (`ADM-0001` global, `MGR-0001` and `TEC-0001` local to the demo dealership), 1 `technicians` row (`grade = 'SENIOR'`), and 2 `technician_skills` rows (`ENGINE` at `SENIOR`, `BRAKES` at `TECHNICIAN`). Verify `SchemaMigrationTest` counts 4 users, 4 profiles, 1 dealership, 3 employees, 1 technician, and 2 technician_skills rows after migration.
 
 ## 5. OTP login capacity (`otp-login`)
 
 - [x] 5.1 TDD BE-1/BE-2: failing unit test for `OtpStorage` (purpose-scoped keys `otp:login:{phone}` and `otp:register:{phone}` per design D7, SecureRandom 6-digit code, configurable TTL, single-use delete, constant-time compare), then implement. Verify the test fails before and passes after.
-- [x] 5.2 TDD BE-1/BE-2: failing unit test for the `RateLimitConfig` JSON loader (reads `config/rate-limits.json` with a `default` block and a `dealerships` override map per design D7; the `test` profile selects `rate-limits-test.json` with low values) and for `RedisWindowCounter` (INCR + EXPIRE per ADR-007; limits spanning send, verify, and register resolved through that loader), then implement both. Verify the tests fail before and pass after.
-- [x] 5.3 TDD BE-1/BE-2: failing unit test for `ZaloStubOtpChannel` (console print per design D7, echo flag respected in non-prod only), then implement the `OtpChannel` seam. Verify the test fails before and passes after.
-- [x] 5.4 Implement `POST /api/v1/auth/otp/send` (`{phone, type}` per D2, channel stub dispatch, idempotency key required with cached replay per D8, rate limited, problem+json errors, SpringDoc annotations, echo in non-prod). Add Bruno files `api/auth/otp-send-login-customer.bru`, `api/auth/otp-send-register-customer.bru`, `api/auth/otp-send-unknown-type.bru`, `api/auth/otp-send-invalid-phone.bru`, `api/auth/otp-send-rate-limited.bru`, `api/auth/otp-send-missing-idempotency-key.bru`, `api/auth/otp-send-idempotent-replay.bru`. Verify all seven pass via `npx @usebruno/cli run` against the compose server.
-- [x] 5.5 TDD BE-1/BE-2: `JwtService` (jjwt HS256, claims per design D5, 8h expiry, jti) + Redis session store (`auth:session:{jti}`). Verify the unit test fails before and passes after.
+- [x] 5.2 TDD BE-1/BE-2: failing unit test for `RateLimitProperties` (bound from `app.ratelimits` in `application.yml` and `application-test.yml` per design D7), `RedisWindowCounter` (INCR + EXPIRE per ADR-007), and `@RateLimited` + `RateLimitAspect` (declarative AOP rate limiting across endpoints), then implement. Verify the tests fail before and pass after.
+- [x] 5.3 TDD BE-1/BE-2: failing unit test for `ZaloStubNotificationChannel` (console print per design D7, echo flag respected in non-prod only), then implement the notification channel seam. Verify the test fails before and passes after.
+- [x] 5.4 Implement `POST /api/v1/auth/otp/send` (`{phone, type}` per D2, channel stub dispatch, idempotency key enforced and replayed by `IdempotencyFilter` per D8, rate limited via `@RateLimited`, problem+json errors, SpringDoc annotations, echo in non-prod). Add Bruno files `api/auth/otp-send-login-customer.bru`, `api/auth/otp-send-register-customer.bru`, `api/auth/otp-send-unknown-type.bru`, `api/auth/otp-send-invalid-phone.bru`, `api/auth/otp-send-rate-limited.bru`, `api/auth/otp-send-missing-idempotency-key.bru`, `api/auth/otp-send-idempotent-replay.bru`. Verify all seven pass via `npx @usebruno/cli run` against the compose server.
+- [x] 5.5 TDD BE-1/BE-2: `JwtService` (stateless jjwt HS256 embedding caller identity claims per design D5, 8h expiry, jti). Verify the unit test fails before and passes after.
 - [x] 5.6 Implement `AuthFilter`, `@RequireRole`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout` per design D5/D6. Add Bruno files `api/auth/me-after-login.bru`, `api/auth/me-unauthenticated.bru`, `api/auth/logout-revokes-session.bru`. Verify all three pass.
 - [x] 5.7 Implement `POST /api/v1/auth/otp/verify` (login-only: consumes LOGIN-purpose OTP, never creates rows; idempotency key required with cached replay; wrong/expired/wrong-purpose/unknown-phone 401 problem+json; unknown-phone detail names registration). Add Bruno files `api/auth/login-customer.bru`, `api/auth/login-manager.bru`, `api/auth/login-technician.bru`, `api/auth/login-admin.bru`, `api/auth/verify-wrong-code.bru`, `api/auth/verify-expired-code.bru`, `api/auth/verify-rejects-register-purpose.bru`, `api/auth/verify-unknown-phone.bru`, `api/auth/verify-missing-idempotency-key.bru`, `api/auth/verify-idempotent-replay.bru`. Verify all ten pass.
 - [x] 5.8 TDD BE-1/BE-2: centralized profile update (email and `profiles` names editable for every role via design D13; phone field rejected with 400), then implement `PATCH /api/v1/auth/me` with idempotency. Add Bruno files `api/auth/me-patch-updates-profile.bru`, `api/auth/me-patch-rejects-phone.bru`, `api/auth/me-patch-rejects-staff-names.bru`, `api/auth/me-patch-missing-idempotency-key.bru`. Verify the test fails before and passes after, then all four Bruno files pass.

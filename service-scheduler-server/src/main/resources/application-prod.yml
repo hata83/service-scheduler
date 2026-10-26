@@ -9,12 +9,18 @@ spring:
       host: ${SPRING_DATA_REDIS_HOST}
       port: ${SPRING_DATA_REDIS_PORT:6379}
 
+management:
+  endpoint:
+    health:
+      show-details: never
+
 app:
   auth:
     jwt:
       # JWT_SECRET is mandatory in prod; an unpadded base64 key of 32+ bytes
       secret: ${JWT_SECRET}
+      cookie-secure: true
     otp:
       echo: false
   ratelimits:
-    location: classpath:config/rate-limits.json
+    trust-forwarded-for: false

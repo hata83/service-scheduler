@@ -83,8 +83,8 @@ rules:
     - "Every task that adds or changes a `### Requirement:` block MUST have a sub-task that updates the `### Capacity Mapping` table in the owning `spec.md`."
     - "Every task that adds or changes a domain feature MUST have a sub-task that publishes one Archify diagram under `docs/diagrams/<group>/<slug>`. The diagram type MUST follow the question the diagram answers, not default to sequence. See the diagram type table below."
     - "Start `tasks.md` with the 14-state Agentic SDLC block from AGENTS.md Section 3 and update its marks when a state changes to track progress."
-    - "Document all review findings, reproducer steps, and resolution proofs in `openspec/changes/<change-slug>/review.md` before closing State 7."
-    - "Inspect pull request review comments and fix all GitHub Copilot inline review comments before asking for approval to archive."
+    - "Run the `open-code-review-delegate` skill (`ocr delegate preview --format json` and `ocr delegate rule --format json <files>`) and `./gradlew :service-scheduler-server:verifyCodeReviewDelegate` at State 7 and State 8. Document all review findings (`total_files`, `reviewed_files`, `skipped_files`, `coverage_rate`), reproducer steps, and resolution proofs in `openspec/changes/<change-slug>/review.md` before closing State 7."
+    - "At State 11 (`Verify PR`), inspect all pull request reviews and inline comments (`gh api repos/:owner/:repo/pulls/:number/reviews` and `gh api repos/:owner/:repo/pulls/:number/comments`), fix every finding reported by reviewers or cloud review bots (`qodo-code-review[bot]` via `/review` and `kilo-code-bot[bot]` via `@kilocode-bot`), record each fix in `review.md`, and re-run Bruno and Playwright E2E suites before asking for approval to archive."
 
 # Which diagram type, and why. A change that picks a type MUST say which row
 # it matched, so no change defaults to sequence without a reason.
@@ -110,8 +110,8 @@ operations:
       - "Write the failing test first (BE-1). Watch it fail. Then write the smallest code that makes it pass (BE-2)."
       - "Run `./gradlew :service-scheduler-server:spotlessApply` before you leave each backend task. Keep `checkstyleMain`, `pmdMain`, and `test` green."
       - "Add the constraint evaluator integration test for each service type behaviour the change touches (BE-4)."
-      - "Run the review loop before State 8: `ocr delegate preview`, then `ocr delegate run`. Document each review and its status results in `openspec/changes/<change-slug>/review.md` to reproduce and re-check findings after fixes."
-      - "Close State 8 with `openspec validate <change-slug> --strict`, then `./gradlew clean build`, then the Bruno suite and Playwright E2E suite against a running server. Ensure all reviews, Bruno integration tests, and Playwright tests pass, or return to the loop."
+      - "Run the `open-code-review-delegate` loop before State 8: load the `open-code-review-delegate` skill, run `ocr delegate preview --format json`, run `ocr delegate rule --format json <files>`, inspect the diff of every `reviewable_files` entry, fix all critical and high findings, and run `./gradlew :service-scheduler-server:verifyCodeReviewDelegate`. Document each review run and its coverage summary in `openspec/changes/<change-slug>/review.md`."
+      - "Close State 8 with `openspec validate <change-slug> --strict`, then `./gradlew clean build` (which automatically runs `verifyCodeReviewDelegate`), then the Bruno suite and Playwright E2E suite against a running server. Ensure all reviews, Bruno integration tests, and Playwright tests pass, or return to the loop."
       - "Present the diff and the State 8 results at State 9 and wait for human approval. Never push before that approval."
       - "Keep test summaries concise."
 

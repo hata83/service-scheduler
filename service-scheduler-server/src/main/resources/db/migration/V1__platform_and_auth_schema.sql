@@ -68,7 +68,7 @@ CREATE TABLE employees (
 
 CREATE TABLE technicians (
   user_id        UUID PRIMARY KEY REFERENCES employees(user_id),
-  level          VARCHAR(20) NOT NULL CHECK (level IN ('TRAINEE','JUNIOR','TECHNICIAN','SENIOR','MASTER')),
+  grade          VARCHAR(20) NOT NULL CHECK (grade IN ('TRAINEE','JUNIOR','TECHNICIAN','SENIOR','MASTER')),
   is_available   BOOLEAN NOT NULL DEFAULT TRUE,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),

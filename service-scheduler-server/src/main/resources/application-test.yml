@@ -16,8 +16,18 @@ app:
       ttl: 15s
       echo: true
   ratelimits:
-    # Low-value windows so integration tests hit 429 in seconds (design D7)
-    location: classpath:config/rate-limits-test.json
-    # The rate-limit Bruno file needs its own client identity, so the test
-    # profile trusts the forwarded address. The prod profile keeps this off.
+    # Low-value windows in YAML test profile so integration tests hit 429 in seconds (design D7)
     trust-forwarded-for: true
+    policies:
+      otp-send-phone:
+        limit: 5
+        window: 10s
+      otp-send-ip:
+        limit: 50
+        window: 10s
+      otp-verify-ip:
+        limit: 50
+        window: 10s
+      register-ip:
+        limit: 3
+        window: 10s

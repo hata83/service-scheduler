@@ -9,14 +9,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * The centralized {@code profiles} row. Every user across all four roles
- * ({@code CUSTOMER}, {@code ADMIN}, {@code MANAGER}, {@code TECHNICIAN}) owns
- * one centralized profile that carries the first and last names and locale
- * (design D4/D13).
+ * The centralized {@code profiles} row. Every user across both {@code CUSTOMER}
+ * and {@code EMPLOYEE} accounts owns one centralized profile that carries the
+ * first and last names and locale (design D4/D13).
  */
 @Entity
 @Table(name = "profiles")
-public class CustomerProfile {
+public class UserProfile {
 
     @Id
     @Column(name = "user_id", nullable = false)
@@ -37,7 +36,7 @@ public class CustomerProfile {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    public CustomerProfile() {}
+    public UserProfile() {}
 
     /**
      * Fills the row for a new centralized user profile.

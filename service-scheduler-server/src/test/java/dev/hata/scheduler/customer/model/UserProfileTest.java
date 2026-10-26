@@ -6,13 +6,13 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-class CustomerProfileTest {
+class UserProfileTest {
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000005");
 
     @Test
-    void customerProfileCarriesItsColumns() {
-        CustomerProfile profile = new CustomerProfile();
+    void userProfileCarriesItsColumns() {
+        UserProfile profile = new UserProfile();
         profile.assign(USER_ID, "My", "Nguyen");
         profile.setNames("Tai", "Le");
 

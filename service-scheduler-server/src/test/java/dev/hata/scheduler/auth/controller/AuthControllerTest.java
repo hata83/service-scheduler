@@ -17,8 +17,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
-import dev.hata.scheduler.auth.dto.AuthResponse;
-import dev.hata.scheduler.auth.dto.AuthSession;
 import dev.hata.scheduler.auth.dto.IdentityResponse;
 import dev.hata.scheduler.auth.dto.OtpSendResponse;
 import dev.hata.scheduler.auth.dto.ProfilePatchRequest;
@@ -27,7 +25,6 @@ import dev.hata.scheduler.auth.service.AuthService;
 import dev.hata.scheduler.common.exception.AuthException;
 import dev.hata.scheduler.common.exception.GlobalExceptionHandler;
 import dev.hata.scheduler.common.filter.AuthFilter;
-import dev.hata.scheduler.common.filter.ClientIpResolver;
 import dev.hata.scheduler.common.security.AuthPrincipal;
 import dev.hata.scheduler.common.security.JwtService;
 
@@ -64,7 +61,7 @@ class AuthControllerTest {
     private JwtService jwt;
 
     @Mock
-    private ClientIpResolver ipResolver;
+    private dev.hata.scheduler.common.idempotency.IdempotencyStore idempotencyStore;
 
     private MockMvc mvc;
 
@@ -72,16 +69,20 @@ class AuthControllerTest {
     void setUp() {
         when(jwt.cookieName()).thenReturn("jwt");
         when(jwt.ttl()).thenReturn(Duration.ofHours(8));
-        when(ipResolver.resolve(any())).thenReturn("127.0.0.1");
+        when(idempotencyStore.slot(anyString(), anyString(), anyString()))
+                .thenAnswer(inv ->
+                        "idempotency:" + inv.getArgument(0) + ":" + inv.getArgument(1) + ":" + inv.getArgument(2));
+        when(idempotencyStore.tryClaim(anyString())).thenReturn(true);
 
-        mvc = MockMvcBuilders.standaloneSetup(new AuthController(auth, jwt, ipResolver))
+        mvc = MockMvcBuilders.standaloneSetup(new AuthController(auth, jwt))
+                .addFilters(new dev.hata.scheduler.common.filter.IdempotencyFilter(idempotencyStore))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
 
     @Test
     void sendOtpReturns202() throws Exception {
-        when(auth.sendOtp(eq("+84900000004"), eq("LOGIN"), eq("127.0.0.1"), eq("key-1")))
+        when(auth.sendOtp(eq("+84900000004"), eq("LOGIN")))
                 .thenReturn(new OtpSendResponse("+84900000004", "LOGIN", "483920"));
 
         mvc.perform(post("/api/v1/auth/otp/send")
@@ -114,8 +115,7 @@ class AuthControllerTest {
 
     @Test
     void sendOtpRejectsAnUnknownType() throws Exception {
-        when(auth.sendOtp(anyString(), eq("NOPE"), anyString(), anyString()))
-                .thenThrow(new IllegalArgumentException("unknown OTP type"));
+        when(auth.sendOtp(anyString(), eq("NOPE"))).thenThrow(new IllegalArgumentException("unknown OTP type"));
 
         mvc.perform(post("/api/v1/auth/otp/send")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -128,11 +128,11 @@ class AuthControllerTest {
     @Test
     void verifyOtpReturnsTheSessionCookie() throws Exception {
         UUID userId = UUID.randomUUID();
-        AuthResponse response = new AuthResponse(userId, "CUSTOMER", "+84900000004", null);
+        AuthPrincipal principal = new AuthPrincipal(userId, "CUSTOMER", "+84900000004", null, "jti-1");
         JwtService.Issued issued =
                 new JwtService.Issued("token-xyz", "jti-1", Instant.now().plus(Duration.ofHours(8)));
-        when(auth.verifyOtp(eq("+84900000004"), eq("483920"), eq("127.0.0.1"), eq("key-2")))
-                .thenReturn(new AuthSession(response, issued));
+        when(auth.verifyOtp(eq("+84900000004"), eq("483920"))).thenReturn(principal);
+        when(jwt.issue(principal)).thenReturn(issued);
 
         mvc.perform(post("/api/v1/auth/otp/verify")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -154,11 +154,11 @@ class AuthControllerTest {
     @Test
     void registerReturns201() throws Exception {
         UUID userId = UUID.randomUUID();
-        AuthResponse response = new AuthResponse(userId, "CUSTOMER", "+84900000999", null);
+        AuthPrincipal principal = new AuthPrincipal(userId, "CUSTOMER", "+84900000999", null, "jti-2");
         JwtService.Issued issued =
                 new JwtService.Issued("token-reg", "jti-2", Instant.now().plus(Duration.ofHours(8)));
-        when(auth.register(any(RegisterRequest.class), eq("127.0.0.1"), eq("key-3")))
-                .thenReturn(new AuthSession(response, issued));
+        when(auth.register(any(RegisterRequest.class))).thenReturn(principal);
+        when(jwt.issue(principal)).thenReturn(issued);
 
         mvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -171,7 +171,7 @@ class AuthControllerTest {
 
     @Test
     void registerAnswers403ForARoleField() throws Exception {
-        when(auth.register(any(RegisterRequest.class), anyString(), anyString()))
+        when(auth.register(any(RegisterRequest.class)))
                 .thenThrow(new AuthException(
                         HttpStatus.FORBIDDEN, "Role pinning", "Registration always creates a CUSTOMER account."));
 
@@ -206,7 +206,7 @@ class AuthControllerTest {
     void patchMeAppliesTheEditableFields() throws Exception {
         IdentityResponse updated =
                 new IdentityResponse("id-1", "CUSTOMER", "+84900000004", null, "a@b.c", "My", "Nguyen");
-        when(auth.patchMe(any(), any(ProfilePatchRequest.class), eq("key-4"))).thenReturn(updated);
+        when(auth.patchMe(any(), any(ProfilePatchRequest.class))).thenReturn(updated);
 
         mvc.perform(patch("/api/v1/auth/me")
                         .requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal())

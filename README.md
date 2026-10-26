@@ -42,19 +42,19 @@ The backend uses feature-based packages under `dev.hata.scheduler`. ArchUnit tes
 
 ```
 dev.hata.scheduler
-├── auth/                     # authentication feature: controller, service, repository, model, dto
-├── customer/                 # customer feature: model (CustomerProfile -> profiles), repository, service
+├── auth/                     # authentication feature: controller, service, repository, model (User, UserType), dto
+├── customer/                 # customer feature: model (UserProfile -> profiles), repository, service
 ├── dealership/               # dealership feature: model (Dealership), repository, service
-├── resource/                 # resource feature: model (Employee, Technician, TechnicianSkill, SkillLevel), repository, service
+├── resource/                 # resource feature: model (Employee, EmployeeRole, Technician, TechnicianGrade, TechnicianSkill, SkillLevel), repository, service
 ├── infra/                    # infrastructure: redis window counter, flyway migrations
 └── common/                   # shared kernel
     ├── filter/               # ClientIpResolver, AuthFilter, IdempotencyFilter
     ├── security/             # JwtService, AuthPrincipal, JwtProperties
     ├── otp/                  # OtpService, OtpStorage, OtpType, OtpProperties
-    ├── ratelimit/            # RateLimitService, RateLimitProperties
-    ├── idempotency/          # IdempotencyService, IdempotencyStore
+    ├── ratelimit/            # RateLimited, RateLimitAspect, RateLimitService, RateLimitProperties
+    ├── idempotency/          # IdempotencyStore
     ├── exception/            # RFC 7807 ApiProblem, AuthException, GlobalExceptionHandler
-    ├── port/                 # cross-feature decoupling providers
+    ├── provider/             # cross-feature decoupling providers (UserProfileProvider, EmployeeProfileProvider)
     └── architecture/         # ArchUnit executable assertions
 ```
 

@@ -8,9 +8,9 @@ import static org.mockito.Mockito.when;
 import java.util.Optional;
 import java.util.UUID;
 
-import dev.hata.scheduler.common.port.CustomerProfileProvider;
-import dev.hata.scheduler.customer.model.CustomerProfile;
-import dev.hata.scheduler.customer.repository.CustomerProfileRepository;
+import dev.hata.scheduler.common.provider.UserProfileProvider;
+import dev.hata.scheduler.customer.model.UserProfile;
+import dev.hata.scheduler.customer.repository.UserProfileRepository;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +24,7 @@ class CustomerServiceTest {
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000005");
 
     @Mock
-    private CustomerProfileRepository repository;
+    private UserProfileRepository repository;
 
     private CustomerService service;
 
@@ -35,11 +35,11 @@ class CustomerServiceTest {
 
     @Test
     void findByUserIdReturnsMappedView() {
-        CustomerProfile profile = new CustomerProfile();
+        UserProfile profile = new UserProfile();
         profile.assign(USER_ID, "My", "Nguyen");
         when(repository.findByUserId(USER_ID)).thenReturn(Optional.of(profile));
 
-        Optional<CustomerProfileProvider.ProfileView> view = service.findByUserId(USER_ID);
+        Optional<UserProfileProvider.ProfileView> view = service.findByUserId(USER_ID);
 
         assertThat(view).isPresent();
         assertThat(view.get().firstName()).isEqualTo("My");
@@ -48,24 +48,24 @@ class CustomerServiceTest {
 
     @Test
     void createProfileSavesAndReturnsView() {
-        when(repository.save(any(CustomerProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.save(any(UserProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CustomerProfileProvider.ProfileView view = service.createProfile(USER_ID, "Tai", "Le");
+        UserProfileProvider.ProfileView view = service.createProfile(USER_ID, "Tai", "Le");
 
         assertThat(view.userId()).isEqualTo(USER_ID);
         assertThat(view.firstName()).isEqualTo("Tai");
         assertThat(view.lastName()).isEqualTo("Le");
-        verify(repository).save(any(CustomerProfile.class));
+        verify(repository).save(any(UserProfile.class));
     }
 
     @Test
     void updateNamesUpdatesExistingProfile() {
-        CustomerProfile profile = new CustomerProfile();
+        UserProfile profile = new UserProfile();
         profile.assign(USER_ID, "My", "Nguyen");
         when(repository.findByUserId(USER_ID)).thenReturn(Optional.of(profile));
-        when(repository.save(any(CustomerProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.save(any(UserProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Optional<CustomerProfileProvider.ProfileView> view = service.updateNames(USER_ID, "Updated", "Name");
+        Optional<UserProfileProvider.ProfileView> view = service.updateNames(USER_ID, "Updated", "Name");
 
         assertThat(view).isPresent();
         assertThat(view.get().firstName()).isEqualTo("Updated");
@@ -77,7 +77,7 @@ class CustomerServiceTest {
     void updateNamesReturnsEmptyWhenNotFound() {
         when(repository.findByUserId(USER_ID)).thenReturn(Optional.empty());
 
-        Optional<CustomerProfileProvider.ProfileView> view = service.updateNames(USER_ID, "Updated", "Name");
+        Optional<UserProfileProvider.ProfileView> view = service.updateNames(USER_ID, "Updated", "Name");
 
         assertThat(view).isEmpty();
     }

@@ -4,112 +4,64 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
-import dev.hata.scheduler.auth.dto.AuthResponse;
-import dev.hata.scheduler.auth.dto.AuthSession;
 import dev.hata.scheduler.auth.dto.IdentityResponse;
 import dev.hata.scheduler.auth.dto.OtpSendResponse;
 import dev.hata.scheduler.auth.dto.ProfilePatchRequest;
 import dev.hata.scheduler.auth.dto.RegisterRequest;
 import dev.hata.scheduler.auth.model.User;
+import dev.hata.scheduler.auth.model.UserType;
 import dev.hata.scheduler.auth.repository.UserRepository;
 import dev.hata.scheduler.common.exception.AuthException;
-import dev.hata.scheduler.common.idempotency.IdempotencyService;
-import dev.hata.scheduler.common.idempotency.IdempotencyStore;
 import dev.hata.scheduler.common.otp.OtpService;
 import dev.hata.scheduler.common.otp.OtpType;
-import dev.hata.scheduler.common.port.CustomerProfileProvider;
-import dev.hata.scheduler.common.port.TechnicianProfileProvider;
-import dev.hata.scheduler.common.ratelimit.RateLimitService;
+import dev.hata.scheduler.common.provider.EmployeeProfileProvider;
+import dev.hata.scheduler.common.provider.UserProfileProvider;
 import dev.hata.scheduler.common.security.AuthPrincipal;
-import dev.hata.scheduler.common.security.JwtService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.ObjectMapper;
 
 /**
- * The auth use cases: OTP issuance, login, registration, and centralized profile
- * management (design D4/D5/D7/D11/D13). Methods accept input DTOs and value types,
- * returning domain DTO responses without servlet coupling.
+ * Stateless auth use cases: OTP issuance, login verification, registration, and
+ * centralized profile management (design D4/D5/D7/D11/D13). Cross-cutting
+ * idempotency and rate limits are handled declaratively by filters and AOP aspects.
  */
 @Service
 public class AuthService {
 
     private static final Pattern E164 = Pattern.compile("^\\+[1-9]\\d{7,14}$");
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final OtpService otp;
-    private final JwtService jwt;
     private final UserRepository users;
-    private final CustomerProfileProvider profiles;
-    private final TechnicianProfileProvider employees;
-    private final IdempotencyService idempotency;
-    private final RateLimitService rateLimits;
+    private final UserProfileProvider profiles;
+    private final EmployeeProfileProvider employees;
 
     public AuthService(
-            OtpService otp,
-            JwtService jwt,
-            UserRepository users,
-            CustomerProfileProvider profiles,
-            TechnicianProfileProvider employees,
-            IdempotencyService idempotency,
-            RateLimitService rateLimits) {
+            OtpService otp, UserRepository users, UserProfileProvider profiles, EmployeeProfileProvider employees) {
         this.otp = otp;
-        this.jwt = jwt;
         this.users = users;
         this.profiles = profiles;
         this.employees = employees;
-        this.idempotency = idempotency;
-        this.rateLimits = rateLimits;
     }
 
     /**
      * Issues a purpose-scoped OTP and publishes an event for channel dispatch (design D7).
-     * A replayed idempotency key returns the cached response and dispatches nothing.
      */
-    public OtpSendResponse sendOtp(String phone, String typeWire, String clientIp, String idempotencyKey) {
-        String slot = idempotency.slot("otp-send", phone, idempotencyKey);
-        Optional<IdempotencyStore.CachedResponse> cached = idempotency.load(slot);
-        if (cached.isPresent()) {
-            try {
-                return MAPPER.readValue(cached.get().body(), OtpSendResponse.class);
-            } catch (Exception ignored) {
-                // fallback to re-evaluating on deserialization failure
-            }
-        }
+    public OtpSendResponse sendOtp(String phone, String typeWire) {
         requirePhone(phone);
         OtpType type = OtpType.fromWire(typeWire);
-        UUID dealershipId = findDealershipId(phone);
-        rateLimits.checkOtpSend(phone, type.value(), clientIp, dealershipId);
-
         String code = otp.generateAndSend(phone, type);
-        OtpSendResponse response = new OtpSendResponse(phone, type.name(), otp.isEchoEnabled() ? code : null);
-        try {
-            idempotency.store(
-                    slot, new IdempotencyStore.CachedResponse(202, MAPPER.writeValueAsString(response), null));
-        } catch (Exception ignored) {
-            // cache store failure does not fail business execution
-        }
-        return response;
+        return new OtpSendResponse(phone, type.name(), otp.isEchoEnabled() ? code : null);
     }
 
     /**
-     * Logs in an account by verified OTP. Verify never creates a user row (spec: login by verified OTP).
-     * When {@code users.type} is {@code CUSTOMER}, role is {@code CUSTOMER} and dealershipId is null;
-     * when {@code users.type} is {@code EMPLOYEE}, role and dealershipId resolve from {@code employees}.
+     * Verifies a LOGIN-purpose OTP and resolves the caller's stateless {@link AuthPrincipal}
+     * to be embedded into the {@code httpOnly} JWT cookie.
      */
     @Transactional
-    public AuthSession verifyOtp(String phone, String code, String clientIp, String idempotencyKey) {
-        String slot = idempotency.slot("otp-verify", phone, idempotencyKey);
-        Optional<IdempotencyStore.CachedResponse> cached = idempotency.load(slot);
-        if (cached.isPresent()) {
-            return readCachedSession(cached.get());
-        }
+    public AuthPrincipal verifyOtp(String phone, String code) {
         requirePhone(phone);
-        UUID dealershipId = findDealershipId(phone);
-        rateLimits.checkOtpVerify(clientIp, dealershipId);
-
         Optional<User> found = users.findByPhone(phone);
         if (found.isEmpty()) {
             throw new AuthException(
@@ -118,6 +70,7 @@ public class AuthService {
                     "No account exists for this phone. Register first at POST /api/v1/auth/register.");
         }
         User user = found.get();
+        requireActive(user);
 
         if (!otp.verify(phone, OtpType.LOGIN, code)) {
             throw new AuthException(
@@ -127,14 +80,22 @@ public class AuthService {
         }
 
         ResolvedScope scope = resolveScope(user);
-        AuthSession session = issueSession(user, scope.role(), scope.dealershipId());
-        cacheSession(slot, 200, session);
-        return session;
+        UserProfileProvider.ProfileView profile =
+                profiles.findByUserId(user.getId()).orElse(null);
+        return new AuthPrincipal(
+                user.getId(),
+                scope.role(),
+                user.getPhone(),
+                scope.dealershipId(),
+                user.getEmail(),
+                profile != null ? profile.firstName() : null,
+                profile != null ? profile.lastName() : null,
+                UUID.randomUUID().toString());
     }
 
     private ResolvedScope resolveScope(User user) {
-        if (User.TYPE_EMPLOYEE.equals(user.getType())) {
-            TechnicianProfileProvider.EmployeeView emp = employees
+        if (user.getType() == UserType.EMPLOYEE) {
+            EmployeeProfileProvider.EmployeeView emp = employees
                     .findByUserId(user.getId())
                     .orElseThrow(() -> new AuthException(
                             HttpStatus.UNAUTHORIZED,
@@ -142,20 +103,15 @@ public class AuthService {
                             "The employee account has no employee record."));
             return new ResolvedScope(emp.role(), emp.dealershipId());
         }
-        return new ResolvedScope(User.TYPE_CUSTOMER, null);
+        return new ResolvedScope(UserType.CUSTOMER.name(), null);
     }
 
     /**
      * Creates the global customer account ({@code type = CUSTOMER}), centralized profile,
-     * and login session in one call (design D11).
+     * and returns the caller's {@link AuthPrincipal} to be embedded in the JWT cookie.
      */
     @Transactional
-    public AuthSession register(RegisterRequest req, String clientIp, String idempotencyKey) {
-        String slot = idempotency.slot("register", req.phone(), idempotencyKey);
-        Optional<IdempotencyStore.CachedResponse> cached = idempotency.load(slot);
-        if (cached.isPresent()) {
-            return readCachedSession(cached.get());
-        }
+    public AuthPrincipal register(RegisterRequest req) {
         requirePhone(req.phone());
         if (req.role() != null && !req.role().isBlank()) {
             throw new AuthException(
@@ -170,8 +126,6 @@ public class AuthService {
             throw new AuthException(
                     HttpStatus.BAD_REQUEST, "Invalid request body", "The request needs a firstName and a lastName.");
         }
-        rateLimits.checkRegister(clientIp);
-
         if (users.existsByPhone(req.phone())) {
             throw new AuthException(
                     HttpStatus.CONFLICT,
@@ -186,13 +140,21 @@ public class AuthService {
         }
 
         UUID userId = UUID.randomUUID();
-        User user = newUser(userId, req.phone(), User.TYPE_CUSTOMER);
+        String firstName = req.firstName().trim();
+        String lastName = req.lastName().trim();
+        User user = newUser(userId, req.phone(), UserType.CUSTOMER);
         users.save(user);
-        profiles.createProfile(userId, req.firstName().trim(), req.lastName().trim());
+        profiles.createProfile(userId, firstName, lastName);
 
-        AuthSession session = issueSession(user, User.TYPE_CUSTOMER, null);
-        cacheSession(slot, 201, session);
-        return session;
+        return new AuthPrincipal(
+                userId,
+                UserType.CUSTOMER.name(),
+                req.phone(),
+                null,
+                null,
+                firstName,
+                lastName,
+                UUID.randomUUID().toString());
     }
 
     /**
@@ -203,7 +165,8 @@ public class AuthService {
         User user = users.findById(principal.userId())
                 .orElseThrow(() ->
                         new AuthException(HttpStatus.UNAUTHORIZED, "Session invalid", "The session has no account."));
-        return buildIdentityResponse(user, principal.role(), principal.dealershipId());
+        requireActive(user);
+        return buildIdentityResponse(user, principal);
     }
 
     /**
@@ -211,16 +174,7 @@ public class AuthService {
      * for all accounts ({@code CUSTOMER} and {@code EMPLOYEE}).
      */
     @Transactional
-    public IdentityResponse patchMe(AuthPrincipal principal, ProfilePatchRequest patch, String idempotencyKey) {
-        String slot = idempotency.slot("patch-me", principal.phone(), idempotencyKey);
-        Optional<IdempotencyStore.CachedResponse> cached = idempotency.load(slot);
-        if (cached.isPresent()) {
-            try {
-                return MAPPER.readValue(cached.get().body(), IdentityResponse.class);
-            } catch (Exception ignored) {
-                // fallback to re-evaluating on deserialization failure
-            }
-        }
+    public IdentityResponse patchMe(AuthPrincipal principal, ProfilePatchRequest patch) {
         if (patch.phone() != null) {
             throw new AuthException(
                     HttpStatus.BAD_REQUEST,
@@ -230,83 +184,47 @@ public class AuthService {
         User user = users.findById(principal.userId())
                 .orElseThrow(() ->
                         new AuthException(HttpStatus.UNAUTHORIZED, "Session invalid", "The session has no account."));
+        requireActive(user);
         if (patch.email() != null) {
             user.setEmail(patch.email().trim());
             users.save(user);
         }
         if (patch.firstName() != null || patch.lastName() != null) {
-            CustomerProfileProvider.ProfileView current = profiles.findByUserId(user.getId())
+            UserProfileProvider.ProfileView current = profiles.findByUserId(user.getId())
                     .orElseThrow(() ->
                             new AuthException(HttpStatus.NOT_FOUND, "Profile missing", "The account has no profile."));
             String newFirst = resolveName(patch.firstName(), current.firstName());
             String newLast = resolveName(patch.lastName(), current.lastName());
             profiles.updateNames(user.getId(), newFirst, newLast);
         }
-        IdentityResponse response = buildIdentityResponse(user, principal.role(), principal.dealershipId());
-        try {
-            idempotency.store(
-                    slot, new IdempotencyStore.CachedResponse(200, MAPPER.writeValueAsString(response), null));
-        } catch (Exception ignored) {
-            // cache store failure does not fail business execution
-        }
-        return response;
+        return buildIdentityResponse(user, principal);
     }
 
     private static String resolveName(String candidate, String fallback) {
         return candidate != null && !candidate.isBlank() ? candidate.trim() : fallback;
     }
 
-    private IdentityResponse buildIdentityResponse(User user, String sessionRole, UUID sessionDealershipId) {
-        CustomerProfileProvider.ProfileView profile =
+    private IdentityResponse buildIdentityResponse(User user, AuthPrincipal principal) {
+        UserProfileProvider.ProfileView profile =
                 profiles.findByUserId(user.getId()).orElse(null);
+        String firstName = profile != null ? profile.firstName() : principal.firstName();
+        String lastName = profile != null ? profile.lastName() : principal.lastName();
+        String email = user.getEmail() != null ? user.getEmail() : principal.email();
         return new IdentityResponse(
                 user.getId().toString(),
-                sessionRole,
+                principal.role(),
                 user.getPhone(),
-                sessionDealershipId != null ? sessionDealershipId.toString() : null,
-                user.getEmail(),
-                profile != null ? profile.firstName() : null,
-                profile != null ? profile.lastName() : null);
+                principal.dealershipId() != null ? principal.dealershipId().toString() : null,
+                email,
+                firstName,
+                lastName);
     }
 
-    private AuthSession readCachedSession(IdempotencyStore.CachedResponse cached) {
-        try {
-            AuthResponse authResponse = MAPPER.readValue(cached.body(), AuthResponse.class);
-            JwtService.Issued issued = new JwtService.Issued(cached.setCookie(), null, null);
-            return new AuthSession(authResponse, issued);
-        } catch (Exception ex) {
+    private static void requireActive(User user) {
+        if (!user.isActive()) {
             throw new AuthException(
-                    HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Idempotency replay failed",
-                    "Idempotency replay failed: " + ex.getMessage(),
-                    ex);
+                    HttpStatus.FORBIDDEN, "Account inactive", "This account is deactivated and cannot sign in.");
         }
-    }
-
-    private void cacheSession(String slot, int status, AuthSession session) {
-        try {
-            String bodyJson = MAPPER.writeValueAsString(session.user());
-            idempotency.store(
-                    slot,
-                    new IdempotencyStore.CachedResponse(
-                            status, bodyJson, session.session().token()));
-        } catch (Exception ignored) {
-            // cache store failure does not fail business execution
-        }
-    }
-
-    private AuthSession issueSession(User user, String role, UUID activeDealershipId) {
-        String dealershipIdStr = activeDealershipId != null ? activeDealershipId.toString() : null;
-        JwtService.Issued issued = jwt.issue(user.getId().toString(), role, user.getPhone(), dealershipIdStr);
-        AuthResponse authResponse = new AuthResponse(user.getId(), role, user.getPhone(), activeDealershipId);
-        return new AuthSession(authResponse, issued);
-    }
-
-    private UUID findDealershipId(String phone) {
-        return users.findByPhone(phone)
-                .flatMap(user -> employees.findByUserId(user.getId()))
-                .map(TechnicianProfileProvider.EmployeeView::dealershipId)
-                .orElse(null);
     }
 
     private static void requirePhone(String phone) {
@@ -318,7 +236,7 @@ public class AuthService {
         }
     }
 
-    private User newUser(UUID id, String phone, String type) {
+    private User newUser(UUID id, String phone, UserType type) {
         User user = new User();
         user.assign(id, phone, type);
         return user;

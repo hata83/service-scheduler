@@ -106,23 +106,23 @@ class SchemaMigrationTest {
                 "SELECT e.dealership_id::text FROM employees e "
                         + "JOIN users u ON u.id = e.user_id WHERE u.phone = '+84900000003'",
                 String.class);
-        String techLevel = jdbc.queryForObject(
-                "SELECT t.level FROM technicians t "
+        String techGrade = jdbc.queryForObject(
+                "SELECT t.grade FROM technicians t "
                         + "JOIN users u ON u.id = t.user_id WHERE u.phone = '+84900000003'",
                 String.class);
 
         assertThat(adminDealershipId).isNull();
         assertThat(managerDealershipId).isEqualTo(demoDealershipId);
         assertThat(techDealershipId).isEqualTo(demoDealershipId);
-        assertThat(techLevel).isEqualTo("SENIOR");
+        assertThat(techGrade).isEqualTo("SENIOR");
     }
 
     @Test
-    void seededDealershipCarriesDynamicFeaturesJson() {
+    void seededDealershipCarriesFeaturesJson() {
         String features = jdbc.queryForObject(
                 "SELECT features::text FROM dealerships WHERE name = 'Hata Demo Service Center'", String.class);
 
-        assertThat(features).contains("rateLimits").contains("otpSendPerPhonePurpose");
+        assertThat(features).isEqualTo("{}");
     }
 
     @Test

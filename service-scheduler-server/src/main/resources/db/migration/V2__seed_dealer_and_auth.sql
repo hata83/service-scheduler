@@ -24,7 +24,7 @@ INSERT INTO dealerships (
   '1 Le Loi',
   'Ho Chi Minh City',
   'Vietnam',
-  '{"rateLimits":{"otpSendPerPhonePurpose":5,"otpSendPerPhonePurposeWindowSeconds":600,"otpSendPerIp":50,"otpSendPerIpWindowSeconds":60,"otpVerifyPerIp":50,"otpVerifyPerIpWindowSeconds":60,"registerPerIp":20,"registerPerIpWindowSeconds":60}}'::jsonb,
+  '{}'::jsonb,
   '00000000-0000-0000-0000-000000000002',
   '00000000-0000-0000-0000-000000000002'
 );
@@ -37,7 +37,7 @@ INSERT INTO employees (
   ('00000000-0000-0000-0000-000000000004', 'TEC-0001', 'TECHNICIAN', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002');
 
 INSERT INTO technicians (
-  user_id, level, is_available, created_by, updated_by
+  user_id, grade, is_available, created_by, updated_by
 ) VALUES (
   '00000000-0000-0000-0000-000000000004',
   'SENIOR',

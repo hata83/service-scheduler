@@ -1,18 +1,18 @@
-package dev.hata.scheduler.common.port;
+package dev.hata.scheduler.common.provider;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Shared contract for staff employee and technician records (design D4/D13).
+ * Shared provider contract for staff employee and technician records (design D4/D13).
  * Resolves an employee's {@code employeeId}, {@code role}, and {@code dealershipId}
  * ({@code null} for global {@code ADMIN}, local dealership UUID for {@code MANAGER}
- * and {@code TECHNICIAN}), plus technician career {@code level} and multi-skill
+ * and {@code TECHNICIAN}), plus technician career {@code grade} and multi-skill
  * qualifications.
  */
 @FunctionalInterface
-public interface TechnicianProfileProvider {
+public interface EmployeeProfileProvider {
 
     /**
      * One domain skill and its proficiency level for a technician.
@@ -27,7 +27,7 @@ public interface TechnicianProfileProvider {
             String employeeId,
             String role,
             UUID dealershipId,
-            String level,
+            String grade,
             Boolean available,
             List<SkillView> skills) {}
 

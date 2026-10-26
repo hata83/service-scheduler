@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import dev.hata.scheduler.common.port.TechnicianProfileProvider;
+import dev.hata.scheduler.common.provider.EmployeeProfileProvider;
 import dev.hata.scheduler.resource.model.Employee;
 import dev.hata.scheduler.resource.model.Technician;
 import dev.hata.scheduler.resource.repository.EmployeeRepository;
@@ -15,12 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Employee and technician resource domain service (design D4/D13). Implements
- * {@link TechnicianProfileProvider} so the auth feature resolves an employee's
+ * {@link EmployeeProfileProvider} so the auth feature resolves an employee's
  * dealership scope ({@code ADMIN} global, {@code MANAGER}/{@code TECHNICIAN} local)
- * and technician career level and multi-skill taxonomy without package coupling.
+ * and technician career grade and multi-skill taxonomy without package coupling.
  */
 @Service
-public class TechnicianService implements TechnicianProfileProvider {
+public class TechnicianService implements EmployeeProfileProvider {
 
     private final EmployeeRepository employees;
     private final TechnicianSkillRepository skills;
@@ -44,16 +44,16 @@ public class TechnicianService implements TechnicianProfileProvider {
             return new EmployeeView(
                     technician.getUserId(),
                     technician.getEmployeeId(),
-                    technician.getRole(),
+                    technician.getRole().name(),
                     technician.getDealershipId(),
-                    technician.getLevel().name(),
+                    technician.getGrade().name(),
                     technician.isAvailable(),
                     skillViews);
         }
         return new EmployeeView(
                 employee.getUserId(),
                 employee.getEmployeeId(),
-                employee.getRole(),
+                employee.getRole().name(),
                 employee.getDealershipId(),
                 null,
                 null,

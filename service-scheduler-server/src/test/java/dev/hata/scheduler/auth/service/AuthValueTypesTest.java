@@ -7,13 +7,13 @@ import java.time.Duration;
 import java.util.UUID;
 
 import dev.hata.scheduler.auth.model.User;
+import dev.hata.scheduler.auth.model.UserType;
 import dev.hata.scheduler.common.exception.ApiProblem;
 import dev.hata.scheduler.common.exception.AuthException;
 import dev.hata.scheduler.common.otp.OtpProperties;
 import dev.hata.scheduler.common.otp.OtpType;
 import dev.hata.scheduler.common.security.AuthPrincipal;
 import dev.hata.scheduler.common.security.JwtProperties;
-import dev.hata.scheduler.common.security.JwtService;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -30,12 +30,12 @@ class AuthValueTypesTest {
     @Test
     void userCarriesItsColumns() {
         User user = new User();
-        user.assign(USER_ID, "+84900000004", "CUSTOMER");
+        user.assign(USER_ID, "+84900000004", UserType.CUSTOMER);
         user.setEmail("my.nguyen@example.com");
 
         assertThat(user.getId()).isEqualTo(USER_ID);
         assertThat(user.getPhone()).isEqualTo("+84900000004");
-        assertThat(user.getType()).isEqualTo(User.TYPE_CUSTOMER);
+        assertThat(user.getType()).isEqualTo(UserType.CUSTOMER);
         assertThat(user.getEmail()).isEqualTo("my.nguyen@example.com");
         assertThat(user.isActive()).isTrue();
         assertThat(user.getCreatedAt()).isNotNull();
@@ -97,11 +97,18 @@ class AuthValueTypesTest {
     @Test
     void jwtPropertiesCarryTheConfiguredValues() {
         JwtProperties properties = new JwtProperties(
-                "secret-key-123456789012345678901234567890", "service-scheduler", Duration.ofHours(8), "jwt");
+                "secret-key-123456789012345678901234567890", "service-scheduler", Duration.ofHours(8), "jwt", true);
 
         assertThat(properties.cookieName()).isEqualTo("jwt");
+        assertThat(properties.cookieSecure()).isTrue();
         assertThat(properties.ttl()).isEqualTo(Duration.ofHours(8));
         assertThat(properties.issuer()).isEqualTo("service-scheduler");
+
+        JwtProperties defaults =
+                new JwtProperties("secret-key-123456789012345678901234567890", null, null, "  ", false);
+        assertThat(defaults.cookieName()).isEqualTo("jwt");
+        assertThat(defaults.issuer()).isEqualTo("service-scheduler");
+        assertThat(defaults.ttl()).isEqualTo(Duration.ofHours(8));
     }
 
     @Test
@@ -127,10 +134,5 @@ class AuthValueTypesTest {
         assertThat(authResp.role()).isEqualTo("CUSTOMER");
         assertThat(authResp.phone()).isEqualTo("+84900000004");
         assertThat(authResp.dealershipId()).isEqualTo(DEALERSHIP);
-
-        JwtService.Issued issued = new JwtService.Issued("tok", "jti", java.time.Instant.now());
-        dev.hata.scheduler.auth.dto.AuthSession session = new dev.hata.scheduler.auth.dto.AuthSession(authResp, issued);
-        assertThat(session.user()).isEqualTo(authResp);
-        assertThat(session.session()).isEqualTo(issued);
     }
 }

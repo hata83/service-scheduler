@@ -28,7 +28,7 @@ The system SHALL issue a single-use six-digit OTP when `POST /api/v1/auth/otp/se
 
 ### Requirement: OTP issuance replay
 
-The system SHALL cache the send response for 24 hours under the record `idempotency:otp-send:{phone}:{header-value}`, so one header value never collides across endpoints or phones. The recommended key pattern is `otp-send-{TYPE}-{phone}` and Phase 1 clients use it verbatim; a client sending a new value starts a genuinely fresh send. A replayed send returns the cached 202 body, and no second code is generated or dispatched for the replayed key.
+`IdempotencyFilter` SHALL cache the send response for 24 hours under the record `idempotency:POST:/api/v1/auth/otp/send:{header-value}`, so one header value never collides across endpoints. The recommended key pattern is `otp-send-{TYPE}-{phone}` and Phase 1 clients use it verbatim; a client sending a new value starts a genuinely fresh send. A replayed send returns the cached 202 body, and no second code is generated or dispatched for the replayed key.
 
 #### Scenario: Missing idempotency key on send
 - **WHEN** send omits the `X-Idempotency-Key` header
@@ -64,7 +64,7 @@ The system SHALL resolve the phone to an existing user, consume the LOGIN-purpos
 
 ### Requirement: Verify idempotency
 
-The system SHALL cache the verify response for 24 hours under the record `idempotency:otp-verify:{phone}:{header-value}`, so one header value never collides across endpoints or phones. The recommended key pattern is `otp-verify-{phone}`; a client sending a new value starts a genuinely fresh verification. A replayed verify returns the cached 200 response, including the original session cookie headers, and consumes no second OTP.
+`IdempotencyFilter` SHALL cache the verify response for 24 hours under the record `idempotency:POST:/api/v1/auth/otp/verify:{header-value}`, so one header value never collides across endpoints. The recommended key pattern is `otp-verify-{phone}`; a client sending a new value starts a genuinely fresh verification. A replayed verify returns the cached 200 response, including the original session cookie headers, and consumes no second OTP.
 
 #### Scenario: Missing idempotency key on verify
 - **WHEN** verify omits the `X-Idempotency-Key` header
@@ -104,7 +104,7 @@ The system SHALL apply `PATCH /api/v1/auth/me` with an `X-Idempotency-Key` to th
 
 ### Requirement: Logout revocation
 
-The system SHALL delete the session's Redis record and clear the cookie on `POST /api/v1/auth/logout`, and SHALL respond 401 to that cookie afterwards.
+The system SHALL clear the stateless `httpOnly` JWT cookie (`Max-Age=0`) on `POST /api/v1/auth/logout`, and SHALL respond 401 when the cleared cookie is presented afterwards.
 
 #### Scenario: Revoked session is rejected
 - **WHEN** the client calls me with a cookie revoked by logout

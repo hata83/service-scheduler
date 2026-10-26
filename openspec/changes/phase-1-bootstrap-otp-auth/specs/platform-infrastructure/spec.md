@@ -52,11 +52,11 @@ The system SHALL emit JSON logs carrying `requestId` and trace correlation field
 
 ### Requirement: Seed fixtures
 
-The system SHALL seed 1 demo dealership, 4 global `users` rows (`type` in `CUSTOMER` or `EMPLOYEE`) with fixed phones, 4 centralized `profiles` rows (one per user), 3 `employees` rows (`role` in `ADMIN`, `MANAGER`, `TECHNICIAN`; `ADMIN` global with `dealership_id IS NULL`, `MANAGER` and `TECHNICIAN` local with `dealership_id` referencing the demo dealership), 1 `technicians` row with career `level`, and `technician_skills` rows with per-skill `level`. Seed migrations SHALL not duplicate rows when reapplied on a preserved database.
+The system SHALL seed 1 demo dealership, 4 global `users` rows (`type` in `CUSTOMER` or `EMPLOYEE`) with fixed phones, 4 centralized `profiles` rows (one per user), 3 `employees` rows (`role` in `ADMIN`, `MANAGER`, `TECHNICIAN`; `ADMIN` global with `dealership_id IS NULL`, `MANAGER` and `TECHNICIAN` local with `dealership_id` referencing the demo dealership), 1 `technicians` row with career `grade`, and `technician_skills` rows with per-skill `level`. Seed migrations SHALL not duplicate rows when reapplied on a preserved database.
 
 #### Scenario: Seed accounts resolve
 - **WHEN** the integration test runs the migrations on PostgreSQL
-- **THEN** queries find 1 dealership row, 4 global user rows (`type` in `CUSTOMER` or `EMPLOYEE`), 4 centralized profile rows, 3 employee rows (`ADMIN` global, `MANAGER` and `TECHNICIAN` referencing the demo dealership), 1 technician row with career `level`, and 2 technician skill rows with skill `level`
+- **THEN** queries find 1 dealership row, 4 global user rows (`type` in `CUSTOMER` or `EMPLOYEE`), 4 centralized profile rows, 3 employee rows (`ADMIN` global, `MANAGER` and `TECHNICIAN` referencing the demo dealership), 1 technician row with career `grade`, and 2 technician skill rows with skill `level`
 
 #### Scenario: Migration re-run stays single
 - **WHEN** the migration set applies again against an already-seeded database

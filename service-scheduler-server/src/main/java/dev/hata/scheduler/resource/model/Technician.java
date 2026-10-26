@@ -13,7 +13,7 @@ import jakarta.persistence.Table;
 /**
  * The {@code technicians} specialization of {@link Employee}. A technician
  * belongs to a specific local {@code dealership_id}, carries an overall career
- * {@link SkillLevel}, and holds multi-skill rows in {@code technician_skills}
+ * {@link TechnicianGrade}, and holds multi-skill rows in {@code technician_skills}
  * (design D4, SYSTEM_DESIGN §4.2.3).
  */
 @Entity
@@ -22,8 +22,8 @@ import jakarta.persistence.Table;
 public class Technician extends Employee {
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "level", nullable = false)
-    private SkillLevel level;
+    @Column(name = "grade", nullable = false)
+    private TechnicianGrade grade;
 
     @Column(name = "is_available", nullable = false)
     private boolean available;
@@ -33,14 +33,14 @@ public class Technician extends Employee {
     /**
      * Fills the technician employee and specialization fields.
      */
-    public void assignTechnician(UUID userId, UUID dealershipId, String employeeId, SkillLevel level) {
-        assignEmployee(userId, employeeId, ROLE_TECHNICIAN, dealershipId);
-        this.level = Objects.requireNonNull(level, "Technician level is required.");
+    public void assignTechnician(UUID userId, UUID dealershipId, String employeeId, TechnicianGrade grade) {
+        assignEmployee(userId, employeeId, EmployeeRole.TECHNICIAN, dealershipId);
+        this.grade = Objects.requireNonNull(grade, "Technician grade is required.");
         this.available = true;
     }
 
-    public SkillLevel getLevel() {
-        return level;
+    public TechnicianGrade getGrade() {
+        return grade;
     }
 
     public boolean isAvailable() {

@@ -29,7 +29,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,prometheus,metrics,info
+        include: health,prometheus
   endpoint:
     health:
       show-details: always
@@ -50,22 +50,30 @@ app:
   auth:
     jwt:
       # Dev-only default; prod profile requires JWT_SECRET and fails fast without it
-      secret: "dev-only-insecure-secret-change-me-in-prod-0123456789"
+      secret: ${JWT_SECRET:dev-only-insecure-secret-change-me-in-prod-0123456789}
       issuer: "service-scheduler"
       ttl: 8h
       cookie-name: jwt
+      cookie-secure: false
     otp:
       ttl: 5m
-      echo: true
+      echo: ${APP_AUTH_OTP_ECHO:true}
       channel: zalo-stub
-    registration:
-      # Phase 1 seeds one dealership, so a new customer joins it (design D4)
-      default-dealership-id: "00000000-0000-0000-0000-000000000001"
   ratelimits:
-    # Dealership-scoped JSON with a default block + per-dealership overrides (design D7)
-    location: classpath:config/rate-limits.json
-    # The prod profile keeps the forwarded address untrusted
     trust-forwarded-for: false
+    policies:
+      otp-send-phone:
+        limit: 5
+        window: 10m
+      otp-send-ip:
+        limit: 30
+        window: 1m
+      otp-verify-ip:
+        limit: 10
+        window: 1m
+      register-ip:
+        limit: 10
+        window: 1m
 
 springdoc:
   show-actuator: true

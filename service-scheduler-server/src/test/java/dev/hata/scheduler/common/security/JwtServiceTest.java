@@ -16,7 +16,11 @@ class JwtServiceTest {
 
     private JwtService service() {
         return new JwtService(new JwtProperties(
-                "secret-secret-secret-secret-secret-secret-1234", "service-scheduler", Duration.ofHours(8), "jwt"));
+                "secret-secret-secret-secret-secret-secret-1234",
+                "service-scheduler",
+                Duration.ofHours(8),
+                "jwt",
+                false));
     }
 
     @Test
@@ -63,6 +67,27 @@ class JwtServiceTest {
         Optional<AuthPrincipal> principalBlankDealer = service.authenticate(issuedBlankDealer.token());
         assertThat(principalBlankDealer).isPresent();
         assertThat(principalBlankDealer.get().dealershipId()).isNull();
+
+        // Issue from AuthPrincipal with and without dealershipId
+        AuthPrincipal fullPrincipal = new AuthPrincipal(
+                UUID.fromString(userIdStr),
+                "MANAGER",
+                "+84900000002",
+                UUID.fromString(dealerIdStr),
+                "mgr@demo.vn",
+                "Demo",
+                "Manager",
+                "jti-custom");
+        JwtService.Issued issuedPrincipal = service.issue(fullPrincipal);
+        Optional<AuthPrincipal> parsedFull = service.authenticate(issuedPrincipal.token());
+        assertThat(parsedFull).isPresent();
+        assertThat(parsedFull.get().email()).isEqualTo("mgr@demo.vn");
+        assertThat(parsedFull.get().firstName()).isEqualTo("Demo");
+        assertThat(parsedFull.get().lastName()).isEqualTo("Manager");
+
+        AuthPrincipal nullDealerPrincipal =
+                new AuthPrincipal(UUID.fromString(userIdStr), "CUSTOMER", "+84900000004", null, null);
+        assertThat(service.issue(nullDealerPrincipal).token()).isNotBlank();
     }
 
     @Test
@@ -76,6 +101,7 @@ class JwtServiceTest {
     void getterPropertiesReportConfiguredState() {
         JwtService service = service();
         assertThat(service.cookieName()).isEqualTo("jwt");
+        assertThat(service.cookieSecure()).isFalse();
         assertThat(service.ttl()).isEqualTo(Duration.ofHours(8));
     }
 

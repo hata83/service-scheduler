@@ -4,111 +4,104 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.UUID;
+import java.lang.reflect.Method;
+import java.time.Duration;
+import java.util.Map;
 
+import dev.hata.scheduler.auth.dto.OtpSendRequest;
 import dev.hata.scheduler.common.exception.AuthException;
-import dev.hata.scheduler.common.port.DealershipFeaturesProvider;
+import dev.hata.scheduler.common.filter.ClientIpResolver;
 
+import jakarta.servlet.http.HttpServletRequest;
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class RateLimitServiceTest {
-
-    private static final UUID DEALERSHIP_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @Mock
     private WindowCounter counter;
 
     @Mock
-    private DealershipFeaturesProvider dealershipFeatures;
+    private ClientIpResolver ipResolver;
 
     private RateLimitProperties properties;
     private RateLimitService service;
+    private RateLimitAspect aspect;
 
     @BeforeEach
     void setUp() {
-        properties = new RateLimitProperties("classpath:config/rate-limits-test.json", false);
-        service = new RateLimitService(counter, dealershipFeatures);
-        when(dealershipFeatures.resolveRateLimits(any())).thenReturn(properties.resolve(null));
+        properties = new RateLimitProperties(
+                false,
+                Map.of(
+                        "otp-send-phone", new RateLimitProperties.Policy(5, Duration.ofSeconds(10)),
+                        "otp-send-ip", new RateLimitProperties.Policy(50, Duration.ofSeconds(10))));
+        service = new RateLimitService(counter, properties);
+        aspect = new RateLimitAspect(service, ipResolver);
     }
 
     @Test
-    void checkOtpSendPassesUnderLimits() {
-        when(counter.tryAcquire(any(), anyLong(), any())).thenReturn(true);
-
-        service.checkOtpSend("+84900000004", "login", "10.0.0.1", DEALERSHIP_ID);
-
-        verify(counter).tryAcquire(eq("ratelimit:otp-send:phone:+84900000004:login"), eq(5L), any());
-        verify(counter).tryAcquire(eq("ratelimit:otp-send:ip:10.0.0.1"), eq(50L), any());
-    }
-
-    @Test
-    void checkOtpSendThrowsWhenPhoneExceeded() {
-        when(counter.tryAcquire(eq("ratelimit:otp-send:phone:+84900000004:login"), anyLong(), any()))
-                .thenReturn(false);
-
-        assertThatThrownBy(() -> service.checkOtpSend("+84900000004", "login", "10.0.0.1", null))
-                .isInstanceOf(AuthException.class)
-                .hasMessageContaining("Too many OTP requests for this phone");
-    }
-
-    @Test
-    void checkOtpSendThrowsWhenIpExceeded() {
-        when(counter.tryAcquire(eq("ratelimit:otp-send:phone:+84900000004:login"), anyLong(), any()))
+    void checkLimitAcquiresWindowAndThrowsOnExhaustion() {
+        when(counter.tryAcquire(eq("ratelimit:otp-send-phone:login:+84900000004"), eq(5L), any()))
                 .thenReturn(true);
-        when(counter.tryAcquire(eq("ratelimit:otp-send:ip:10.0.0.1"), anyLong(), any()))
+
+        service.checkLimit("otp-send-phone", "login:+84900000004", "Too many OTP requests");
+
+        verify(counter).tryAcquire(eq("ratelimit:otp-send-phone:login:+84900000004"), eq(5L), any());
+
+        when(counter.tryAcquire(eq("ratelimit:otp-send-ip:10.0.0.1"), anyLong(), any()))
                 .thenReturn(false);
 
-        assertThatThrownBy(() -> service.checkOtpSend("+84900000004", "login", "10.0.0.1", null))
+        assertThatThrownBy(() -> service.checkLimit("otp-send-ip", "10.0.0.1", "Too many IP requests"))
                 .isInstanceOf(AuthException.class)
-                .hasMessageContaining("Too many OTP requests from this address");
+                .hasMessageContaining("Too many IP requests");
     }
 
     @Test
-    void checkOtpVerifyPassesUnderLimit() {
+    void aspectEnforcesPayloadAndIpRules() throws Exception {
         when(counter.tryAcquire(any(), anyLong(), any())).thenReturn(true);
+        when(ipResolver.resolve(any())).thenReturn("10.0.0.1");
 
-        service.checkOtpVerify("10.0.0.1", DEALERSHIP_ID);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        try {
+            Method method =
+                    SampleEndpoint.class.getDeclaredMethod("handle", OtpSendRequest.class, HttpServletRequest.class);
+            RateLimited annotation = method.getAnnotation(RateLimited.class);
+            JoinPoint joinPoint = mock(JoinPoint.class);
+            MethodSignature signature = mock(MethodSignature.class);
+            when(joinPoint.getSignature()).thenReturn(signature);
+            when(signature.getMethod()).thenReturn(method);
+            when(joinPoint.getArgs()).thenReturn(new Object[] {new OtpSendRequest("+84900000004", "LOGIN"), request});
 
-        verify(counter).tryAcquire(eq("ratelimit:otp-verify:ip:10.0.0.1"), eq(50L), any());
+            aspect.enforceRateLimits(joinPoint, annotation);
+
+            verify(counter).tryAcquire(eq("ratelimit:otp-send-phone:login:+84900000004"), eq(5L), any());
+            verify(counter).tryAcquire(eq("ratelimit:otp-send-ip:10.0.0.1"), eq(50L), any());
+        } finally {
+            RequestContextHolder.resetRequestAttributes();
+        }
     }
 
-    @Test
-    void checkOtpVerifyThrowsWhenIpExceeded() {
-        when(counter.tryAcquire(eq("ratelimit:otp-verify:ip:10.0.0.1"), anyLong(), any()))
-                .thenReturn(false);
-
-        assertThatThrownBy(() -> service.checkOtpVerify("10.0.0.1", null))
-                .isInstanceOf(AuthException.class)
-                .hasMessageContaining("Too many verification requests");
-    }
-
-    @Test
-    void checkRegisterPassesUnderLimit() {
-        when(counter.tryAcquire(any(), anyLong(), any())).thenReturn(true);
-
-        service.checkRegister("10.0.0.1");
-
-        verify(counter).tryAcquire(eq("ratelimit:register:ip:10.0.0.1"), eq(3L), any());
-    }
-
-    @Test
-    void checkRegisterThrowsWhenIpExceeded() {
-        when(counter.tryAcquire(eq("ratelimit:register:ip:10.0.0.1"), anyLong(), any()))
-                .thenReturn(false);
-
-        assertThatThrownBy(() -> service.checkRegister("10.0.0.1"))
-                .isInstanceOf(AuthException.class)
-                .hasMessageContaining("Too many registration requests");
+    static class SampleEndpoint {
+        @RateLimited({
+            @RateLimited.Rule(
+                    policy = "otp-send-phone",
+                    keyExpression = "#body.type().toLowerCase() + ':' + #body.phone()"),
+            @RateLimited.Rule(policy = "otp-send-ip")
+        })
+        void handle(OtpSendRequest body, HttpServletRequest request) {}
     }
 }

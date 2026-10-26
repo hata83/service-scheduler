@@ -373,8 +373,8 @@ Workshop technician specialization extending `employees` with overall career cer
 ```sql
 CREATE TABLE technicians (
   user_id             UUID PRIMARY KEY REFERENCES employees(user_id),
-  level               VARCHAR(20) NOT NULL
-                         CHECK (level IN ('TRAINEE','JUNIOR','TECHNICIAN','SENIOR','MASTER')),
+  grade               VARCHAR(20) NOT NULL
+                         CHECK (grade IN ('TRAINEE','JUNIOR','TECHNICIAN','SENIOR','MASTER')),
   is_available        BOOLEAN NOT NULL DEFAULT TRUE,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -386,7 +386,7 @@ CREATE TABLE technicians (
 | Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
 | `user_id` | UUID | No | None | Primary key referencing `employees(user_id)`. |
-| `level` | VARCHAR(20) | No | None | Overall technician career grade: `TRAINEE`, `JUNIOR`, `TECHNICIAN`, `SENIOR`, `MASTER`. |
+| `grade` | VARCHAR(20) | No | None | Overall technician career grade (`TechnicianGrade`): `TRAINEE`, `JUNIOR`, `TECHNICIAN`, `SENIOR`, `MASTER`. Used when assigning technicians to service jobs. |
 | `is_available` | BOOLEAN | No | `TRUE` | Operational shift availability toggle. If false, excluded from slot grid matching. |
 | `created_at` | TIMESTAMPTZ | No | `NOW()` | Record creation timestamp. |
 | `updated_at` | TIMESTAMPTZ | No | `NOW()` | Record last modification timestamp. |
@@ -442,11 +442,11 @@ CREATE TABLE technician_skills (
 | `BODYWORK` | Bodywork & Paint | Structural alignment, panel replacement, paint blending | `BODYWORK_REPAIR` |
 | `WARRANTY_SPECIALIST` | Warranty & Recall | OEM warranty documentation, recall campaign execution | `WARRANTY_RECALL` |
 
-**Taxonomy — Technician Career Grades (`technicians.level`) & Skill Proficiency Levels (`technician_skills.level`):**
+**Taxonomy — Technician Career Grades (`technicians.grade`) & Skill Proficiency Levels (`technician_skills.level`):**
 
-Each technician carries an overall career grade in `technicians.level` (workshop authority and supervision tier) and holds multiple domain competencies in `technician_skills`, each with its own proficiency rank (`technician_skills.level`):
+Each technician carries an overall career grade in `technicians.grade` (workshop authority, supervision tier, and multi-technician job assignment rank) and holds multiple domain competencies in `technician_skills`, each with its own proficiency rank (`technician_skills.level`):
 
-| Level Rank | Level Code | Career Grade (`technicians.level`) | Domain Skill Proficiency (`technician_skills.level`) | Supervised? |
+| Level Rank | Code | Career Grade (`technicians.grade`) | Domain Skill Proficiency (`technician_skills.level`) | Supervised? |
 |---|---|---|---|---|
 | 1 | `TRAINEE` | Apprentice technician in training | Basic maintenance and inspection under direct mentor supervision | Yes |
 | 2 | `JUNIOR` | Junior maintenance technician | Certified for routine preventive maintenance and standard parts replacement | Periodic |
@@ -739,7 +739,7 @@ Customer booking requests, cost tracking, and vehicle concurrency exclusion:
 CREATE TABLE appointments (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   dealership_id     UUID NOT NULL REFERENCES dealerships(id),
-  customer_id       UUID NOT NULL REFERENCES customers(user_id),
+  customer_id       UUID NOT NULL REFERENCES profiles(user_id),
   vehicle_id        UUID NOT NULL REFERENCES vehicles(id),
   vehicle_vin       VARCHAR(17) NOT NULL,
   start_time        TIMESTAMPTZ NOT NULL,
@@ -773,7 +773,7 @@ CREATE INDEX idx_appointments_vin ON appointments (vehicle_vin);
 |---|---|---|---|---|
 | `id` | UUID | No | `gen_random_uuid()` | Primary key. Unique appointment identifier. |
 | `dealership_id` | UUID | No | None | Dealership FK. Scopes appointment to workshop. |
-| `customer_id` | UUID | No | None | Customer FK referencing `customers(user_id)`. |
+| `customer_id` | UUID | No | None | Customer FK referencing `profiles(user_id)`. |
 | `vehicle_id` | UUID | No | None | Vehicle FK referencing `vehicles(id)` catalogue model entry. |
 | `vehicle_vin` | VARCHAR(17) | No | None | 17-character VIN. Protected against concurrency overlap by database exclusion. |
 | `start_time` | TIMESTAMPTZ | No | None | Overall start time (earliest service job start time). |
@@ -966,7 +966,7 @@ CREATE TABLE communication_logs (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   dealership_id   UUID NOT NULL REFERENCES dealerships(id),
   appointment_id  UUID REFERENCES appointments(id) ON DELETE SET NULL,
-  customer_id     UUID REFERENCES customers(id) ON DELETE SET NULL,
+  customer_id     UUID REFERENCES profiles(user_id) ON DELETE SET NULL,
   channel         VARCHAR(30) NOT NULL,
   recipient       VARCHAR(255) NOT NULL,
   event_type      VARCHAR(100) NOT NULL,
@@ -1545,26 +1545,26 @@ Resilience4j and Redis enforce IP-based, user-based, and phone-based request lim
 Attackers often abuse SMS endpoints for toll fraud, SMS bombing, carrier fee inflation, and denial-of-service attacks. The scheduler enforces defense layers using Redis counters and idempotency keys:
 
 1. **Per-Phone and Purpose Sliding Window Quota:**
-   - The application tracks `ratelimit:otp-send:phone:{phone}:{purpose}` using Redis atomic increment with configurable window seconds (default 600s, 10 minutes).
-   - The system permits at most 5 OTP send requests per window per phone number and purpose (from `config/rate-limits.json`).
+   - The application tracks `ratelimit:otp-send-phone:{purpose}:{phone}` using Redis atomic increment with configurable window seconds (default 600s, 10 minutes).
+   - The system permits at most 5 OTP send requests per window per phone number and purpose (from `application.yml` `app.ratelimits.policies`).
 2. **Per-IP Sliding Window Quota for OTP Send:**
-   - The application tracks `ratelimit:otp-send:ip:{ip}` with a 60-second window.
+   - The application tracks `ratelimit:otp-send-ip:{ip}` with a 60-second window.
    - The system permits at most 30 OTP send requests per minute per IP address to block distributed sweeps across multiple phone numbers.
 3. **Per-IP Sliding Window Quota for OTP Verify:**
-   - The application tracks `ratelimit:otp-verify:ip:{ip}` with a 60-second window.
+   - The application tracks `ratelimit:otp-verify-ip:{ip}` with a 60-second window.
    - The system permits at most 10 verification requests per minute per IP address to prevent brute-force attacks against codes.
 4. **Per-IP Sliding Window Quota for Registration:**
-   - The application tracks `ratelimit:register:ip:{ip}` with a 60-second window.
+   - The application tracks `ratelimit:register-ip:{ip}` with a 60-second window.
    - The system permits at most 10 registration requests per minute per IP address.
 5. **Mandatory Idempotency Protection:**
-   - Every write endpoint enforces the `X-Idempotency-Key` header with a client-generated UUID v4.
-   - Redis stores `idempotency:otp-send:{phone}:{purpose}:{key}`, `idempotency:otp-verify:{phone}:{key}`, and `idempotency:register:{phone}:{key}` with a 24-hour TTL.
-   - If a retry arrives with the same key, the API returns the cached response immediately. The service never regenerates the OTP or creates duplicate records.
+   - Every write endpoint enforces the `X-Idempotency-Key` header via `IdempotencyFilter`.
+   - Redis stores `idempotency:{method}:{uri}:{key}` with a 24-hour TTL.
+   - If a retry arrives with the same key, `IdempotencyFilter` returns the cached response (`status`, `body`, and `Set-Cookie`) immediately without invoking the controller or service.
 
 ### 11.3 Idempotency Keys
 
-Every state-mutating endpoint (`POST`, `PATCH`, `DELETE`) requires an `X-Idempotency-Key` header with a client-generated UUID v4.
-1. Fast Cache Check: Redis stores `idempotency:{key}` with a 24-hour TTL. Duplicate requests return the cached response immediately.
+Every state-mutating endpoint (`POST`, `PATCH`, `PUT`) requires an `X-Idempotency-Key` header.
+1. Filter Cache Check: `IdempotencyFilter` stores `idempotency:{method}:{uri}:{key}` in Redis with a 24-hour TTL. Duplicate requests return the cached response immediately.
 2. Durable Database Fallback: The `appointments.idempotency_key UNIQUE NOT NULL` constraint prevents duplicate insertion if Redis evicts keys prematurely.
 
 ---
@@ -1577,17 +1577,13 @@ The scheduler implements multi-tier Redis caching to support high query concurre
 |---|---|---|---|---|
 | `dealership:config:{id}` | Redis | 3 days (default) | Caches operating hours, intervals, advance days, and auto-booking settings. | Dealership configuration update. Evicts config and all slot grids for that dealership. |
 | `slot:grid:{dealershipId}:{date}:{serviceType}` | Redis | 1 hour (default) | Caches calculated available slot windows for a specific service type on a date. | Date-level eviction on: booking committed, appointment cancelled/rejected/noshow/check-in with slot adjustment, or PostgreSQL overlap constraint collision. Dealership-wide eviction on bay/technician/config updates. |
-| `idempotency:{uuid}` | Redis | 24 hours | Caches API responses for idempotent write retries on appointment and booking endpoints. | Natural TTL expiration. |
-| `idempotency:otp-send:{phone}:{purpose}:{key}` | Redis | 24 hours | Caches OTP send responses to prevent duplicate SMS delivery and toll abuse. | Natural TTL expiration. |
-| `idempotency:otp-verify:{phone}:{key}` | Redis | 24 hours | Caches OTP verify responses to return identical session bodies on network retries. | Natural TTL expiration. |
-| `idempotency:register:{phone}:{key}` | Redis | 24 hours | Caches customer registration responses to prevent duplicate account creation on replay. | Natural TTL expiration. |
+| `idempotency:{method}:{uri}:{key}` | Redis | 24 hours | Caches 2xx API responses (`status`, `body`, `Set-Cookie`) for idempotent write retries in `IdempotencyFilter`. | Natural TTL expiration. |
 | `otp:login:{phone}` | Redis | 5 minutes (default) | Stores 6-digit one-time password for the LOGIN purpose. | Atomic compare-and-delete on successful verification, or natural TTL expiration. |
 | `otp:register:{phone}` | Redis | 5 minutes (default) | Stores 6-digit one-time password for the REGISTER purpose. | Atomic compare-and-delete on successful registration, or natural TTL expiration. |
-| `auth:session:{jti}` | Redis | 8 hours (default) | Stores active user session token referenced by JWT session claims. | User logout or natural TTL expiration. |
-| `ratelimit:otp-send:phone:{phone}:{purpose}` | Redis | 10 minutes (default) | Sliding window counter for OTP send requests per phone and purpose. | Natural TTL expiration. |
-| `ratelimit:otp-send:ip:{ip}` | Redis | 60 seconds (default) | Sliding window counter for OTP send requests per IP address. | Natural TTL expiration. |
-| `ratelimit:otp-verify:ip:{ip}` | Redis | 60 seconds (default) | Sliding window counter for OTP verification requests per IP address. | Natural TTL expiration. |
-| `ratelimit:register:ip:{ip}` | Redis | 60 seconds (default) | Sliding window counter for customer registration requests per IP address. | Natural TTL expiration. |
+| `ratelimit:otp-send-phone:{purpose}:{phone}` | Redis | 10 minutes (default) | Sliding window counter for OTP send requests per phone and purpose. | Natural TTL expiration. |
+| `ratelimit:otp-send-ip:{ip}` | Redis | 60 seconds (default) | Sliding window counter for OTP send requests per IP address. | Natural TTL expiration. |
+| `ratelimit:otp-verify-ip:{ip}` | Redis | 60 seconds (default) | Sliding window counter for OTP verification requests per IP address. | Natural TTL expiration. |
+| `ratelimit:register-ip:{ip}` | Redis | 60 seconds (default) | Sliding window counter for customer registration requests per IP address. | Natural TTL expiration. |
 
 ### 12.1 Slot Grid Cache: Init, Read, and Evict
 

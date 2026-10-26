@@ -1,25 +1,25 @@
 package dev.hata.scheduler.auth.model;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
  * The global {@code users} row. The table carries one global identity with
- * {@code type} ({@code CUSTOMER} or {@code EMPLOYEE}); employee authorization
+ * {@link UserType} ({@code CUSTOMER} or {@code EMPLOYEE}); employee authorization
  * roles ({@code ADMIN}, {@code MANAGER}, {@code TECHNICIAN}) live in
  * {@code employees.role} without duplication (design D4).
  */
 @Entity
 @Table(name = "users")
 public class User {
-
-    public static final String TYPE_CUSTOMER = "CUSTOMER";
-    public static final String TYPE_EMPLOYEE = "EMPLOYEE";
 
     @Id
     @Column(name = "id", nullable = false)
@@ -31,8 +31,9 @@ public class User {
     @Column(name = "email")
     private String email;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false)
-    private String type;
+    private UserType type;
 
     @Column(name = "is_active", nullable = false)
     private boolean active;
@@ -48,10 +49,10 @@ public class User {
     /**
      * Fills the row for a new global user account.
      */
-    public void assign(UUID id, String phone, String type) {
-        this.id = id;
-        this.phone = phone;
-        this.type = type;
+    public void assign(UUID id, String phone, UserType type) {
+        this.id = Objects.requireNonNull(id);
+        this.phone = Objects.requireNonNull(phone);
+        this.type = Objects.requireNonNull(type);
         this.active = true;
         Instant now = Instant.now();
         this.createdAt = now;
@@ -63,6 +64,14 @@ public class User {
      */
     public void setEmail(String email) {
         this.email = email;
+        this.updatedAt = Instant.now();
+    }
+
+    /**
+     * Activates or deactivates the account.
+     */
+    public void setActive(boolean active) {
+        this.active = active;
         this.updatedAt = Instant.now();
     }
 
@@ -78,7 +87,7 @@ public class User {
         return email;
     }
 
-    public String getType() {
+    public UserType getType() {
         return type;
     }
 

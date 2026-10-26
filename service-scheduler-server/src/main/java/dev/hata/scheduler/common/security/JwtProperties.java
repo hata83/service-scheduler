@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * Configuration properties for JWT issuance and verification.
  */
 @ConfigurationProperties(prefix = "app.auth.jwt")
-public record JwtProperties(String secret, String issuer, Duration ttl, String cookieName) {
+public record JwtProperties(String secret, String issuer, Duration ttl, String cookieName, boolean cookieSecure) {
 
     public JwtProperties {
         if (ttl == null) {

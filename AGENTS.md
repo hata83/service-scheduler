@@ -12,7 +12,7 @@ Three rules gate every change:
 
 1. **Never assume a requirement.** Read it from `openspec/specs/`. If it is missing, ask the user or run `/opsx-propose`.
 2. **Propose before you build.** A new feature needs an approved proposal in `openspec/changes/` before you write code.
-3. **Review before you finish.** Run `open-code-review-delegate` over your diff. Fix every critical and high finding. Track local reviews in `openspec/changes/<change-slug>/review.md`. Fix all GitHub Copilot inline review comments in the pull request before asking for approval to archive.
+3. **Review before you finish.** Run `open-code-review-delegate` over your diff. Fix every critical and high finding. Track local reviews in `openspec/changes/<change-slug>/review.md`. Fix all PR review comments (from Qodo `/review`, Kilo Code `@kilocode-bot`, and human reviewers) in the pull request before asking for approval to archive.
 
 ---
 
@@ -26,6 +26,7 @@ Check every tool before you start work:
 | Node.js | v20+ | `node -v` | Install LTS Node.js |
 | npm | v10+ | `npm -v` | Included with Node.js |
 | OpenSpec CLI | v1.14+ | `openspec --version` | `npm install -g @fission-ai/openspec` |
+| Alibaba OCR CLI | v1.9+ | `ocr --version` | `npm install -g @alibaba-group/open-code-review` |
 | Bruno CLI | v2.14+ | `npx --yes @usebruno/cli run --help` | Via npx |
 | Git | v2.40+ | `git --version` | Install Git |
 | PostgreSQL | 16+ | `psql --version` | Docker Compose prod profile |
@@ -144,11 +145,11 @@ Run the fix commands in Section 8. Run the format and lint checks in Section 6. 
 Run `./gradlew test jacocoTestReport`. Read the coverage report. A failure returns to State 4.
 
 **State 7 — Review (gate)**
-Run `ocr delegate preview --format json`. Review each diff against its rules. Fix every critical and high finding. Repeat until a pass reports nothing critical or high.
-Document every review in `openspec/changes/<change-slug>/review.md`. Record finding severity, reproduction steps, fix diffs, and verification proofs. This record allows engineers to reproduce and verify each finding after fixes.
+Load the `open-code-review-delegate` skill. Run `ocr delegate preview --format json` and `ocr delegate rule --format json <files>`. Inspect the diff of every file in `reviewable_files`. Fix every critical and high finding. Repeat until a pass reports nothing critical or high.
+Document every review in `openspec/changes/<change-slug>/review.md` (`total_files`, `reviewed_files`, `skipped_files`, `coverage_rate`, finding severity, reproduction steps, fix diffs, and verification proofs). Run `./gradlew :service-scheduler-server:verifyCodeReviewDelegate` to enforce the review record.
 
 **State 8 — Verify (gate)**
-Run `openspec validate <change> --strict`. Then run `./gradlew clean build`. Then run the Bruno API test suite. Then run the Playwright E2E test suite. Then run the State 7 review loop over the full branch diff.
+Run `openspec validate <change> --strict`. Then run `./gradlew clean build` (which automatically executes `verifyCodeReviewDelegate`). Then run the Bruno API test suite. Then run the Playwright E2E test suite. Then run the State 7 review loop over the full branch diff.
 All reviews, all Bruno integration tests, and all Playwright E2E tests must pass. If any check fails, return to the loop (`code → format → test → review → fix → code → ...`).
 
 **`./gradlew clean build` is the gate, not a shorter command.**
@@ -161,22 +162,24 @@ Commit the verified tree. Push the branch. Open a pull request against `main`.
 
 **State 11 — Verify the Pull Request**
 Read CI check results for the pull request.
-GitHub Copilot agent on GitHub.com reviews the code directly on changed files in the pull request diff.
-Inspect all review comments via GitHub CLI:
+CI triggers Qodo Code Review (`/review` -> `qodo-code-review[bot]`) and Kilo Code Review (`@kilocode-bot review code` -> `kilo-code-bot[bot]`), and human reviewers post inline comments on the pull request diff.
+Inspect all reviews and inline comments via GitHub CLI:
 ```sh
 gh pr view --comments
+gh api repos/:owner/:repo/pulls/:number/reviews
 gh api repos/:owner/:repo/pulls/:number/comments
 ```
-Fix every finding reported by GitHub Copilot on the PR diff:
+Fix every finding reported on the PR diff:
 1. Locate the file and line in the local workspace.
 2. Apply the fix following the verification ladder (TDD, Spotless, tests).
 3. Record the finding, fix diff, and proof in `openspec/changes/<change-slug>/review.md`.
-4. Commit, push the branch, and resolve the PR review thread.
-- You resolved all Copilot review comments and all CI checks passed → go to State 12.
-- Any check failed or any Copilot review comment remains open → fix code in State 4, push again, re-enter State 11.
+4. Re-run `open-code-review-delegate`, Bruno API tests, and Playwright E2E tests.
+5. Commit, push the branch, and resolve the PR review thread.
+- You resolved all PR review comments and all CI checks passed → go to State 12.
+- Any check failed or any PR review comment remains open → fix code in State 4, push again, re-enter State 11.
 
 **State 12 — Archive**
-Verify that all CI checks pass and you resolved all Copilot PR review comments. Run `/opsx-archive`. Move Archify diagrams this change produced to `docs/diagrams/`. Link the interactive HTML viewer in the relevant document.
+Verify that all CI checks pass and you resolved all PR review comments. Run `/opsx-archive`. Move Archify diagrams this change produced to `docs/diagrams/`. Link the interactive HTML viewer in the relevant document.
 
 **State 13 — Review the Archive**
 Push the archived spec and diagram move to the same pull request. Re-enter State 11.
@@ -315,6 +318,7 @@ npx --yes @usebruno/cli@2.14.1 run src/test/bruno --env local --disable-cookies
 | PMD 7 | Code smells, copy-paste detection | `./gradlew pmdMain` |
 | ArchUnit 1.x | Package independence enforcement | `./gradlew test` |
 | JaCoCo | Coverage reporting | `./gradlew jacocoTestReport` |
+| Alibaba OCR Delegate | Diff review & `review.md` gate | `./gradlew verifyCodeReviewDelegate` |
 
 ---
 
@@ -408,21 +412,27 @@ Diagram types and when to use them:
 
 ### `open-code-review-delegate` (Code Review)
 
-Run diff inspections before pushing or marking tasks done.
+In delegation mode, the `ocr` CLI provides deterministic file filtering and rule resolution without calling an external LLM endpoint, and the host AI agent performs the actual review. The Gradle `verifyCodeReviewDelegate` task (wired into `./gradlew check` and `./gradlew clean build`) enforces this gate automatically.
+
+Follow these 6 steps at State 7, State 8, and State 11:
 
 ```sh
-# List reviewable files
+# 1. Preview reviewable files (workspace or branch range)
 ocr delegate preview --format json
+ocr delegate preview --from master --to HEAD --format json
 
-# Review rules for specific paths
-ocr delegate rule --format json src/main/java/dev/hata/scheduler/appointment/
+# 2. Fetch review rules grouped by file pattern
+ocr delegate rule --format json service-scheduler-server/src/main/java/dev/hata/scheduler/auth/
 
-# Full review in delegate mode
-ocr delegate run --format json
+# 3. Inspect diffs for every entry in reviewable_files
+git --no-pager diff --no-ext-diff --no-textconv --no-color HEAD -- "<path>"
+
+# 4. Run the Gradle review gate (also runs automatically during ./gradlew clean build)
+./gradlew :service-scheduler-server:verifyCodeReviewDelegate
 ```
 
-Fix every critical and high finding. Repeat from preview until a pass reports nothing critical or high.
-Document every review run in `openspec/changes/<change-slug>/review.md`. Include finding lists, severity ranks, status results, reproduction steps, and re-check proofs.
+Fix every critical and high finding. Repeat from `preview` until a pass reports nothing critical or high.
+Document every review run in `openspec/changes/<change-slug>/review.md`. Include `total_files`, `reviewed_files`, `skipped_files`, `coverage_rate`, finding lists, severity ranks, reproduction steps, and re-check proofs.
 All code reviews, Bruno integration tests, and Playwright E2E tests must pass. If any check fails, return to the loop (`code → format → test → review → fix → code → ...`).
 
 ### `agent-architecture-audit` (ECC)

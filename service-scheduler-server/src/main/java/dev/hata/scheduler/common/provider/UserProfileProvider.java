@@ -1,17 +1,17 @@
-package dev.hata.scheduler.common.port;
+package dev.hata.scheduler.common.provider;
 
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Shared contract for global customer profile management (design D4/D13). Feature
- * packages access customer profile data through this interface without
- * depending directly on the customer domain package.
+ * Shared provider contract for centralized user profile management (design D4/D13).
+ * Feature packages access personal profile data for all users (customers and
+ * employees) through this interface without direct package coupling.
  */
-public interface CustomerProfileProvider {
+public interface UserProfileProvider {
 
     /**
-     * Global customer profile data transfer record.
+     * Centralized user profile data transfer record.
      */
     record ProfileView(UUID userId, String firstName, String lastName, String locale) {}
 
@@ -21,7 +21,7 @@ public interface CustomerProfileProvider {
     Optional<ProfileView> findByUserId(UUID userId);
 
     /**
-     * Creates a new global customer profile.
+     * Creates a new centralized user profile.
      */
     ProfileView createProfile(UUID userId, String firstName, String lastName);
 

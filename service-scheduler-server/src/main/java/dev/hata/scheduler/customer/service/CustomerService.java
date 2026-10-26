@@ -3,24 +3,24 @@ package dev.hata.scheduler.customer.service;
 import java.util.Optional;
 import java.util.UUID;
 
-import dev.hata.scheduler.common.port.CustomerProfileProvider;
-import dev.hata.scheduler.customer.model.CustomerProfile;
-import dev.hata.scheduler.customer.repository.CustomerProfileRepository;
+import dev.hata.scheduler.common.provider.UserProfileProvider;
+import dev.hata.scheduler.customer.model.UserProfile;
+import dev.hata.scheduler.customer.repository.UserProfileRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Customer feature domain service (design D4). Implements the shared
- * {@link CustomerProfileProvider} contract so other feature packages can access
- * global customer profile data without package coupling.
+ * User profile domain service (design D4/D13). Implements the shared
+ * {@link UserProfileProvider} contract so other feature packages access
+ * centralized user profile data without package coupling.
  */
 @Service
-public class CustomerService implements CustomerProfileProvider {
+public class CustomerService implements UserProfileProvider {
 
-    private final CustomerProfileRepository repository;
+    private final UserProfileRepository repository;
 
-    public CustomerService(CustomerProfileRepository repository) {
+    public CustomerService(UserProfileRepository repository) {
         this.repository = repository;
     }
 
@@ -33,9 +33,9 @@ public class CustomerService implements CustomerProfileProvider {
     @Override
     @Transactional
     public ProfileView createProfile(UUID userId, String firstName, String lastName) {
-        CustomerProfile profile = new CustomerProfile();
+        UserProfile profile = new UserProfile();
         profile.assign(userId, firstName, lastName);
-        CustomerProfile saved = repository.save(profile);
+        UserProfile saved = repository.save(profile);
         return toView(saved);
     }
 
@@ -44,12 +44,12 @@ public class CustomerService implements CustomerProfileProvider {
     public Optional<ProfileView> updateNames(UUID userId, String firstName, String lastName) {
         return repository.findByUserId(userId).map(profile -> {
             profile.setNames(firstName, lastName);
-            CustomerProfile updated = repository.save(profile);
+            UserProfile updated = repository.save(profile);
             return toView(updated);
         });
     }
 
-    private ProfileView toView(CustomerProfile profile) {
+    private ProfileView toView(UserProfile profile) {
         return new ProfileView(profile.getUserId(), profile.getFirstName(), profile.getLastName(), profile.getLocale());
     }
 }

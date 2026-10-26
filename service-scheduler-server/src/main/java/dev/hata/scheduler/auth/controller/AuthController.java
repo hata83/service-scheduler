@@ -3,7 +3,6 @@ package dev.hata.scheduler.auth.controller;
 import java.time.Duration;
 
 import dev.hata.scheduler.auth.dto.AuthResponse;
-import dev.hata.scheduler.auth.dto.AuthSession;
 import dev.hata.scheduler.auth.dto.IdentityResponse;
 import dev.hata.scheduler.auth.dto.OtpSendRequest;
 import dev.hata.scheduler.auth.dto.OtpSendResponse;
@@ -13,7 +12,7 @@ import dev.hata.scheduler.auth.dto.RegisterRequest;
 import dev.hata.scheduler.auth.service.AuthService;
 import dev.hata.scheduler.common.exception.AuthException;
 import dev.hata.scheduler.common.filter.AuthFilter;
-import dev.hata.scheduler.common.filter.ClientIpResolver;
+import dev.hata.scheduler.common.ratelimit.RateLimited;
 import dev.hata.scheduler.common.security.AuthPrincipal;
 import dev.hata.scheduler.common.security.JwtService;
 
@@ -38,34 +37,42 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The auth endpoints (design D2/D5/D6/D11). Every error response carries an
- * {@code application/problem+json} body (ADR-006).
+ * The five auth endpoints: {@code otp/send}, {@code otp/verify},
+ * {@code register}, {@code me} (GET and PATCH) and {@code logout} (design D2).
+ * Idempotency is handled by {@link dev.hata.scheduler.common.filter.IdempotencyFilter}
+ * and rate limits are enforced declaratively via {@link RateLimited}.
  */
+@Tag(name = "Authentication", description = "OTP issuance, login, registration, and session management")
 @RestController
 @RequestMapping("/api/v1/auth")
-@Tag(name = "Auth", description = "OTP login, customer registration, and profile")
 public class AuthController {
 
     private final AuthService auth;
     private final JwtService jwt;
-    private final ClientIpResolver ipResolver;
 
-    public AuthController(AuthService auth, JwtService jwt, ClientIpResolver ipResolver) {
+    public AuthController(AuthService auth, JwtService jwt) {
         this.auth = auth;
         this.jwt = jwt;
-        this.ipResolver = ipResolver;
     }
 
     /**
-     * Issues a purpose-scoped OTP and dispatches it through the Zalo stub.
+     * Issues a purpose-scoped OTP through the Zalo stub.
      */
-    @Operation(
-            summary = "Send an OTP code",
-            description = "Issues a single-use six-digit code for the REGISTER or LOGIN purpose.")
+    @Operation(summary = "Send OTP", description = "Issues a single-use 6-digit OTP for REGISTER or LOGIN.")
     @ApiResponses({
-        @ApiResponse(responseCode = "202", description = "Code issued and dispatched"),
-        @ApiResponse(responseCode = "400", description = "Invalid phone or unknown type", content = @Content),
+        @ApiResponse(responseCode = "202", description = "OTP dispatched"),
+        @ApiResponse(responseCode = "400", description = "Malformed phone, unknown type, or missing idempotency key"),
         @ApiResponse(responseCode = "429", description = "Rate limit exceeded", content = @Content)
+    })
+    @RateLimited({
+        @RateLimited.Rule(
+                policy = "otp-send-phone",
+                keyExpression = "#body != null && #body.type() != null && #body.phone() != null "
+                        + "? #body.type().toLowerCase() + ':' + #body.phone() : null",
+                message = "Too many OTP requests for this phone. Wait before trying again."),
+        @RateLimited.Rule(
+                policy = "otp-send-ip",
+                message = "Too many OTP requests from this IP. Wait before trying again.")
     })
     @PostMapping("/otp/send")
     public ResponseEntity<OtpSendResponse> sendOtp(
@@ -74,16 +81,13 @@ public class AuthController {
                             description = "Unique idempotency key to prevent duplicate submissions",
                             example = "11111111-1111-1111-1111-111111111111")
                     @RequestHeader(value = "X-Idempotency-Key", required = false)
-                    String idempotencyKey,
-            HttpServletRequest request) {
-        requireKey(idempotencyKey);
+                    String idempotencyKey) {
         if (body == null || body.type() == null) {
             throw new AuthException(HttpStatus.BAD_REQUEST, "Unknown OTP type", "The type must be REGISTER or LOGIN.");
         }
-        String clientIp = ipResolver.resolve(request);
         OtpSendResponse response;
         try {
-            response = auth.sendOtp(body.phone(), body.type(), clientIp, idempotencyKey);
+            response = auth.sendOtp(body.phone(), body.type());
         } catch (IllegalArgumentException ex) {
             throw new AuthException(HttpStatus.BAD_REQUEST, "Unknown OTP type", ex.getMessage(), ex);
         }
@@ -91,16 +95,21 @@ public class AuthController {
     }
 
     /**
-     * Logs a seeded account in with a LOGIN-purpose code.
+     * Logs a seeded account in with a LOGIN-purpose code and sets the stateless JWT cookie.
      */
     @Operation(
-            summary = "Verify an OTP code",
-            description = "Logs in an existing account. The call never creates a user row.")
+            summary = "Verify OTP and log in",
+            description = "Consumes a LOGIN-purpose OTP and sets the httpOnly JWT cookie.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Session created"),
-        @ApiResponse(responseCode = "400", description = "Missing idempotency key", content = @Content),
-        @ApiResponse(responseCode = "401", description = "Wrong, expired, or wrong-purpose code", content = @Content),
+        @ApiResponse(responseCode = "200", description = "Logged in"),
+        @ApiResponse(responseCode = "400", description = "Missing idempotency key or invalid phone"),
+        @ApiResponse(responseCode = "401", description = "Wrong, expired, or wrong-purpose code, or unknown phone"),
         @ApiResponse(responseCode = "429", description = "Rate limit exceeded", content = @Content)
+    })
+    @RateLimited({
+        @RateLimited.Rule(
+                policy = "otp-verify-ip",
+                message = "Too many verification attempts from this IP. Wait before trying again.")
     })
     @PostMapping("/otp/verify")
     public ResponseEntity<AuthResponse> verifyOtp(
@@ -110,29 +119,31 @@ public class AuthController {
                             example = "22222222-2222-2222-2222-222222222222")
                     @RequestHeader(value = "X-Idempotency-Key", required = false)
                     String idempotencyKey,
-            HttpServletRequest request,
             HttpServletResponse response) {
-        requireKey(idempotencyKey);
-        String clientIp = ipResolver.resolve(request);
-        AuthSession authSession = auth.verifyOtp(body.phone(), body.code(), clientIp, idempotencyKey);
-        setSessionCookie(response, authSession.session().token());
-        return ResponseEntity.ok(authSession.user());
+        AuthPrincipal principal = auth.verifyOtp(body.phone(), body.code());
+        setSessionCookie(response, jwt.issue(principal).token());
+        return ResponseEntity.ok(
+                new AuthResponse(principal.userId(), principal.role(), principal.phone(), principal.dealershipId()));
     }
 
     /**
-     * Creates the customer account and the session in one call.
+     * Creates a customer account and sets the stateless JWT cookie in one call.
      */
     @Operation(
-            summary = "Register a customer",
-            description =
-                    "Verifies the REGISTER-purpose code, creates the account and the profile, and issues the session.")
+            summary = "Register a new customer",
+            description = "Verifies a REGISTER-purpose OTP, creates the customer, and sets the session cookie.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Customer created and logged in"),
-        @ApiResponse(responseCode = "400", description = "Missing idempotency key or invalid body", content = @Content),
-        @ApiResponse(responseCode = "401", description = "Wrong, expired, or wrong-purpose code", content = @Content),
-        @ApiResponse(responseCode = "403", description = "Role field supplied", content = @Content),
-        @ApiResponse(responseCode = "409", description = "Phone already registered", content = @Content),
+        @ApiResponse(responseCode = "400", description = "Missing idempotency key or invalid fields"),
+        @ApiResponse(responseCode = "401", description = "Wrong, expired, or LOGIN-purpose code"),
+        @ApiResponse(responseCode = "403", description = "Role field supplied"),
+        @ApiResponse(responseCode = "409", description = "Phone already belongs to a user"),
         @ApiResponse(responseCode = "429", description = "Rate limit exceeded", content = @Content)
+    })
+    @RateLimited({
+        @RateLimited.Rule(
+                policy = "register-ip",
+                message = "Too many registration attempts from this IP. Wait before trying again.")
     })
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
@@ -142,23 +153,20 @@ public class AuthController {
                             example = "33333333-3333-3333-3333-333333333333")
                     @RequestHeader(value = "X-Idempotency-Key", required = false)
                     String idempotencyKey,
-            HttpServletRequest request,
             HttpServletResponse response) {
-        requireKey(idempotencyKey);
-        String clientIp = ipResolver.resolve(request);
-        AuthSession authSession = auth.register(body, clientIp, idempotencyKey);
-        setSessionCookie(response, authSession.session().token());
-        return ResponseEntity.status(HttpStatus.CREATED).body(authSession.user());
+        AuthPrincipal principal = auth.register(body);
+        setSessionCookie(response, jwt.issue(principal).token());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new AuthResponse(
+                        principal.userId(), principal.role(), principal.phone(), principal.dealershipId()));
     }
 
     /**
      * Returns the caller identity.
      */
-    @Operation(
-            summary = "Read the caller identity",
-            description = "Returns the user id, role, phone, dealership, email and the profile names.")
+    @Operation(summary = "Current user identity", description = "Returns the identity of the session cookie.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Identity returned"),
+        @ApiResponse(responseCode = "200", description = "Caller identity"),
         @ApiResponse(responseCode = "401", description = "No session cookie", content = @Content)
     })
     @GetMapping("/me")
@@ -167,17 +175,14 @@ public class AuthController {
     }
 
     /**
-     * Applies the editable profile fields.
+     * Updates the editable profile fields.
      */
     @Operation(
-            summary = "Edit the caller profile",
-            description = "Edits the email for every role and the names for a CUSTOMER or a TECHNICIAN.")
+            summary = "Update current user profile",
+            description = "Updates the email and centralized profile names. The phone never changes.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Profile updated"),
-        @ApiResponse(
-                responseCode = "400",
-                description = "Phone field supplied or names sent by a staff role",
-                content = @Content),
+        @ApiResponse(responseCode = "200", description = "Updated identity"),
+        @ApiResponse(responseCode = "400", description = "Phone supplied or missing idempotency key"),
         @ApiResponse(responseCode = "401", description = "No session cookie", content = @Content)
     })
     @PatchMapping("/me")
@@ -189,13 +194,12 @@ public class AuthController {
                     @RequestHeader(value = "X-Idempotency-Key", required = false)
                     String idempotencyKey,
             HttpServletRequest request) {
-        requireKey(idempotencyKey);
-        IdentityResponse updated = auth.patchMe(principal(request), body, idempotencyKey);
+        IdentityResponse updated = auth.patchMe(principal(request), body);
         return ResponseEntity.ok(updated);
     }
 
     /**
-     * Revokes the session and clears the cookie.
+     * Clears the client session cookie.
      */
     @Operation(summary = "Log out", description = "Clears the client session cookie.")
     @ApiResponses({
@@ -212,7 +216,7 @@ public class AuthController {
     private void setSessionCookie(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from(jwt.cookieName(), token)
                 .httpOnly(true)
-                .secure(false)
+                .secure(jwt.cookieSecure())
                 .sameSite("Strict")
                 .path("/")
                 .maxAge(jwt.ttl())
@@ -223,7 +227,7 @@ public class AuthController {
     private void clearSessionCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from(jwt.cookieName(), "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(jwt.cookieSecure())
                 .sameSite("Strict")
                 .path("/")
                 .maxAge(Duration.ZERO)
@@ -236,15 +240,9 @@ public class AuthController {
         if (value instanceof AuthPrincipal principal) {
             return principal;
         }
-        throw new AuthException(HttpStatus.UNAUTHORIZED, "No session", "The request carries no valid session cookie.");
-    }
-
-    private void requireKey(String idempotencyKey) {
-        if (idempotencyKey == null || idempotencyKey.isBlank()) {
-            throw new AuthException(
-                    HttpStatus.BAD_REQUEST,
-                    "Idempotency key missing",
-                    "Request must include an X-Idempotency-Key header.");
-        }
+        throw new AuthException(
+                HttpStatus.UNAUTHORIZED,
+                "Authentication required",
+                "Send a valid jwt cookie from /api/v1/auth/otp/verify.");
     }
 }

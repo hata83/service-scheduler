@@ -72,7 +72,7 @@ public final class AuthFixtureReset {
         factory.afterPropertiesSet();
         StringRedisTemplate template = new StringRedisTemplate(factory);
         template.afterPropertiesSet();
-        for (String pattern : Set.of("idempotency:*", "ratelimit:*", "otp:*", "auth:session:*")) {
+        for (String pattern : Set.of("idempotency:*", "ratelimit:*", "otp:*")) {
             Set<String> keys = template.keys(pattern);
             if (keys != null && !keys.isEmpty()) {
                 template.delete(keys);

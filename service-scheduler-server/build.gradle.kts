@@ -1,4 +1,5 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
+import java.util.concurrent.TimeUnit
 
 plugins {
     id("java")
@@ -129,6 +130,32 @@ tasks.jacocoTestCoverageVerification {
     }
 }
 
+val verifyCodeReviewDelegate = tasks.register("verifyCodeReviewDelegate") {
+    group = "verification"
+    description = "Verifies that open-code-review-delegate findings and proofs are recorded in openspec review.md."
+    doLast {
+        val changesDir = rootProject.layout.projectDirectory.dir("openspec/changes").asFile
+        if (changesDir.exists()) {
+            val activeChanges = changesDir.listFiles { f -> f.isDirectory && f.name != "archive" } ?: emptyArray()
+            for (change in activeChanges) {
+                val reviewFile = File(change, "review.md")
+                if (!reviewFile.exists() || reviewFile.readText().isBlank()) {
+                    throw GradleException(
+                        "Missing or empty review.md in openspec/changes/${change.name}/review.md. " +
+                            "Run `ocr delegate preview --format json` and record the review findings."
+                    )
+                }
+                val content = reviewFile.readText()
+                if (!content.contains("Verification Proofs") && !content.contains("OCR")) {
+                    throw GradleException(
+                        "openspec/changes/${change.name}/review.md must record OCR delegate verification proofs."
+                    )
+                }
+            }
+        }
+    }
+}
+
 tasks.check {
-    dependsOn(tasks.jacocoTestCoverageVerification)
+    dependsOn(tasks.jacocoTestCoverageVerification, verifyCodeReviewDelegate)
 }

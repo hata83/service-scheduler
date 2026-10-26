@@ -1,10 +1,8 @@
 package dev.hata.scheduler.resource.model;
 
 /**
- * Automotive workshop career grade and skill proficiency taxonomy
- * (SYSTEM_DESIGN §4.2.3 & §4.2.4). Applies both to a technician's overall
- * career grade ({@code technicians.level}) and to per-domain skill proficiency
- * ({@code technician_skills.level}).
+ * Per-domain skill proficiency taxonomy in {@code technician_skills.level}
+ * (SYSTEM_DESIGN §4.2.4).
  */
 public enum SkillLevel {
     TRAINEE(1),

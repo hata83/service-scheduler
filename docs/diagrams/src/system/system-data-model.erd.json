@@ -192,7 +192,7 @@
           "references": "employees.user_id"
         },
         {
-          "name": "level",
+          "name": "grade",
           "type": "varchar(20)"
         },
         {

@@ -77,12 +77,20 @@ class RedisIdempotencyStoreTest {
     }
 
     @Test
-    void storeWritesTheRecordWithTheTtl() {
+    void storeWritesTheRecordWithTheTtlAndClaimsLocks() {
         IdempotencyStore.CachedResponse cached = new IdempotencyStore.CachedResponse(200, "{}", null);
 
         storage.store("slot", cached);
-
         verify(values).set(eq("slot"), any(String.class), any(Duration.class));
+
+        when(values.setIfAbsent(eq("slot:lock"), eq("1"), any(Duration.class))).thenReturn(true);
+        assertThat(storage.tryClaim("slot")).isTrue();
+
+        when(values.setIfAbsent(eq("slot:lock"), eq("1"), any(Duration.class))).thenReturn(false);
+        assertThat(storage.tryClaim("slot")).isFalse();
+
+        storage.releaseClaim("slot");
+        verify(redis).delete("slot:lock");
     }
 
     @Test

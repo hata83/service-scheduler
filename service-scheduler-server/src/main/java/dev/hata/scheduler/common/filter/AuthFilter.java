@@ -45,8 +45,9 @@ public class AuthFilter extends OncePerRequestFilter {
         if (cookies == null) {
             return null;
         }
+        String cookieName = jwtService.cookieName();
         for (Cookie cookie : cookies) {
-            if ("jwt".equals(cookie.getName()) && !cookie.getValue().isBlank()) {
+            if (cookieName.equals(cookie.getName()) && !cookie.getValue().isBlank()) {
                 return cookie.getValue();
             }
         }

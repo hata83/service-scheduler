@@ -27,7 +27,7 @@ The system SHALL create a global CUSTOMER user and a global customer profile wit
 
 ### Requirement: Idempotent registration
 
-The system SHALL respond 400 when a registration request carries no `X-Idempotency-Key`. The system SHALL cache the first 201 response for 24 hours under the record `idempotency:register:{phone}:{header-value}`, so one header value never collides across endpoints or phones. The recommended key pattern is `register-{phone}`; a client sending a new value starts a genuinely fresh registration. The system SHALL return the cached response on replay without creating a second user and without consuming a second OTP.
+The system SHALL respond 400 when a registration request carries no `X-Idempotency-Key`. `IdempotencyFilter` SHALL cache the first 201 response for 24 hours under the record `idempotency:POST:/api/v1/auth/register:{header-value}`, so one header value never collides across endpoints. The recommended key pattern is `register-{phone}`; a client sending a new value starts a genuinely fresh registration. The system SHALL return the cached response on replay without creating a second user and without consuming a second OTP.
 
 #### Scenario: Missing header
 - **WHEN** registration omits the `X-Idempotency-Key` header

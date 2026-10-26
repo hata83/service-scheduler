@@ -10,13 +10,15 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Redis adapter for the idempotency cache (ADR-008 / design D8).
+ * Bounded by the 8-hour JWT TTL so replayed auth responses never return expired tokens.
  */
 @Component
 public class RedisIdempotencyStore implements IdempotencyStore {
 
     public static final String PREFIX = "idempotency:";
 
-    private static final Duration TTL = Duration.ofHours(24);
+    private static final Duration TTL = Duration.ofHours(8);
+    private static final Duration LOCK_TTL = Duration.ofSeconds(30);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final StringRedisTemplate redis;
@@ -26,8 +28,19 @@ public class RedisIdempotencyStore implements IdempotencyStore {
     }
 
     @Override
-    public String slot(String endpoint, String phone, String headerValue) {
-        return PREFIX + endpoint + ":" + phone + ":" + headerValue;
+    public String slot(String endpoint, String scope, String headerValue) {
+        return PREFIX + endpoint + ":" + scope + ":" + headerValue;
+    }
+
+    @Override
+    public boolean tryClaim(String slot) {
+        Boolean acquired = redis.opsForValue().setIfAbsent(slot + ":lock", "1", LOCK_TTL);
+        return !Boolean.FALSE.equals(acquired);
+    }
+
+    @Override
+    public void releaseClaim(String slot) {
+        redis.delete(slot + ":lock");
     }
 
     @Override

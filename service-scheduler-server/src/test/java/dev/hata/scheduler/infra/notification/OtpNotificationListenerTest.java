@@ -29,8 +29,11 @@ class OtpNotificationListenerTest {
     }
 
     @Test
-    void zaloStubLogsMessageWithoutException() {
-        ZaloStubNotificationChannel stub = new ZaloStubNotificationChannel();
-        stub.send("+84900000004", "Test message");
+    void zaloStubLogsMessageOrRedactsInProd() {
+        ZaloStubNotificationChannel devStub = new ZaloStubNotificationChannel();
+        devStub.send("+84900000004", "Test message");
+
+        ZaloStubNotificationChannel prodStub = new ZaloStubNotificationChannel(false);
+        prodStub.send("+84900000004", "Secret OTP 123456");
     }
 }

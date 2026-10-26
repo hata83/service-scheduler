@@ -14,7 +14,7 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Service;
 
 /**
- * Issues and reads the stateless HS256 JWT tokens.
+ * Issues and reads stateless HS256 JWT tokens with embedded caller identity claims.
  * Cryptographic validation runs in memory without contacting Redis session stores.
  */
 @Service
@@ -24,11 +24,13 @@ public class JwtService {
     private final Duration tokenTtl;
     private final String issuer;
     private final String jwtCookieName;
+    private final boolean secureCookie;
 
     public JwtService(JwtProperties properties) {
         this.tokenTtl = properties.ttl();
         this.issuer = properties.issuer();
         this.jwtCookieName = properties.cookieName();
+        this.secureCookie = properties.cookieSecure();
         this.key = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
     }
 
@@ -36,16 +38,47 @@ public class JwtService {
         return jwtCookieName;
     }
 
+    public boolean cookieSecure() {
+        return secureCookie;
+    }
+
     public Duration ttl() {
         return tokenTtl;
     }
 
     /**
-     * Signs a stateless token for the caller.
+     * Signs a stateless token embedding the full caller principal claims.
+     */
+    public Issued issue(AuthPrincipal principal) {
+        return issueToken(
+                principal.userId().toString(),
+                principal.role(),
+                principal.phone(),
+                principal.dealershipId() != null ? principal.dealershipId().toString() : null,
+                principal.email(),
+                principal.firstName(),
+                principal.lastName(),
+                principal.jti());
+    }
+
+    /**
+     * Signs a stateless token for the given basic identity fields.
      */
     public Issued issue(String subject, String role, String phone, String dealershipId) {
+        return issueToken(subject, role, phone, dealershipId, null, null, null, null);
+    }
+
+    private Issued issueToken(
+            String subject,
+            String role,
+            String phone,
+            String dealershipId,
+            String email,
+            String firstName,
+            String lastName,
+            String jtiOverride) {
         Instant now = Instant.now();
-        String jti = UUID.randomUUID().toString();
+        String jti = jtiOverride != null ? jtiOverride : UUID.randomUUID().toString();
         String token = Jwts.builder()
                 .issuer(issuer)
                 .subject(subject)
@@ -53,6 +86,9 @@ public class JwtService {
                 .claim("role", role)
                 .claim("ph", phone)
                 .claim("did", dealershipId)
+                .claim("email", email)
+                .claim("fn", firstName)
+                .claim("ln", lastName)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(tokenTtl)))
                 .signWith(key, Jwts.SIG.HS256)
@@ -90,8 +126,12 @@ public class JwtService {
                 String phone = claims.get("ph", String.class);
                 String did = claims.get("did", String.class);
                 UUID dealershipId = (did != null && !did.isBlank()) ? UUID.fromString(did) : null;
+                String email = claims.get("email", String.class);
+                String firstName = claims.get("fn", String.class);
+                String lastName = claims.get("ln", String.class);
                 String jti = claims.getId();
-                return Optional.of(new AuthPrincipal(userId, role, phone, dealershipId, jti));
+                return Optional.of(
+                        new AuthPrincipal(userId, role, phone, dealershipId, email, firstName, lastName, jti));
             } catch (IllegalArgumentException ex) {
                 return Optional.empty();
             }

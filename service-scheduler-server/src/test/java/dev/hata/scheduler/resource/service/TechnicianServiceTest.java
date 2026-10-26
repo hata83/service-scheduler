@@ -8,10 +8,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import dev.hata.scheduler.common.port.TechnicianProfileProvider;
+import dev.hata.scheduler.common.provider.EmployeeProfileProvider;
 import dev.hata.scheduler.resource.model.Employee;
+import dev.hata.scheduler.resource.model.EmployeeRole;
 import dev.hata.scheduler.resource.model.SkillLevel;
 import dev.hata.scheduler.resource.model.Technician;
+import dev.hata.scheduler.resource.model.TechnicianGrade;
 import dev.hata.scheduler.resource.model.TechnicianSkill;
 import dev.hata.scheduler.resource.model.TechnicianSkillCode;
 import dev.hata.scheduler.resource.model.TechnicianSkillId;
@@ -46,34 +48,38 @@ class TechnicianServiceTest {
     }
 
     @Test
-    void employeeAndTechnicianTaxonomyModelsEnforceScopeAndRanks() {
+    void employeeAndTechnicianTaxonomyModelsEnforceScopeGradesAndSkillLevels() {
+        assertThat(TechnicianGrade.SENIOR.getRank()).isEqualTo(4);
+        assertThat(TechnicianGrade.SENIOR.satisfies(TechnicianGrade.TECHNICIAN)).isTrue();
+        assertThat(TechnicianGrade.JUNIOR.satisfies(TechnicianGrade.SENIOR)).isFalse();
+
         assertThat(SkillLevel.SENIOR.getRank()).isEqualTo(4);
         assertThat(SkillLevel.SENIOR.satisfies(SkillLevel.TECHNICIAN)).isTrue();
         assertThat(SkillLevel.JUNIOR.satisfies(SkillLevel.SENIOR)).isFalse();
 
         Employee admin = new Employee();
-        admin.assignEmployee(ADMIN_ID, "ADM-0001", Employee.ROLE_ADMIN, null);
+        admin.assignEmployee(ADMIN_ID, "ADM-0001", EmployeeRole.ADMIN, null);
         assertThat(admin.getUserId()).isEqualTo(ADMIN_ID);
         assertThat(admin.getEmployeeId()).isEqualTo("ADM-0001");
-        assertThat(admin.getRole()).isEqualTo(Employee.ROLE_ADMIN);
+        assertThat(admin.getRole()).isEqualTo(EmployeeRole.ADMIN);
         assertThat(admin.getDealershipId()).isNull();
         assertThat(admin.getCreatedAt()).isNotNull();
         assertThat(admin.getUpdatedAt()).isNotNull();
 
-        assertThatThrownBy(() -> admin.assignEmployee(ADMIN_ID, "ADM-0001", Employee.ROLE_ADMIN, DEALERSHIP_ID))
+        assertThatThrownBy(() -> admin.assignEmployee(ADMIN_ID, "ADM-0001", EmployeeRole.ADMIN, DEALERSHIP_ID))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("global");
 
-        assertThatThrownBy(() -> admin.assignEmployee(MANAGER_ID, "MGR-0001", Employee.ROLE_MANAGER, null))
+        assertThatThrownBy(() -> admin.assignEmployee(MANAGER_ID, "MGR-0001", EmployeeRole.MANAGER, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("local");
 
         Technician technician = new Technician();
-        technician.assignTechnician(TECH_ID, DEALERSHIP_ID, "TEC-0001", SkillLevel.SENIOR);
+        technician.assignTechnician(TECH_ID, DEALERSHIP_ID, "TEC-0001", TechnicianGrade.SENIOR);
         assertThat(technician.getUserId()).isEqualTo(TECH_ID);
         assertThat(technician.getDealershipId()).isEqualTo(DEALERSHIP_ID);
         assertThat(technician.getEmployeeId()).isEqualTo("TEC-0001");
-        assertThat(technician.getLevel()).isEqualTo(SkillLevel.SENIOR);
+        assertThat(technician.getGrade()).isEqualTo(TechnicianGrade.SENIOR);
         assertThat(technician.isAvailable()).isTrue();
 
         TechnicianSkill skill = new TechnicianSkill();
@@ -91,18 +97,19 @@ class TechnicianServiceTest {
     @Test
     void findByUserIdMapsManagerAndTechnicianViews() {
         Employee manager = new Employee();
-        manager.assignEmployee(MANAGER_ID, "MGR-0001", Employee.ROLE_MANAGER, DEALERSHIP_ID);
+        manager.assignEmployee(MANAGER_ID, "MGR-0001", EmployeeRole.MANAGER, DEALERSHIP_ID);
         when(employees.findByUserId(MANAGER_ID)).thenReturn(Optional.of(manager));
 
-        Optional<TechnicianProfileProvider.EmployeeView> mgrView = service.findByUserId(MANAGER_ID);
+        Optional<EmployeeProfileProvider.EmployeeView> mgrView = service.findByUserId(MANAGER_ID);
         assertThat(mgrView).isPresent();
         assertThat(mgrView.get().employeeId()).isEqualTo("MGR-0001");
+        assertThat(mgrView.get().role()).isEqualTo("MANAGER");
         assertThat(mgrView.get().dealershipId()).isEqualTo(DEALERSHIP_ID);
-        assertThat(mgrView.get().level()).isNull();
+        assertThat(mgrView.get().grade()).isNull();
         assertThat(mgrView.get().skills()).isEmpty();
 
         Technician technician = new Technician();
-        technician.assignTechnician(TECH_ID, DEALERSHIP_ID, "TEC-0001", SkillLevel.SENIOR);
+        technician.assignTechnician(TECH_ID, DEALERSHIP_ID, "TEC-0001", TechnicianGrade.SENIOR);
         TechnicianSkill s1 = new TechnicianSkill();
         s1.assign(TECH_ID, TechnicianSkillCode.ENGINE, SkillLevel.SENIOR);
         TechnicianSkill s2 = new TechnicianSkill();
@@ -111,10 +118,10 @@ class TechnicianServiceTest {
         when(employees.findByUserId(TECH_ID)).thenReturn(Optional.of(technician));
         when(skills.findByTechnicianId(TECH_ID)).thenReturn(List.of(s1, s2));
 
-        Optional<TechnicianProfileProvider.EmployeeView> techView = service.findByUserId(TECH_ID);
+        Optional<EmployeeProfileProvider.EmployeeView> techView = service.findByUserId(TECH_ID);
         assertThat(techView).isPresent();
         assertThat(techView.get().dealershipId()).isEqualTo(DEALERSHIP_ID);
-        assertThat(techView.get().level()).isEqualTo("SENIOR");
+        assertThat(techView.get().grade()).isEqualTo("SENIOR");
         assertThat(techView.get().available()).isTrue();
         assertThat(techView.get().skills()).hasSize(2);
     }
