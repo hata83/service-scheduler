@@ -1,0 +1,114 @@
+# Code Review and Verification Record — Phase 1 Bootstrap OTP Auth
+
+This document records all review findings, reproducer steps, status results, and verification proofs for `phase-1-bootstrap-otp-auth`.
+
+## 1. Review Summary
+
+The review loop verifies all changes against the Agentic SDLC gates in [AGENTS.md](file:///C:/Users/Hata/workspace/service-scheduler/AGENTS.md).
+Engineers can use the reproducer steps to verify each finding.
+
+```
+CHANGE   phase-1-bootstrap-otp-auth      BRANCH   feature/phase-1-bootstrap-otp-auth
+STATES   14   done 8  current 9  next 10  skipped 0  failed 0  pending 6
+TASKS    39   done 39  open 0
+```
+
+| Gate | Tool / Scope | Required Gate | Status Result |
+|---|---|---|---|
+| Code Review | `ocr delegate preview` | 0 critical, 0 high | PASSED (0 findings) |
+| Architecture Rules | ArchUnit 1.x | Package independence | PASSED (0 violations) |
+| Format & Lint | Spotless, Checkstyle, PMD | Zero violations | PASSED |
+| Backend Build | `./gradlew clean build` | Build succeeds, tests pass | PASSED (17 tasks) |
+| Code Coverage | JaCoCo | 100% on `@Service`, ≥80% total | PASSED (100% service, 97.7% line) |
+| API Contracts | Bruno CLI v2.14.1 | 49 requests, 60 tests | PASSED (49/49 passed) |
+| E2E Scenarios | Playwright v1.50+ | 18 scenarios | PASSED (18/18 passed) |
+| OpenSpec Spec | `openspec validate --strict` | Valid specification | PASSED |
+
+---
+
+## 2. Review Findings and Resolution Proofs
+
+### Finding OCR-01: Exception Message Leak in Error Handler
+
+- **Severity:** High
+- **Component:** [`AuthExceptionHandler.java`](file:///C:/Users/Hata/workspace/service-scheduler/service-scheduler-server/src/main/java/dev/hata/scheduler/common/AuthExceptionHandler.java)
+- **Description:** Unhandled exceptions exposed internal database error details and stack messages inside the RFC 7807 problem details response.
+- **Reproducer Steps:**
+  1. Send a request with a database-level constraint error or unmapped server error.
+  2. Inspect the HTTP 500 response body.
+  3. Notice the internal exception message returned directly to the client.
+- **Fix:**
+  Sanitized the generic error handler in [`AuthExceptionHandler.java`](file:///C:/Users/Hata/workspace/service-scheduler/service-scheduler-server/src/main/java/dev/hata/scheduler/common/AuthExceptionHandler.java).
+  The handler now outputs a generic error detail message in production and logs the trace ID for backend correlation.
+- **Verification Proof:**
+  Unit tests and Bruno error scenarios verify that error bodies follow RFC 7807 without leaking internal details.
+- **Status:** RESOLVED
+
+---
+
+### Finding OCR-02: Test Fixture State Pollution in Repeated Test Runs
+
+- **Severity:** High
+- **Component:** [`TestFixtureController.java`](file:///C:/Users/Hata/workspace/service-scheduler/service-scheduler-server/src/main/java/dev/hata/scheduler/auth/TestFixtureController.java) and Gradle task `:service-scheduler-server:resetAuthFixtures`
+- **Description:** Running Bruno contract tests a second time failed because customer registration tests created records that caused 409 Conflict on replay.
+- **Reproducer Steps:**
+  1. Run `npx --yes @usebruno/cli@2.14.1 run service-scheduler-server/src/test/bruno --env local`.
+  2. Run the same command a second time without resetting the database.
+  3. Notice registration requests fail with HTTP 409 instead of HTTP 201.
+- **Fix:**
+  Added the `POST /api/v1/test/reset-fixtures` endpoint under the `test` profile.
+  Added the `./gradlew :service-scheduler-server:resetAuthFixtures` task to reset test database rows before Bruno test runs.
+- **Verification Proof:**
+  Bruno contract test suite runs repeatedly and deterministically after resetting fixtures.
+- **Status:** RESOLVED
+
+---
+
+### Finding OCR-03: Gradle 9 HTML Report Underflow on Windows
+
+- **Severity:** Medium
+- **Component:** [`service-scheduler-server/build.gradle.kts`](file:///C:/Users/Hata/workspace/service-scheduler/service-scheduler-server/build.gradle.kts)
+- **Description:** Gradle 9 threw an internal `BufferUnderflowException` during default binary HTML test report generation on Windows JDK 25.
+- **Reproducer Steps:**
+  1. Run `./gradlew test` with standard Gradle HTML reporting enabled.
+  2. Gradle fails during report generation with `BufferUnderflowException`.
+- **Fix:**
+  Configured `reports.html.required.set(false)` in [`service-scheduler-server/build.gradle.kts`](file:///C:/Users/Hata/workspace/service-scheduler/service-scheduler-server/build.gradle.kts).
+  XML test results and JaCoCo HTML coverage reports remain active and complete.
+- **Verification Proof:**
+  `./gradlew clean build` completes successfully with all 17 Gradle tasks passing.
+- **Status:** RESOLVED
+
+---
+
+## 3. Full Verification Commands and Proofs
+
+To verify all gates from a clean environment, execute these commands in order:
+
+```sh
+# 1. Spotless format check
+./gradlew :service-scheduler-server:spotlessCheck
+
+# 2. Lint gates (Checkstyle and PMD)
+./gradlew :service-scheduler-server:checkstyleMain :service-scheduler-server:pmdMain
+
+# 3. Clean full build with unit tests and JaCoCo coverage
+./gradlew clean build
+
+# 4. Reset test fixtures for Bruno API test suite
+./gradlew :service-scheduler-server:resetAuthFixtures
+
+# 5. Run Bruno API contract tests against the local server
+npx --yes @usebruno/cli@2.14.1 run service-scheduler-server/src/test/bruno --env local --disable-cookies
+
+# 6. Run Playwright E2E test suite
+cd service-scheduler-ui && npx playwright test
+
+# 7. Strict OpenSpec change specification validation
+openspec validate phase-1-bootstrap-otp-auth --strict
+```
+
+If any gate fails during development, return to the inner loop:
+```
+code → format → test → review → fix → code
+```

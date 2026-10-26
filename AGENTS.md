@@ -142,9 +142,11 @@ Run `./gradlew test jacocoTestReport`. Read the coverage report. A failure retur
 
 **State 7 — Review (gate)**
 Run `ocr delegate preview --format json`. Review each diff against its rules. Fix every critical and high finding. Repeat until a pass reports nothing critical or high.
+Document every review in `openspec/changes/<change-slug>/review.md`. Record finding severity, reproduction steps, fix diffs, and verification proofs. This record allows engineers to reproduce and verify each finding after fixes.
 
 **State 8 — Verify (gate)**
-Run `openspec validate <change> --strict`. Then run `./gradlew clean build`. Then run the Bruno API test suite. Then run the State 7 review loop over the full branch diff.
+Run `openspec validate <change> --strict`. Then run `./gradlew clean build`. Then run the Bruno API test suite. Then run the Playwright E2E test suite. Then run the State 7 review loop over the full branch diff.
+All reviews, all Bruno integration tests, and all Playwright E2E tests must pass. If any check fails, return to the loop (`code → format → test → review → fix → code → ...`).
 
 **`./gradlew clean build` is the gate, not a shorter command.**
 
@@ -170,7 +172,7 @@ Report that every check and every review passed. Ask how to proceed. Never merge
 
 ### State Block Format
 
-Record the current state in `tasks.md`. Print the block in every reply. Use this format:
+Record the current state in `openspec/changes/<change-slug>/tasks.md` and root `tasks.md`. Print the block in every reply. Use this format:
 
 ```
 CHANGE   <slug>                   BRANCH   feature/<slug>
@@ -403,6 +405,8 @@ ocr delegate run --format json
 ```
 
 Fix every critical and high finding. Repeat from preview until a pass reports nothing critical or high.
+Document every review run in `openspec/changes/<change-slug>/review.md`. Include finding lists, severity ranks, status results, reproduction steps, and re-check proofs.
+All code reviews, Bruno integration tests, and Playwright E2E tests must pass. If any check fails, return to the loop (`code → format → test → review → fix → code → ...`).
 
 ### `agent-architecture-audit` (ECC)
 
@@ -451,7 +455,6 @@ npm run format
 
 - Never start the JAR and the Docker Compose service on the same port at the same time. Both bind 8080.
 - Never expose Actuator endpoints on a public network. They have no authentication.
-- Set `SCHEDULER_MDNS_ENABLED=false` for test processes.
 
 ---
 

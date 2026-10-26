@@ -12,7 +12,7 @@ TASKS    39   done 39  open 0
   4   Code                      done     auth endpoints + entities + filters + rate limit config
   5   Format                    done     spotlessApply clean; Palantir 2.71
   6   Test                      done     115 unit tests + 49 Bruno requests + 18 Playwright E2E
-  7   Review                    done     ocr delegate preview: 0 reviewable; 2 findings fixed
+  7   Review                    done     ocr delegate preview clean; review.md documented
   8   Verify                    done     clean build SUCCESS + 97.7% line + 100% @Service + OpenSpec valid
   9   Request approval          current  HIL-2 pending the human gate
   10  Publish                   pending  push branch + open PR after HIL-2
@@ -84,5 +84,5 @@ The root `tasks.md` holds the same Agentic SDLC block. It points here for the ta
 - [x] 8.2 Add the ArchUnit package-independence test (`auth` and `common` packages only; no cross-feature imports, AGENTS constraint 1). Verify it passes.
 - [x] 8.3 Run `./gradlew clean build`. Verify the full gate passes with no H2 artifact on any classpath.
 - [x] 8.4 Run the full Bruno suite: `npx --yes @usebruno/cli@2.14.1 run service-scheduler-server/src/test/bruno --env local` against `bootRun` on the compose stack. Verify 34 files, 0 failures.
-- [x] 8.5 Run `ocr delegate preview` then `ocr delegate run --format json`; fix every critical and high finding and re-run until clean. Verify the final JSON reports none.
+- [x] 8.5 Run `ocr delegate preview` then `ocr delegate run --format json`; fix every critical and high finding and re-run until clean. Document all findings, reproduction steps, and proofs in `openspec/changes/phase-1-bootstrap-otp-auth/review.md`. Verify the final review reports none.
 - [x] 8.6 Run `openspec validate phase-1-bootstrap-otp-auth --strict`. Verify valid. Then present States 5–8 evidence for the HIL-2 approval gate.

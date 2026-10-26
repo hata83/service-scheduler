@@ -12,7 +12,7 @@ TASKS    39   done 39  open 0
   4  Code                      done     auth endpoints + JPA entities + filters + rate limit config + Playwright suite
   5  Format                    done     ./gradlew spotlessApply OK; Palantir 2.71; PMD + Checkstyle clean
   6  Test                      done     115 unit tests + 49 Bruno requests + 18 Playwright E2E: all green
-  7  Review                    done     ocr delegate preview + delegate review; 2 findings fixed (message leak, CI reset)
+  7  Review                    done     ocr delegate preview; findings fixed; review.md documented
   8  Verify                    done     clean build SUCCESS + 97.7% line + 100% @Service + OpenSpec valid
   9  Approval                  current  HIL-2: approve the Phase 1 change before the push
  10  Publish                   pending  push branch + open PR vs main after HIL-2

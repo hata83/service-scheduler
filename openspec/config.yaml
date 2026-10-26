@@ -30,7 +30,7 @@ context: |
   3. Every appointment mutation writes an `OUTBOX_EVENTS` row in the same
      transaction. SSE and webhook listeners run after commit only.
   4. The slot grid cache is per service type:
-     `slot:grid:{dealershipId}:{date}:{serviceType}`, 30-second TTL, evicted on
+     `slot:grid:{dealershipId}:{serviceTypeId}:{date}`, 1-hour TTL, evicted on
      booking commit, cancel, reject, no-show, resource change, and check-in
      slot adjustment. Availability covers now to
      `current_date + max_advance_booking_days` (default 7).
@@ -81,7 +81,8 @@ rules:
     - "Every frontend integration task MUST have a Playwright E2E sub-task that captures one screenshot per acceptance criterion."
     - "Every task that adds or changes a `### Requirement:` block MUST have a sub-task that updates the `### Capacity Mapping` table in the owning `spec.md`."
     - "Every task that adds or changes a domain feature MUST have a sub-task that publishes one Archify diagram under `docs/diagrams/<group>/<slug>`. The diagram type MUST follow the question the diagram answers, not default to sequence. See the diagram type table below."
-    - "Start `tasks.md` with the State Block format from AGENTS.md Section 3 and update its marks when a state changes."
+    - "Start `tasks.md` with the 14-state Agentic SDLC block from AGENTS.md Section 3 and update its marks when a state changes to track progress."
+    - "Document all review findings, reproducer steps, and resolution proofs in `openspec/changes/<change-slug>/review.md` before closing State 7."
 
 # Which diagram type, and why. A change that picks a type MUST say which row
 # it matched, so no change defaults to sequence without a reason.
@@ -107,9 +108,8 @@ operations:
       - "Write the failing test first (BE-1). Watch it fail. Then write the smallest code that makes it pass (BE-2)."
       - "Run `./gradlew :service-scheduler-server:spotlessApply` before you leave each backend task. Keep `checkstyleMain`, `pmdMain`, and `test` green."
       - "Add the constraint evaluator integration test for each service type behaviour the change touches (BE-4)."
-      - "Run the review loop before State 8: `ocr delegate preview`, then `ocr delegate run`. Fix every critical and high finding, then repeat. A finding closes only when a regression test fails without the fix and passes with it."
-      - "Close State 8 with `openspec validate <change-slug> --strict`, then `./gradlew clean build`, then the Bruno suite against a running server. `./gradlew clean build` is the gate, not a shorter command."
-      - "Set `SCHEDULER_MDNS_ENABLED=false` for every test or server process you run."
+      - "Run the review loop before State 8: `ocr delegate preview`, then `ocr delegate run`. Document each review and its status results in `openspec/changes/<change-slug>/review.md` to reproduce and re-check findings after fixes."
+      - "Close State 8 with `openspec validate <change-slug> --strict`, then `./gradlew clean build`, then the Bruno suite and Playwright E2E suite against a running server. Ensure all reviews, Bruno integration tests, and Playwright tests pass, or return to the loop."
       - "Present the diff and the State 8 results at State 9 and wait for human approval. Never push before that approval."
       - "Keep test summaries concise."
 
