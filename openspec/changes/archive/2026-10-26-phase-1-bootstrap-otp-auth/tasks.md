@@ -2,7 +2,7 @@
 
 ```
 CHANGE   phase-1-bootstrap-otp-auth      BRANCH   feature/phase-1-bootstrap-otp-auth
-STATES   14   done 11  current 12  next 13  skipped 0  failed 0  pending 2
+STATES   14   done 12  current 13  next 14  skipped 0  failed 0  pending 1
 TASKS    39   done 39  open 0
 
   #   state                     mark     proof
@@ -17,8 +17,8 @@ TASKS    39   done 39  open 0
   9   Request approval          done     HIL-2 approval granted by user
   10  Publish                   done     PR #1 opened vs master: https://github.com/hata83/service-scheduler/pull/1
   11  Verify PR                 done     all 6 checks green (Build, Bruno, Playwright, OpenSpec, OCR)
-  12  Archive                   current  /opsx-archive after PR verification
-  13  Review archive            pending  diagram viewer links + openwiki generation
+  12  Archive                   done     openspec archive: 2026-10-26-phase-1-bootstrap-otp-auth
+  13  Review archive            current  diagram viewer links verified; openwiki ready
   14  Merge                     pending  HIL-3 human gate
 ```
 

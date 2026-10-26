@@ -9,7 +9,7 @@ Engineers can use the reproducer steps to verify each finding.
 
 ```
 CHANGE   phase-1-bootstrap-otp-auth      BRANCH   feature/phase-1-bootstrap-otp-auth
-STATES   14   done 11  current 12  next 13  skipped 0  failed 0  pending 2
+STATES   14   done 12  current 13  next 14  skipped 0  failed 0  pending 1
 TASKS    39   done 39  open 0
 ```
 
