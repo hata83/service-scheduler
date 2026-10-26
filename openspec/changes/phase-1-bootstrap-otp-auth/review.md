@@ -61,7 +61,12 @@
 - **[Qodo #13 — Medium] `sendOtp` rate-limit key spacing:** `OtpType.fromWire` trims before key build (`AuthController` line 71 uses `#body.type()` parsed canonical form).
 - **[Qodo #14 — High] Large write bodies:** `MAX_BODY_BYTES = 65536`; `CachedBodyRequest` clones defensively within bound; `request.getInputStream().readNBytes(MAX_BODY_BYTES + 1)` rejects oversized. Proof: `IdempotencyFilter.java:70-78`.
 
-## 6. Verification Proofs
+### State 11 — PR Verify (latest cycle, commit 3078956)
+
+- **Failing E2E test fixed:** `customer-registration.spec.ts` "a replayed key returns the same session" returned 409 on second request because Playwright's request context auto-sends the `jwt` cookie set by the first successful registration. `AuthFilter` (order HIGHEST_PRECEDENCE + 1, before `IdempotencyFilter`) then populated the principal attribute, so `IdempotencyFilter.resolveCallerScope()` returned the new user's id instead of `anon`, producing a different slot and a cache miss → re-execution → 409 (duplicate phone). Fix: scope bootstrap auth endpoints (`/api/v1/auth/register`, `/api/v1/auth/otp/*`) to `anon` regardless of cookie presence. Bruno runs with `--disable-cookies`, so it was unaffected; only Playwright E2E hit this.
+- **KiloCode bot:** responded "link your GitHub account to Kilo" — no review comments generated. No KiloCode findings to fix.
+- `ocr delegate preview` (1 reviewable file, 0 critical/high) + `verifyCodeReviewDelegate` PASS.
+- `./gradlew clean build` PASS.
 
 - **OCR Delegate Review Summary:**
   - `ocr delegate preview --format json` & `./gradlew :service-scheduler-server:verifyCodeReviewDelegate`: PASS (`total_files: 77`, `reviewed_files: 35`, `excluded_files: 42`, `coverage_rate: 100%`, 0 critical/high findings remaining).
