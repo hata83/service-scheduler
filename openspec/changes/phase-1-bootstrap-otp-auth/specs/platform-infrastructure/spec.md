@@ -75,7 +75,7 @@ The system SHALL seed exactly 1 demo dealership and users 1 admin, 1 manager, 1 
 
 | Requirement | Playwright spec | Archify diagram |
 |---|---|---|
-| Platform composition and health | `platform-infrastructure.spec.ts` | `docs/diagrams/system/system-architecture.svg` |
-| PostgreSQL-only persistence | `platform-infrastructure.spec.ts` | `docs/diagrams/system/system-data-model.svg` |
-| Observability | `platform-infrastructure.spec.ts` | `docs/diagrams/system/system-architecture.svg` |
-| Seed fixtures | `platform-infrastructure.spec.ts` | `docs/diagrams/system/system-data-model.svg` |
+| Platform composition and health | `platform-infrastructure.spec.ts` | `docs/diagrams/system/system-architecture.html` |
+| PostgreSQL-only persistence | `platform-infrastructure.spec.ts` | `docs/diagrams/system/system-data-model.html` |
+| Observability | `platform-infrastructure.spec.ts` | `docs/diagrams/system/system-architecture.html` |
+| Seed fixtures | `platform-infrastructure.spec.ts` | `docs/diagrams/system/system-data-model.html` |

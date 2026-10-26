@@ -50,27 +50,19 @@ Greenfield: `docker compose up -d postgres redis` → `./gradlew bootRun` → Fl
 
 ## Diagrams
 
-The clarified flow (purpose-typed `otp/send`, one-shot register, login-only verify, Zalo stub, profile edit) is captured in two sequence diagrams that are already finalized and browser-checked at State 1; apply only refreshes and exports SVGs from the viewers:
+The clarified flow (purpose-typed `otp/send`, one-shot register, login-only verify, Zalo stub, profile edit) is captured in diagrams with interactive viewers:
 
-![OTP login flow](../../docs/diagrams/system/otp-login.svg)
-
-Viewer: `docs/diagrams/system/otp-login.html`
-
-![Customer registration flow](../../docs/diagrams/system/customer-registration.svg)
-
-Viewer: `docs/diagrams/system/customer-registration.html`
-
-![Platform runtime and data model](../../docs/diagrams/system/system-architecture.svg)
-
-Viewer: `docs/diagrams/system/system-architecture.html` (reused with no content change; cited by `platform-infrastructure` alongside `system-data-model.svg`)
+- **OTP Login Flow:** [Interactive Viewer](../../docs/diagrams/system/otp-login.html)
+- **Customer Registration Flow:** [Interactive Viewer](../../docs/diagrams/system/customer-registration.html)
+- **Platform Architecture & Data Model:** [Interactive Viewer](../../docs/diagrams/system/system-architecture.html) · [Data Model Viewer](../../docs/diagrams/system/system-data-model.html)
 
 ## Traceability
 
 | Capacity | API | Bruno | Playwright | Archify diagram |
 |---|---|---|---|---|
-| `platform-infrastructure` | `GET /actuator/health`, `GET /actuator/prometheus` | 2 files (see spec `## Mapping`) | `service-scheduler-ui/tests/e2e/platform-infrastructure.spec.ts` | `docs/diagrams/system/system-architecture.svg` + `system-data-model.svg` |
-| `otp-login` | `POST /auth/otp/send`, `POST /auth/otp/verify`, `GET /auth/me`, `PATCH /auth/me`, `POST /auth/logout` | 24 files, one per scenario | `service-scheduler-ui/tests/e2e/otp-login.spec.ts` | `docs/diagrams/system/otp-login.svg` + viewer |
-| `customer-registration` | `POST /auth/register` (+ Zalo-stub OTP dispatch) | 8 files, one per scenario | `service-scheduler-ui/tests/e2e/customer-registration.spec.ts` | `docs/diagrams/system/customer-registration.svg` + viewer |
+| `platform-infrastructure` | `GET /actuator/health`, `GET /actuator/prometheus` | 2 files (see spec `## Mapping`) | `service-scheduler-ui/tests/e2e/platform-infrastructure.spec.ts` | `docs/diagrams/system/system-architecture.html` + `system-data-model.html` |
+| `otp-login` | `POST /auth/otp/send`, `POST /auth/otp/verify`, `GET /auth/me`, `PATCH /auth/me`, `POST /auth/logout` | 24 files, one per scenario | `service-scheduler-ui/tests/e2e/otp-login.spec.ts` | `docs/diagrams/system/otp-login.html` |
+| `customer-registration` | `POST /auth/register` (+ Zalo-stub OTP dispatch) | 8 files, one per scenario | `service-scheduler-ui/tests/e2e/customer-registration.spec.ts` | `docs/diagrams/system/customer-registration.html` |
 
 ## AGENTS Section 4 constraint mapping
 

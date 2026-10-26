@@ -18,11 +18,9 @@ TASKS    39   done 39  open 0
   10  Publish                   done     PR #1 opened vs master: https://github.com/hata83/service-scheduler/pull/1
   11  Verify PR                 done     all 6 checks green (Build, Bruno, Playwright, OpenSpec, OCR)
   12  Archive                   current  /opsx-archive after PR verification
-  13  Review archive            pending  diagram SVG links + openwiki generation
+  13  Review archive            pending  diagram viewer links + openwiki generation
   14  Merge                     pending  HIL-3 human gate
 ```
-
-The root `tasks.md` holds the same Agentic SDLC block. It points here for the task list.
 
 ## 1. Branch setup (State 2)
 
@@ -42,7 +40,7 @@ The root `tasks.md` holds the same Agentic SDLC block. It points here for the ta
 - [x] 3.4 Add JSON logging (logstash encoder) with a `requestId` MDC filter and trace correlation fields per design D12. Verify one sample request logs a single JSON line containing `requestId` and `traceId`.
 - [x] 3.5 Lock the actuator to `health` + `prometheus`, and confirm health carries `db` and `redis` indicators per design D12. Verify `/actuator/health` returns 200 `UP` with both components, `/actuator/prometheus` includes JVM meter families, and `/actuator/env` returns 404.
 - [x] 3.6 Add Bruno files `api/platform/health-db-redis.bru` and `api/platform/prometheus-metrics.bru`, executed against the compose-backed server. Verify both pass via `npx @usebruno/cli run`.
-- [x] 3.7 Update the `### Capacity Mapping` table in `specs/platform-infrastructure/spec.md` if requirement names shift, then export `system-architecture.svg` and `system-data-model.svg` from their viewers. Verify one row per `### Requirement:` block and both SVGs exist.
+- [x] 3.7 Update the `### Capacity Mapping` table in `specs/platform-infrastructure/spec.md` if requirement names shift, then verify `system-architecture.html` and `system-data-model.html` viewers exist and pass `archify validate`. Verify one row per `### Requirement:` block.
 - [x] 3.8 Create `service-scheduler-ui/tests/e2e/platform-infrastructure.spec.ts` (API-level Playwright E2E, one test per scenario) plus minimal Playwright setup, run against the compose-stacked database server. Verify it passes.
 
 ## 4. Schema and seed (Flyway, PostgreSQL-only)
@@ -60,7 +58,7 @@ The root `tasks.md` holds the same Agentic SDLC block. It points here for the ta
 - [x] 5.6 Implement `AuthFilter`, `@RequireRole`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout` per design D5/D6. Add Bruno files `api/auth/me-after-login.bru`, `api/auth/me-unauthenticated.bru`, `api/auth/logout-revokes-session.bru`. Verify all three pass.
 - [x] 5.7 Implement `POST /api/v1/auth/otp/verify` (login-only: consumes LOGIN-purpose OTP, never creates rows; idempotency key required with cached replay; wrong/expired/wrong-purpose/unknown-phone 401 problem+json; unknown-phone detail names registration). Add Bruno files `api/auth/login-customer.bru`, `api/auth/login-manager.bru`, `api/auth/login-technician.bru`, `api/auth/login-admin.bru`, `api/auth/verify-wrong-code.bru`, `api/auth/verify-expired-code.bru`, `api/auth/verify-rejects-register-purpose.bru`, `api/auth/verify-unknown-phone.bru`, `api/auth/verify-missing-idempotency-key.bru`, `api/auth/verify-idempotent-replay.bru`. Verify all ten pass.
 - [x] 5.8 TDD BE-1/BE-2: `ProfileService` (email for every role; names for CUSTOMER and TECHNICIAN via design D13; phone field rejected), then implement `PATCH /api/v1/auth/me` with idempotency. Add Bruno files `api/auth/me-patch-updates-profile.bru`, `api/auth/me-patch-rejects-phone.bru`, `api/auth/me-patch-rejects-staff-names.bru`, `api/auth/me-patch-missing-idempotency-key.bru`. Verify the test fails before and passes after, then all four Bruno files pass.
-- [x] 5.9 Refresh `docs/diagrams/src/system/otp-login.sequence.json` if task work shifts the flow (the viewer `docs/diagrams/system/otp-login.html` was finalized and browser-checked at State 1), re-run `archify finalize sequence ... --quality showcase`, and export `otp-login.svg` from the viewer's Export SVG button. Verify `archify validate` passes, the viewer is current, and the SVG exists, then link the diagram from the capacity's spec mapping.
+- [x] 5.9 Refresh `docs/diagrams/src/system/otp-login.sequence.json` if task work shifts the flow (the viewer `docs/diagrams/system/otp-login.html` was finalized and browser-checked at State 1), re-run `archify finalize sequence ... --quality showcase`. Verify `archify validate` passes and the viewer is current, then link the diagram from the capacity's spec mapping.
 - [x] 5.10 Update the `### Capacity Mapping` table in `specs/otp-login/spec.md` if requirement names shift during implementation. Verify one row per `### Requirement:` block with its diagram reference.
 - [x] 5.11 Create `service-scheduler-ui/tests/e2e/otp-login.spec.ts` (API-level Playwright E2E, one test per scenario) against the compose-stacked server. Verify it passes.
 
@@ -68,7 +66,7 @@ The root `tasks.md` holds the same Agentic SDLC block. It points here for the ta
 
 - [x] 6.1 TDD BE-1/BE-2: failing unit test for `RegisterService` (verifies the REGISTER-purpose OTP from `otp:register:{phone}` per design D11, inserts user + profile, issues the session JWT, idempotency cache per ADR-008 with no second consumption, CUSTOMER role pin, duplicate 409, IP rate limit), then implement. Verify the test fails before and passes after.
 - [x] 6.2 Implement `POST /api/v1/auth/register` (201 + `Set-Cookie: jwt`, idempotency key required with the `idempotency:register:{phone}:{key}` record per D8, IP rate limit from the JSON config, SpringDoc annotations, problem+json responses for 400/401/403/409/429). Add Bruno files `api/auth/register-customer-201.bru`, `api/auth/register-wrong-otp.bru`, `api/auth/register-rejects-login-purpose.bru`, `api/auth/register-elevates-role.bru`, `api/auth/register-duplicate-phone.bru`, `api/auth/register-rate-limited.bru`, `api/auth/register-missing-idempotency-key.bru`, `api/auth/register-idempotent-replay.bru`. Verify all eight pass.
-- [x] 6.3 Refresh `docs/diagrams/src/system/customer-registration.sequence.json` if task work shifts the flow (the viewer `docs/diagrams/system/customer-registration.html` was finalized and browser-checked at State 1), re-run `archify finalize sequence ... --quality showcase`, and export `customer-registration.svg` from the viewer. Verify `archify validate` passes, the viewer is current, and the SVG exists, then link the diagram from the capacity's spec mapping.
+- [x] 6.3 Refresh `docs/diagrams/src/system/customer-registration.sequence.json` if task work shifts the flow (the viewer `docs/diagrams/system/customer-registration.html` was finalized and browser-checked at State 1), re-run `archify finalize sequence ... --quality showcase`. Verify `archify validate` passes and the viewer is current, then link the diagram from the capacity's spec mapping.
 - [x] 6.4 Update the `### Capacity Mapping` table in `specs/customer-registration/spec.md` if requirement names shift. Verify one row per `### Requirement:` block with its diagram reference.
 - [x] 6.5 Create `service-scheduler-ui/tests/e2e/customer-registration.spec.ts` (API-level; typed send → one-shot register with echoed OTP → logged-in identity via me → profile editable) against the compose-stacked server. Verify it passes.
 

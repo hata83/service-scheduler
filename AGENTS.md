@@ -162,7 +162,7 @@ Read the CI check result for the pull request.
 - Any check failed → take the failure report back to State 4, push again, re-enter State 11.
 
 **State 12 — Archive**
-Run `/opsx-archive`. Move Archify diagrams this change produced to `docs/diagrams/`. Embed SVG and link viewer in the relevant document.
+Run `/opsx-archive`. Move Archify diagrams this change produced to `docs/diagrams/`. Link the interactive HTML viewer in the relevant document.
 
 **State 13 — Review the Archive**
 Push the archived spec and diagram move to the same pull request. Re-enter State 11.
@@ -172,7 +172,7 @@ Report that every check and every review passed. Ask how to proceed. Never merge
 
 ### State Block Format
 
-Record the current state in `openspec/changes/<change-slug>/tasks.md` and root `tasks.md`. Print the block in every reply. Use this format:
+Record the current state in `openspec/changes/<change-slug>/tasks.md`. Print the block in every reply. Use this format:
 
 ```
 CHANGE   <slug>                   BRANCH   feature/<slug>
@@ -299,7 +299,7 @@ npx --yes @usebruno/cli@2.14.1 run src/test/bruno --env local --disable-cookies
 
 ## 6A. Diagrams
 
-Every diagram has three layers: the inline SVG in Markdown, the interactive Archify HTML viewer, and the JSON source of truth.
+Every diagram has two primary layers: the interactive Archify HTML viewer and the JSON source of truth.
 
 `docs/diagrams/index.html` holds the diagram dashboard. Do not add a diagram table to this file.
 
@@ -314,8 +314,6 @@ node .agents/skills/archify/archify/bin/archify.mjs finalize architecture \
 node .agents/skills/archify/archify/bin/archify.mjs validate architecture \
   docs/diagrams/src/system/system-architecture.architecture.json --json
 ```
-
-The HTML viewer holds the `Export SVG` button. Use the viewer to get an SVG file. The CLI has no `export-svg` command.
 
 `SYSTEM_DESIGN.md` is the source of truth for the design. Every diagram follows it. Read `SYSTEM_DESIGN.md` before you change a diagram.
 
@@ -356,7 +354,7 @@ python .agents/skills/asd-ste100-skill/scripts/ste-lint.py PLANNING.md
 
 ### `archify` (Architecture Diagrams)
 
-Draw and update diagrams in `docs/diagrams/src/` as JSON source files. Export HTML viewer and SVG to `docs/diagrams/`. The diagram dashboard is `docs/diagrams/index.html`. Group a new diagram by its purpose: layer, data model, state machine, use case, or delivery.
+Draw and update diagrams in `docs/diagrams/src/` as JSON source files. Finalize the interactive HTML viewer to `docs/diagrams/`. The diagram dashboard is `docs/diagrams/index.html`. Group a new diagram by its purpose: layer, data model, state machine, use case, or delivery.
 
 Binary location: `.agents/skills/archify/archify/bin/archify.mjs`
 
@@ -374,8 +372,6 @@ node .agents/skills/archify/archify/bin/archify.mjs finalize erd \
   docs/diagrams/system/system-data-model.html \
   --quality showcase --json
 ```
-
-The viewer holds the `Export SVG` button. The CLI has no `export-svg` command.
 
 When a check fails, remove hand-authored `fromSide`, `toSide`, `via`, and `labelAt` pins first. Those often force a segment through an unrelated node. Let the router plan the path, then read the reported metrics.
 

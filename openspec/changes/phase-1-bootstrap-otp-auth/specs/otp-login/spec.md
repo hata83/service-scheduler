@@ -271,10 +271,10 @@ Set-Cookie: jwt=; Max-Age=0; Path=/; HttpOnly; SameSite=Strict
 
 | Requirement | Playwright spec | Archify diagram |
 |---|---|---|
-| OTP issuance | `otp-login.spec.ts` | `docs/diagrams/system/otp-login.svg` |
-| OTP issuance replay | `otp-login.spec.ts` | `docs/diagrams/system/otp-login.svg` |
-| Login by verified OTP | `otp-login.spec.ts` | `docs/diagrams/system/otp-login.svg` |
-| Verify idempotency | `otp-login.spec.ts` | `docs/diagrams/system/otp-login.svg` |
-| Session introspection | `otp-login.spec.ts` | `docs/diagrams/system/otp-login.svg` |
-| Profile edit after login | `otp-login.spec.ts` | `docs/diagrams/system/otp-login.svg` |
-| Logout revocation | `otp-login.spec.ts` | `docs/diagrams/system/otp-login.svg` |
+| OTP issuance | `otp-login.spec.ts` | `docs/diagrams/system/otp-login.html` |
+| OTP issuance replay | `otp-login.spec.ts` | `docs/diagrams/system/otp-login.html` |
+| Login by verified OTP | `otp-login.spec.ts` | `docs/diagrams/system/otp-login.html` |
+| Verify idempotency | `otp-login.spec.ts` | `docs/diagrams/system/otp-login.html` |
+| Session introspection | `otp-login.spec.ts` | `docs/diagrams/system/otp-login.html` |
+| Profile edit after login | `otp-login.spec.ts` | `docs/diagrams/system/otp-login.html` |
+| Logout revocation | `otp-login.spec.ts` | `docs/diagrams/system/otp-login.html` |

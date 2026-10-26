@@ -70,7 +70,7 @@ rules:
 
   design:
     - "The design document MUST contain a `## Traceability` table. Each row maps one capability to its API, its Bruno `.bru` file, its Playwright spec, and its Archify diagram."
-    - "The design document MUST embed the exported SVG of every diagram it cites and MUST link each diagram to its Archify viewer."
+    - "The design document MUST link each diagram to its Archify interactive HTML viewer."
     - "The design document MUST name the AGENTS.md Section 4 architecture constraints that apply to each layer it touches."
     - "Record any framework, database, or pattern decision in `docs/adr/` and index it in the Architecture Decisions section of `docs/SYSTEM_DESIGN.md`."
 

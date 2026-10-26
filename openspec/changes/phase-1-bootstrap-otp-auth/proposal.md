@@ -22,7 +22,7 @@ The repository is docs-only today. CI, the AGENTS gates, and the Bruno contract 
 - Amend ADR-011: the register call itself creates the account and the login session from a REGISTER-purpose OTP; `verify` never creates user or profile rows. The endpoint name standardizes on `otp/send` with a type field.
 - Add 34 Bruno `.bru` files under `service-scheduler-server/src/test/bruno/` — one file per scenario, per capacity. Every spec's `## Endpoint Contracts` section gives copy-ready request/response header and body blocks; the openspec config now mandates that format for future proposals too.
 - Add API-level Playwright E2E specs: `platform-infrastructure.spec.ts`, `otp-login.spec.ts`, `customer-registration.spec.ts` under `service-scheduler-ui/tests/e2e/`.
-- Update diagrams: regenerate `otp-login`, create `customer-registration`, export SVGs `otp-login.svg`, `customer-registration.svg`, `system-architecture.svg`, `system-data-model.svg`. Each business capacity gets its diagram reference inside the openspec design and its delta spec's Capacity Mapping.
+- Update diagrams: regenerate `otp-login`, create `customer-registration`, and finalize interactive HTML viewers for `otp-login.html`, `customer-registration.html`, `system-architecture.html`, and `system-data-model.html`. Each business capacity gets its diagram reference inside the openspec design and its delta spec's Capacity Mapping.
 - Document every endpoint with a request/response contract: the spec `## Mapping` API tables carry Request and Response columns per endpoint (see the customer register and user login capacities).
 - Update docs: ADR-011 amendment and `docs/SYSTEM_DESIGN.md` §14.1 endpoint list (register, me, patch me).
 

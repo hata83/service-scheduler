@@ -1735,35 +1735,17 @@ DAY 7: FINAL VERIFICATION & SUBMISSION
 
 The diagram dashboard is at [`docs/diagrams/index.html`](diagrams/index.html).
 
-Each diagram has three layers: the inline SVG in this document, the interactive viewer, and the JSON source of truth.
+Each diagram has two layers: the interactive viewer and the JSON source of truth.
 
 ### 19.1 Phase 1 auth diagrams
 
-**OTP login sequence**
-
-![OTP login sequence](diagrams/system/otp-login.svg)
-
-[Open the interactive viewer](diagrams/system/otp-login.html) · [JSON source](diagrams/src/system/otp-login.sequence.json)
-
-**Customer registration sequence**
-
-![Customer registration sequence](diagrams/system/customer-registration.svg)
-
-[Open the interactive viewer](diagrams/system/customer-registration.html) · [JSON source](diagrams/src/system/customer-registration.sequence.json)
+- **OTP Login Sequence:** [Interactive Viewer](diagrams/system/otp-login.html) · [JSON Source](diagrams/src/system/otp-login.sequence.json)
+- **Customer Registration Sequence:** [Interactive Viewer](diagrams/system/customer-registration.html) · [JSON Source](diagrams/src/system/customer-registration.sequence.json)
 
 ### 19.2 Platform diagrams
 
-**System architecture**
-
-![System architecture](diagrams/system/system-architecture.svg)
-
-[Open the interactive viewer](diagrams/system/system-architecture.html) · [JSON source](diagrams/src/system/system-architecture.architecture.json)
-
-**System data model**
-
-![System data model](diagrams/system/system-data-model.svg)
-
-[Open the interactive viewer](diagrams/system/system-data-model.html) · [JSON source](diagrams/src/system/system-data-model.erd.json)
+- **System Architecture:** [Interactive Viewer](diagrams/system/system-architecture.html) · [JSON Source](diagrams/src/system/system-architecture.architecture.json)
+- **System Data Model:** [Interactive Viewer](diagrams/system/system-data-model.html) · [JSON Source](diagrams/src/system/system-data-model.erd.json)
 
 ### 19.3 All diagrams
 

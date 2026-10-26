@@ -108,7 +108,7 @@ Content-Type: application/json
 
 | Requirement | Playwright spec | Archify diagram |
 |---|---|---|
-| One-shot registration | `customer-registration.spec.ts` | `docs/diagrams/system/customer-registration.svg` |
-| Idempotent registration | `customer-registration.spec.ts` | `docs/diagrams/system/customer-registration.svg` |
-| Role pinning | `customer-registration.spec.ts` | `docs/diagrams/system/customer-registration.svg` |
-| Duplicate rejection | `customer-registration.spec.ts` | `docs/diagrams/system/customer-registration.svg` |
+| One-shot registration | `customer-registration.spec.ts` | `docs/diagrams/system/customer-registration.html` |
+| Idempotent registration | `customer-registration.spec.ts` | `docs/diagrams/system/customer-registration.html` |
+| Role pinning | `customer-registration.spec.ts` | `docs/diagrams/system/customer-registration.html` |
+| Duplicate rejection | `customer-registration.spec.ts` | `docs/diagrams/system/customer-registration.html` |
