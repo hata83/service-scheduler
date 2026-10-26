@@ -84,37 +84,13 @@ tasks.withType<Test> {
     finalizedBy(tasks.jacocoTestReport)
 }
 
-tasks.register<Exec>("resetAuthDatabase") {
+// The reset uses JDBC and the Redis client, so it works against the Docker
+// Compose services and against the CI service containers.
+tasks.register<JavaExec>("resetAuthFixtures") {
     group = "verification"
-    description = "Deletes the registration fixtures so the Bruno suite can run again."
-    workingDir = rootProject.projectDir
-    commandLine(
-        "docker", "compose", "exec", "-T", "postgres",
-        "psql", "-U", "scheduler", "-d", "service_scheduler",
-        "-c",
-        "DELETE FROM customers WHERE user_id IN (SELECT id FROM users WHERE phone LIKE '+849000009%'); " +
-            "DELETE FROM users WHERE phone LIKE '+849000009%';",
-    )
-}
-
-tasks.register<Exec>("resetAuthCache") {
-    group = "verification"
-    description = "Clears the idempotency, rate-limit, OTP and session keys so the Bruno suite can run again."
-    workingDir = rootProject.projectDir
-    commandLine(
-        "docker", "compose", "exec", "-T", "redis", "sh", "-c",
-        "redis-cli --scan --pattern 'idempotency:*' | xargs -r redis-cli del; " +
-            "redis-cli --scan --pattern 'ratelimit:*' | xargs -r redis-cli del; " +
-            "redis-cli --scan --pattern 'otp:*' | xargs -r redis-cli del; " +
-            "redis-cli --scan --pattern 'auth:session:*' | xargs -r redis-cli del;",
-    )
-}
-
-tasks.register("resetAuthFixtures") {
-    group = "verification"
-    description = "Resets the database fixtures and the Redis keys so the Bruno suite can run again."
-    dependsOn(tasks.named("resetAuthDatabase"))
-    dependsOn(tasks.named("resetAuthCache"))
+    description = "Restores the seeded fixtures so the Bruno and Playwright suites can run again."
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "dev.hata.scheduler.platform.AuthFixtureReset"
 }
 
 tasks.jacocoTestReport {

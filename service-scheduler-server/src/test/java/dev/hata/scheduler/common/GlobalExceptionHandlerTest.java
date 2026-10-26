@@ -49,7 +49,16 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody().title()).isEqualTo("Unexpected server error");
-        assertThat(response.getBody().detail()).isEqualTo("boom");
+    }
+
+    @Test
+    void anUnexpectedFailureKeepsTheInternalMessageOutOfTheBody() {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/auth/me");
+
+        ResponseEntity<ApiProblem> response = handler.handleOther(new IllegalStateException("boom"), request);
+
+        assertThat(response.getBody().detail()).doesNotContain("boom");
+        assertThat(response.getBody().detail()).contains("request id");
     }
 
     @Test
@@ -58,7 +67,19 @@ class GlobalExceptionHandlerTest {
 
         ResponseEntity<ApiProblem> response = handler.handleOther(new IllegalStateException(), request);
 
-        assertThat(response.getBody().detail()).isEqualTo("Unexpected server error");
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @Test
+    void keepsTheStatusOfASpringException() {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/actuator/env");
+
+        ResponseEntity<ApiProblem> response = handler.handleOther(
+                new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_FOUND, "No such resource"),
+                request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().title()).isEqualTo(HttpStatus.NOT_FOUND.getReasonPhrase());
     }
 
     @Test

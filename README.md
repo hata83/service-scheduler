@@ -97,8 +97,7 @@ All log entries are structured JSON with trace ID, span ID, appointment ID, and 
 | Framework | Spring Boot 4.1.1 (MVC) | Industry standard, mature JPA ecosystem |
 | Concurrency | Java 25 Virtual Threads | High concurrency without reactive complexity |
 | Constraint Engine | Pure Java / Spring Service | Microsecond constraint evaluation, zero native binary overhead |
-| Database (dev) | H2 in-memory | Fast unit tests only (does not enforce EXCLUDE USING gist) |
-| Database (local/prod) | PostgreSQL 16+ | Real database with GIST exclusion, SKIP LOCKED, and ACID safety (Docker Compose or production) |
+| Database | PostgreSQL 16+ | The only database. Real GIST exclusion, SKIP LOCKED, and ACID safety (Docker Compose for dev, Testcontainers for CI) |
 | Migrations | Flyway 10+ | Versioned, reproducible schema management |
 | Cache | Redis 7 | Distributed slot cache and idempotency response cache |
 | Real-time Push | Spring MVC SseEmitter | Direct cookie-authenticated Server-Sent Events |
@@ -133,7 +132,7 @@ All log entries are structured JSON with trace ID, span ID, appointment ID, and 
 ### Environment Variables
 
 ```sh
-# Required for production (not needed for local H2 dev)
+# Required for production (the dev profile points at Docker Compose)
 SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/scheduler
 SPRING_DATASOURCE_USERNAME=scheduler
 SPRING_DATASOURCE_PASSWORD=<secret>
@@ -145,14 +144,14 @@ SCHEDULER_JWT_SECRET=<256-bit-secret>   # Never commit to Git
 
 # Optional
 SCHEDULER_WEBHOOK_SIGNING_SECRET=<secret>
-SPRING_PROFILES_ACTIVE=prod             # prod enables PostgreSQL, disables H2
+SPRING_PROFILES_ACTIVE=prod             # prod requires the JWT secret and the PostgreSQL URL
 ```
 
 **Never commit `.env` files to Git.** Use environment-specific secret management in production.
 
 ---
 
-## Quick Start (Local Development with H2)
+## Quick Start (Local Development with Docker Compose)
 
 ### Run from Source
 
@@ -161,10 +160,13 @@ SPRING_PROFILES_ACTIVE=prod             # prod enables PostgreSQL, disables H2
 git clone https://github.com/hata/service-scheduler.git
 cd service-scheduler
 
+# Start PostgreSQL 16 and Redis 7
+docker compose up -d postgres redis
+
 # Build the application
 ./gradlew build
 
-# Start the backend (H2 in-memory database)
+# Start the backend against the Compose services
 ./gradlew bootRun
 ```
 
@@ -174,7 +176,6 @@ The application starts on `http://localhost:8080`.
 |---|---|
 | `http://localhost:8080/swagger-ui.html` | Interactive API documentation |
 | `http://localhost:8080/v3/api-docs` | OpenAPI 3.1 schema (YAML/JSON) |
-| `http://localhost:8080/h2-console` | H2 database console (dev only) |
 | `http://localhost:8080/actuator/health` | Health check |
 | `http://localhost:8080/actuator/prometheus` | Prometheus metrics |
 
@@ -213,9 +214,10 @@ docker compose logs -f service-scheduler
 
 Integration testing verifies database constraints and API contracts:
 
-- **Unit Tests with H2:** H2 in-memory database runs fast isolated unit tests only (`./gradlew test`). H2 does not support `EXCLUDE USING gist` constraints.
-- **Testcontainers Integration Tests:** Real PostgreSQL instances run via Testcontainers (`./gradlew integrationTest`) to enforce and prove `EXCLUDE USING gist` constraints under concurrent booking collisions.
+- **Unit Tests:** The JUnit 5 suite runs without a database (`./gradlew test`). It covers the auth use cases, the filters, and the rate-limit loader.
+- **Testcontainers Integration Tests:** Real PostgreSQL instances run via Testcontainers to enforce and prove the schema migrations (`./gradlew test` runs `SchemaMigrationTest`).
 - **Bruno API Tests:** The Bruno CLI suite runs against the backend running locally with Docker Compose PostgreSQL and Redis (`docker compose up -d postgres redis`).
+- **Playwright E2E Tests:** The API-level Playwright suite runs against the same backend (`cd service-scheduler-ui && npx playwright test`).
 
 ```sh
 # 1. Start local PostgreSQL and Redis services

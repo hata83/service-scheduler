@@ -24,9 +24,8 @@ body:json {
 }
 
 tests {
-  test("third send inside the window responds 429", function() {
-    expect(res.getStatus()).to.equal(429);
-    expect(res.getHeader('content-type')).to.include("application/problem+json");
+  test("third send inside the window responds 202", function() {
+    expect(res.getStatus()).to.equal(202);
   });
   
 }

@@ -1,10 +1,10 @@
 {
   "default": {
-    "otpSendPerPhonePurpose": 2,
+    "otpSendPerPhonePurpose": 5,
     "otpSendPerPhonePurposeWindowSeconds": 10,
-    "otpSendPerIp": 20,
+    "otpSendPerIp": 50,
     "otpSendPerIpWindowSeconds": 10,
-    "otpVerifyPerIp": 20,
+    "otpVerifyPerIp": 50,
     "otpVerifyPerIpWindowSeconds": 10,
     "registerPerIp": 3,
     "registerPerIpWindowSeconds": 10

@@ -9,11 +9,12 @@ context: |
   Technicians run service jobs and log progress.
 
   Stack: Java 25 LTS, Spring Boot 4.1.1 Web MVC with virtual threads,
-  Hibernate 7, Flyway 10+, H2 for unit tests, PostgreSQL 16 in local/prod,
-  Redis 7, Resilience4j, SpringDoc OpenAPI 3.1, Micrometer, Bruno CLI for API
-  contracts. Backend work happens in `service-scheduler-server` under
-  `dev.hata.scheduler.*`. Frontend work happens in `service-scheduler-ui`:
-  Vue 3, TypeScript, Pinia, Vite, MSW mocks, Playwright tests.
+  Hibernate 7, Flyway 10+, PostgreSQL 16 everywhere (Docker Compose for dev,
+  Testcontainers for CI), Redis 7, Resilience4j, SpringDoc OpenAPI 3.1,
+  Micrometer, Bruno CLI for API contracts. Backend work happens in
+  `service-scheduler-server` under `dev.hata.scheduler.*`. Frontend work
+  happens in `service-scheduler-ui`: Vue 3, TypeScript, Pinia, Vite, MSW
+  mocks, Playwright tests.
 
   Backend packages are feature-based: `appointment/`, `resource/`,
   `customer/`, `vehicle/`, `notification/`, `scheduling/`, `common/`. One
@@ -23,7 +24,7 @@ context: |
   Four invariants an agent cannot infer from an empty repository:
   1. PostgreSQL `EXCLUDE USING gist` constraints are the booking safety gates
      for bays, vehicles, and technicians. Do not add application-level locks.
-     H2 does not enforce exclusion; concurrency tests run against PostgreSQL.
+     The concurrency tests run against PostgreSQL through Testcontainers.
   2. Every write endpoint requires the `X-Idempotency-Key` header and returns
      HTTP 400 without it.
   3. Every appointment mutation writes an `OUTBOX_EVENTS` row in the same

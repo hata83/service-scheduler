@@ -147,6 +147,35 @@ jobs:
           path: service-scheduler-server/build/reports/bruno/results.xml
           reporter: java-junit
 
+      - name: Install Playwright
+        working-directory: service-scheduler-ui
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Reset the fixtures for the E2E suite
+        run: ./gradlew :service-scheduler-server:resetAuthFixtures
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/scheduler_test
+          SPRING_DATASOURCE_USERNAME: scheduler
+          SPRING_DATASOURCE_PASSWORD: scheduler
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: "6379"
+
+      - name: Playwright E2E tests
+        working-directory: service-scheduler-ui
+        run: npx playwright test
+        env:
+          BASE_URL: http://localhost:8080
+
+      - name: Publish Playwright results
+        uses: dorny/test-reporter@v1.9.1
+        if: always()
+        with:
+          name: Playwright E2E Tests
+          path: service-scheduler-ui/playwright-results.xml
+          reporter: java-junit
+
       - name: openspec validate
         run: openspec validate --strict
         continue-on-error: true

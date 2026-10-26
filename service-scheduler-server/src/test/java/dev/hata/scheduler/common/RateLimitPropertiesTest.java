@@ -28,7 +28,7 @@ class RateLimitPropertiesTest {
 
         RateLimitProperties.Resolved resolved = properties.resolve(null);
 
-        assertThat(resolved.otpSendPerPhonePurpose()).isEqualTo(2);
+        assertThat(resolved.otpSendPerPhonePurpose()).isEqualTo(5);
         assertThat(resolved.registerPerIp()).isEqualTo(3);
         assertThat(resolved.otpSendPerPhonePurposeWindow().toSeconds()).isEqualTo(10);
     }

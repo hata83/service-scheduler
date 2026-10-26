@@ -280,8 +280,7 @@ npx --yes @usebruno/cli@2.14.1 run src/test/bruno --env local --disable-cookies
 | SpringDoc | 2.x | OpenAPI 3.1 generation |
 | Micrometer | 1.14+ | Metrics |
 | Logstash Encoder | 8.x | Structured JSON logging |
-| H2 | 2.x | In-memory database for dev/CI |
-| PostgreSQL | 16+ | Production database |
+| PostgreSQL | 16+ | The only database. Docker Compose for dev, Testcontainers for CI |
 | Redis | 7+ | Distributed cache and session store |
 
 ### Code Quality Gates (Backend)

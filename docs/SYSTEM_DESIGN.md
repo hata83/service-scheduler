@@ -183,7 +183,7 @@ MANAGER can:
 | Watch schedule in real time | `GET /api/v1/notifications/stream` | [SSE Notification](diagrams/system/sse-notification.html) |
 
 **Walk-In Customer Registration Flow ([Diagram](diagrams/system/walkin-customer-registration.html)):**
-- Step 1 (Register Customer): The manager registers walk-in customers via `POST /api/v1/customers` with customer phone number, full name, and email address. The endpoint checks for existing records by phone number. If an existing profile matches, it returns that record. If not, it creates a new customer profile.
+- Step 1 (Register Customer): The manager registers walk-in customers via `POST /api/v1/customers` with customer phone number, full name, and email address. The endpoint checks for existing records by phone number. If an existing profile matches, it returns that record. If not, it creates a new customer profile. This staff flow differs from the self-service flow. A customer who registers alone calls `POST /api/v1/auth/register` with a REGISTER-purpose OTP code, and the response is the customer login.
 - Step 2 (Book Appointment): The manager books the appointment via `POST /api/v1/appointments` referencing the registered customer identifier or phone number, vehicle details, service jobs, and selected slots.
 
 **Metadata Management Flow ([Diagram](diagrams/system/metadata-management.html)):**
@@ -1581,8 +1581,11 @@ Logback with Logstash Encoder produces structured JSON logs with MDC context:
 
 ```
 AUTHENTICATION
-  POST   /api/v1/auth/otp/send                 Send 6-digit OTP to phone number
-  POST   /api/v1/auth/otp/verify               Verify OTP and issue httpOnly JWT session cookie
+  POST   /api/v1/auth/otp/send                 Send 6-digit OTP for the REGISTER or LOGIN purpose
+  POST   /api/v1/auth/otp/verify               Verify a LOGIN OTP and issue the httpOnly JWT session cookie
+  POST   /api/v1/auth/register                 Register a customer with a REGISTER OTP and issue the session
+  GET    /api/v1/auth/me                       Read the caller identity
+  PATCH  /api/v1/auth/me                       Edit the email and, for a CUSTOMER or a TECHNICIAN, the names
   POST   /api/v1/auth/logout                   Invalidate user session in Redis
 
 SLOT AVAILABILITY
@@ -1725,7 +1728,38 @@ DAY 7: FINAL VERIFICATION & SUBMISSION
 
 The diagram dashboard is at [`docs/diagrams/index.html`](diagrams/index.html).
 
-Key architectural diagrams:
+Each diagram has three layers: the inline SVG in this document, the interactive viewer, and the JSON source of truth.
+
+### 19.1 Phase 1 auth diagrams
+
+**OTP login sequence**
+
+![OTP login sequence](diagrams/system/otp-login.svg)
+
+[Open the interactive viewer](diagrams/system/otp-login.html) · [JSON source](diagrams/src/system/otp-login.sequence.json)
+
+**Customer registration sequence**
+
+![Customer registration sequence](diagrams/system/customer-registration.svg)
+
+[Open the interactive viewer](diagrams/system/customer-registration.html) · [JSON source](diagrams/src/system/customer-registration.sequence.json)
+
+### 19.2 Platform diagrams
+
+**System architecture**
+
+![System architecture](diagrams/system/system-architecture.svg)
+
+[Open the interactive viewer](diagrams/system/system-architecture.html) · [JSON source](diagrams/src/system/system-architecture.architecture.json)
+
+**System data model**
+
+![System data model](diagrams/system/system-data-model.svg)
+
+[Open the interactive viewer](diagrams/system/system-data-model.html) · [JSON source](diagrams/src/system/system-data-model.erd.json)
+
+### 19.3 All diagrams
+
 - [System Architecture](diagrams/system/system-architecture.html)
 - [System Data Model (ERD)](diagrams/system/system-data-model.html)
 - [System Data Flow](diagrams/system/system-data-flow.html)
@@ -1735,6 +1769,8 @@ Key architectural diagrams:
 - [Appointment Check-In](diagrams/system/appointment-checkin.html)
 - [Job Status Update](diagrams/system/job-status-update.html)
 - [SSE Notification Flow](diagrams/system/sse-notification.html)
+- [OTP Login](diagrams/system/otp-login.html)
+- [Customer Registration](diagrams/system/customer-registration.html)
 - [Walk-In Customer Registration](diagrams/system/walkin-customer-registration.html)
 - [Workshop Metadata Management](diagrams/system/metadata-management.html)
 

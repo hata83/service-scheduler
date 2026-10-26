@@ -149,7 +149,7 @@ class AuthServiceTest {
 
     @Test
     void sendOtpStopsAtThePhonePurposeLimit() {
-        when(counter.tryAcquire(anyString(), eq(2L), any())).thenReturn(false);
+        when(counter.tryAcquire(anyString(), eq(5L), any())).thenReturn(false);
 
         assertThatThrownBy(() -> service.sendOtp(PHONE, "LOGIN", "key-1", request))
                 .isInstanceOf(AuthException.class)
