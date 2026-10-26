@@ -2,12 +2,12 @@
 
 ```
 CHANGE   phase-1-bootstrap-otp-auth      BRANCH   feature/phase-1-bootstrap-otp-auth
-STATES   14   done 9  current 10  next 11  skipped 0  failed 0  pending 4
+STATES   14   done 10  current 11  next 12  skipped 0  failed 0  pending 3
 TASKS    39   done 39  open 0
 
   #   state                     mark     proof
   1   Propose                   done     openspec validate --strict: valid + HIL-1 approval (8 rounds)
-  2   Branch                    done     main baseline 55b2f99 + feature/phase-1-bootstrap-otp-auth
+  2   Branch                    done     empty master 1611a24 + feature/phase-1-bootstrap-otp-auth
   3   Plan                      done     D2 rate limit JSON + D8 idempotency + D7 OTP slots
   4   Code                      done     auth endpoints + entities + filters + rate limit config
   5   Format                    done     spotlessApply clean; Palantir 2.71
@@ -15,8 +15,8 @@ TASKS    39   done 39  open 0
   7   Review                    done     ocr delegate preview clean; review.md documented
   8   Verify                    done     clean build SUCCESS + 97.7% line + 100% @Service + OpenSpec valid
   9   Request approval          done     HIL-2 approval granted by user
-  10  Publish                   current  configure origin, push branch, open pull request
-  11  Verify PR                 pending  CI must pass (Bruno + Playwright + build gate)
+  10  Publish                   done     PR #1 opened vs master: https://github.com/hata83/service-scheduler/pull/1
+  11  Verify PR                 current  CI checks running on PR #1
   12  Archive                   pending  /opsx-archive after PR merged
   13  Review archive            pending  diagram SVG links + openwiki generation
   14  Merge                     pending  HIL-3 human gate
