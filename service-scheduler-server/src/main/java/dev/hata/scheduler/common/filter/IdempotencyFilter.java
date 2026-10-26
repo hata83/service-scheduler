@@ -125,6 +125,14 @@ public class IdempotencyFilter extends OncePerRequestFilter {
     }
 
     private static String resolveCallerScope(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        // Bootstrap auth endpoints are unauthenticated: keep the caller scope
+        // as "anon" so a session cookie set by the first successful request does
+        // not change the idempotency slot on replay (Playwright/E2E clients
+        // auto-send cookies; Bruno runs with --disable-cookies).
+        if (uri.startsWith("/api/v1/auth/register") || uri.startsWith("/api/v1/auth/otp/")) {
+            return "anon";
+        }
         Object attr = request.getAttribute(AuthFilter.PRINCIPAL_ATTRIBUTE);
         if (attr instanceof AuthPrincipal principal && principal.userId() != null) {
             return principal.userId().toString();
