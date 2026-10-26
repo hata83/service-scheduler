@@ -18,7 +18,7 @@ tests {
   test("logout responds 204 and clears cookie", function() {
     expect(res.getStatus()).to.equal(204);
     const cookie = res.getHeader('set-cookie');
-    expect(cookie).to.be.a('string');
-    expect(cookie).to.include("Max-Age=0");
+    const cookieStr = Array.isArray(cookie) ? cookie.join(';') : String(cookie);
+    expect(cookieStr).to.include("Max-Age=0");
   });
 }

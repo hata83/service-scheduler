@@ -22,8 +22,8 @@ tests {
   });
   
 
-  test("me carries the dealership and the profile names", function() {
-    expect(res.getBody().dealershipId).to.equal("00000000-0000-0000-0000-000000000001");
+  test("me carries the global customer identity and profile names", function() {
+    expect(res.getBody().dealershipId).to.be.null;
     expect(res.getBody().firstName).to.be.a("string");
     expect(res.getBody().lastName).to.be.a("string");
   });

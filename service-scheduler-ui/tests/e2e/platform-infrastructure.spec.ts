@@ -41,7 +41,7 @@ test.describe('Platform infrastructure', () => {
       { phone: '+84900000001', role: 'ADMIN', dealershipId: null },
       { phone: '+84900000002', role: 'MANAGER', dealershipId: '00000000-0000-0000-0000-000000000001' },
       { phone: '+84900000003', role: 'TECHNICIAN', dealershipId: '00000000-0000-0000-0000-000000000001' },
-      { phone: '+84900000004', role: 'CUSTOMER', dealershipId: '00000000-0000-0000-0000-000000000001' }
+      { phone: '+84900000004', role: 'CUSTOMER', dealershipId: null }
     ];
 
     for (const account of accounts) {
