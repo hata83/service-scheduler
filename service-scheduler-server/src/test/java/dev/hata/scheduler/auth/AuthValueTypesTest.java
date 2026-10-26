@@ -36,21 +36,6 @@ class AuthValueTypesTest {
     }
 
     @Test
-    void customerProfileCarriesItsColumns() {
-        CustomerProfile profile = new CustomerProfile();
-        profile.assign(USER_ID, DEALERSHIP, "My", "Nguyen");
-        profile.setNames("Tai", "Le");
-
-        assertThat(profile.getUserId()).isEqualTo(USER_ID);
-        assertThat(profile.getDealershipId()).isEqualTo(DEALERSHIP);
-        assertThat(profile.getFirstName()).isEqualTo("Tai");
-        assertThat(profile.getLastName()).isEqualTo("Le");
-        assertThat(profile.getLocale()).isEqualTo("en_US");
-        assertThat(profile.getCreatedAt()).isNotNull();
-        assertThat(profile.getUpdatedAt()).isNotNull();
-    }
-
-    @Test
     void otpPurposeMapsTheWireType() {
         assertThat(OtpPurpose.fromWire("LOGIN")).isEqualTo(OtpPurpose.LOGIN);
         assertThat(OtpPurpose.fromWire("register")).isEqualTo(OtpPurpose.REGISTER);

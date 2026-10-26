@@ -1,4 +1,4 @@
-package dev.hata.scheduler.auth;
+package dev.hata.scheduler.customer;
 
 import java.time.Instant;
 import java.util.UUID;

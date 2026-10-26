@@ -8,6 +8,7 @@ CREATE TABLE dealerships (
   city                         VARCHAR(100),
   country                      VARCHAR(100),
   timezone                     VARCHAR(50) NOT NULL DEFAULT 'Asia/Ho_Chi_Minh',
+  features                     JSONB DEFAULT '{}'::jsonb,
   slot_interval_minutes        INT NOT NULL DEFAULT 30 CHECK (slot_interval_minutes IN (15,30,45,60,90,120)),
   open_time                    TIME NOT NULL DEFAULT '08:00',
   close_time                   TIME NOT NULL DEFAULT '17:30',

@@ -21,7 +21,7 @@ TASKS    39   done 39  open 0
 | Backend Build | `./gradlew clean build` | Build succeeds, tests pass | PASSED (17 tasks) |
 | Code Coverage | JaCoCo | 100% on `@Service`, ≥80% total | PASSED (100% service, 97.7% line) |
 | API Contracts | Bruno CLI v2.14.1 | 49 requests, 60 tests | PASSED (49/49 passed) |
-| E2E Scenarios | Playwright v1.50+ | 18 scenarios | PASSED (18/18 passed) |
+| E2E Scenarios | Playwright v1.50+ | 20 scenarios | PASSED (20/20 passed) |
 | OpenSpec Spec | `openspec validate --strict` | Valid specification | PASSED |
 
 ---
@@ -100,6 +100,35 @@ TASKS    39   done 39  open 0
   Simulated `POST /api/v1/auth/otp/send` returning HTTP 202 with echoed OTP.
   Simulated `POST /api/v1/auth/otp/verify` returning HTTP 200 with JWT cookie.
   Simulated `GET /api/v1/auth/me` returning HTTP 200 with caller identity.
+- **Status:** RESOLVED
+
+---
+
+### Finding OCR-05: Architect Refactor for Package Domain Layers, Dynamic Dealership Features, and Admin Dashboard
+
+- **Severity:** Medium
+- **Component:** `dev.hata.scheduler.customer`, `dev.hata.scheduler.dealership`, `dev.hata.scheduler.auth`, `dealerships.features`, `AdminObservabilityConfig.java`, `AdminWebMvcConfig.java`
+- **Description:**
+  1. Profile duplication: `application-dev.yml` and `application-local.yml` duplicated the default profile.
+  2. Package coupling: `CustomerProfile` lived inside `auth` package, violating feature domain independence.
+  3. Static rate limits: Rate limits loaded from static files instead of per-dealership dynamic feature configuration in `dealerships.features` (`JSONB`).
+  4. Observability: Missing lightweight admin UI dashboard on localhost to monitor system health, traces, and dynamic features.
+- **Reproducer Steps:**
+  1. Inspect package structure: `auth` contained customer profile entities and queries directly.
+  2. Inspect profiles: `application-dev.yml` and `application-local.yml` were identical to `application.yml`.
+  3. Inspect rate limit configuration: Dealerships could not configure custom rate limit thresholds dynamically.
+  4. Access `http://localhost:8080/admin/`: Returned HTTP 404.
+- **Fix:**
+  1. Removed duplicate `application-dev.yml` and `application-local.yml`. Kept single `default` profile.
+  2. Created `dev.hata.scheduler.customer` and `dev.hata.scheduler.dealership` domain packages. Extracted `CustomerProfileProvider` and `DealershipFeaturesProvider` interfaces in `common` for decoupling. Updated `PackageIndependenceTest`.
+  3. Added `features JSONB DEFAULT '{}'::jsonb` to `dealerships` table in `V1` and `V2`. Implemented dynamic parsing with system default fallbacks in `DealershipService`. Added ADR-013.
+  4. Implemented Admin UI dashboard at `/admin/` with `InMemoryHttpExchangeRepository` (100 capacity) and static HTML dashboard. Added Playwright E2E test `admin-dashboard.spec.ts`.
+- **Verification Proof:**
+  - `./gradlew clean build` passes all 17 Gradle tasks.
+  - JaCoCo coverage: 100% on `@Service` classes, 97%+ overall.
+  - ArchUnit tests pass with zero package coupling violations.
+  - All 49 Bruno requests (60 tests) pass.
+  - All 20 Playwright E2E scenarios pass.
 - **Status:** RESOLVED
 
 ---

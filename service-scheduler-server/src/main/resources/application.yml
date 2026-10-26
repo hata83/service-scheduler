@@ -29,10 +29,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,prometheus
+        include: health,prometheus,metrics,httpexchanges,info
   endpoint:
     health:
-      show-details: when_authorized
+      show-details: always
       show-components: always
   health:
     redis:

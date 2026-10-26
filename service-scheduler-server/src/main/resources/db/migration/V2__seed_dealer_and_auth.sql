@@ -9,13 +9,14 @@ INSERT INTO users (id, phone, role) VALUES
   ('00000000-0000-0000-0000-000000000005', '+84900000004', 'CUSTOMER');
 
 INSERT INTO dealerships (
-  id, name, address, city, country, created_by, updated_by
+  id, name, address, city, country, features, created_by, updated_by
 ) VALUES (
   '00000000-0000-0000-0000-000000000001',
   'Hata Demo Service Center',
   '1 Le Loi',
   'Ho Chi Minh City',
   'Vietnam',
+  '{"rateLimits":{"otpSendPerPhonePurpose":5,"otpSendPerPhonePurposeWindowSeconds":600,"otpSendPerIp":50,"otpSendPerIpWindowSeconds":60,"otpVerifyPerIp":50,"otpVerifyPerIpWindowSeconds":60,"registerPerIp":20,"registerPerIpWindowSeconds":60}}'::jsonb,
   '00000000-0000-0000-0000-000000000002',
   '00000000-0000-0000-0000-000000000002'
 );

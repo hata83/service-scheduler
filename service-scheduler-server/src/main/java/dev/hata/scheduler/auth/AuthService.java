@@ -9,6 +9,8 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 import dev.hata.scheduler.common.AuthException;
+import dev.hata.scheduler.common.CustomerProfileProvider;
+import dev.hata.scheduler.common.DealershipFeaturesProvider;
 import dev.hata.scheduler.common.IdempotencyStorage;
 import dev.hata.scheduler.common.RateLimitProperties;
 import dev.hata.scheduler.common.RedisWindowCounter;
@@ -36,9 +38,10 @@ public class AuthService {
     private final JwtService jwt;
     private final SessionStore sessions;
     private final UserRepository users;
-    private final CustomerProfileRepository profiles;
+    private final CustomerProfileProvider profiles;
     private final IdempotencyStorage idempotency;
     private final RedisWindowCounter counter;
+    private final DealershipFeaturesProvider dealershipFeatures;
     private final RateLimitProperties rateLimits;
     private final AuthProperties properties;
 
@@ -48,9 +51,10 @@ public class AuthService {
             JwtService jwt,
             SessionStore sessions,
             UserRepository users,
-            CustomerProfileRepository profiles,
+            CustomerProfileProvider profiles,
             IdempotencyStorage idempotency,
             RedisWindowCounter counter,
+            DealershipFeaturesProvider dealershipFeatures,
             RateLimitProperties rateLimits,
             AuthProperties properties) {
         this.otp = otp;
@@ -61,6 +65,7 @@ public class AuthService {
         this.profiles = profiles;
         this.idempotency = idempotency;
         this.counter = counter;
+        this.dealershipFeatures = dealershipFeatures;
         this.rateLimits = rateLimits;
         this.properties = properties;
     }
@@ -210,8 +215,7 @@ public class AuthService {
         UUID userId = UUID.randomUUID();
         User user = newUser(userId, phone, "CUSTOMER", dealershipId);
         users.save(user);
-        CustomerProfile profile = newProfile(userId, dealershipId, firstName.trim(), lastName.trim());
-        profiles.save(profile);
+        profiles.createProfile(userId, dealershipId, firstName.trim(), lastName.trim());
 
         Result result = issueSession(user, 201);
         idempotency.store(slot, result.toCached());
@@ -235,8 +239,8 @@ public class AuthService {
                 user.getDealershipId() == null ? null : user.getDealershipId().toString());
         body.put("email", user.getEmail());
         profiles.findByUserId(user.getId()).ifPresent(profile -> {
-            body.put("firstName", profile.getFirstName());
-            body.put("lastName", profile.getLastName());
+            body.put("firstName", profile.firstName());
+            body.put("lastName", profile.lastName());
         });
         return body;
     }
@@ -275,13 +279,12 @@ public class AuthService {
             users.save(user);
         }
         if (namesSupplied) {
-            CustomerProfile profile = profiles.findByUserId(user.getId())
+            CustomerProfileProvider.ProfileView current = profiles.findByUserId(user.getId())
                     .orElseThrow(() -> new AuthException(
                             HttpStatus.NOT_FOUND, "Profile missing", "The account has no customer profile."));
-            profile.setNames(
-                    firstName != null && !firstName.isBlank() ? firstName.trim() : profile.getFirstName(),
-                    lastName != null && !lastName.isBlank() ? lastName.trim() : profile.getLastName());
-            profiles.save(profile);
+            String newFirst = firstName != null && !firstName.isBlank() ? firstName.trim() : current.firstName();
+            String newLast = lastName != null && !lastName.isBlank() ? lastName.trim() : current.lastName();
+            profiles.updateNames(user.getId(), newFirst, newLast);
         }
         return me(principal);
     }
@@ -327,14 +330,11 @@ public class AuthService {
     }
 
     private RateLimitProperties.Resolved limitsFor(String phone) {
-        String dealershipId = null;
+        UUID dealershipId = null;
         if (phone != null) {
-            dealershipId = users.findByPhone(phone)
-                    .map(User::getDealershipId)
-                    .map(UUID::toString)
-                    .orElse(null);
+            dealershipId = users.findByPhone(phone).map(User::getDealershipId).orElse(null);
         }
-        return rateLimits.resolve(dealershipId);
+        return dealershipFeatures.resolveRateLimits(dealershipId);
     }
 
     private String clientIp(HttpServletRequest request) {
@@ -360,12 +360,6 @@ public class AuthService {
         User user = new User();
         user.assign(id, phone, role, dealershipId);
         return user;
-    }
-
-    private CustomerProfile newProfile(UUID userId, UUID dealershipId, String firstName, String lastName) {
-        CustomerProfile profile = new CustomerProfile();
-        profile.assign(userId, dealershipId, firstName, lastName);
-        return profile;
     }
 
     /**

@@ -17,6 +17,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import dev.hata.scheduler.common.AuthException;
+import dev.hata.scheduler.common.CustomerProfileProvider;
+import dev.hata.scheduler.common.DealershipFeaturesProvider;
 import dev.hata.scheduler.common.IdempotencyStorage;
 import dev.hata.scheduler.common.RateLimitProperties;
 import dev.hata.scheduler.common.RedisWindowCounter;
@@ -60,7 +62,10 @@ class AuthServiceTest {
     private UserRepository users;
 
     @Mock
-    private CustomerProfileRepository profiles;
+    private CustomerProfileProvider profiles;
+
+    @Mock
+    private DealershipFeaturesProvider dealershipFeatures;
 
     @Mock
     private IdempotencyStorage idempotency;
@@ -85,7 +90,18 @@ class AuthServiceTest {
                 new AuthProperties.Registration(DEALERSHIP.toString()));
         RateLimitProperties rateLimits = new RateLimitProperties("classpath:config/rate-limits-test.json", false);
         service = new AuthService(
-                otp, channel, jwt, sessions, users, profiles, idempotency, counter, rateLimits, properties);
+                otp,
+                channel,
+                jwt,
+                sessions,
+                users,
+                profiles,
+                idempotency,
+                counter,
+                dealershipFeatures,
+                rateLimits,
+                properties);
+        when(dealershipFeatures.resolveRateLimits(any())).thenReturn(rateLimits.resolve(null));
         when(request.getRemoteAddr()).thenReturn("10.0.0.1");
         when(request.getHeader("X-Forwarded-For")).thenReturn(null);
         when(request.getRequestURI()).thenReturn("/api/v1/auth/test");
@@ -104,10 +120,8 @@ class AuthServiceTest {
         return user;
     }
 
-    private CustomerProfile profile() {
-        CustomerProfile profile = new CustomerProfile();
-        profile.assign(CUSTOMER_ID, DEALERSHIP, "My", "Nguyen");
-        return profile;
+    private CustomerProfileProvider.ProfileView profile() {
+        return new CustomerProfileProvider.ProfileView(CUSTOMER_ID, DEALERSHIP, "My", "Nguyen", "en_US");
     }
 
     @Test
@@ -180,6 +194,7 @@ class AuthServiceTest {
                 profiles,
                 idempotency,
                 counter,
+                dealershipFeatures,
                 forwarding,
                 new AuthProperties(
                         new AuthProperties.Jwt(
@@ -273,7 +288,7 @@ class AuthServiceTest {
         assertThat(result.status()).isEqualTo(201);
         assertThat(result.body()).containsEntry("role", "CUSTOMER").containsEntry("phone", "+84900000999");
         verify(users).save(any(User.class));
-        verify(profiles).save(any(CustomerProfile.class));
+        verify(profiles).createProfile(any(UUID.class), eq(DEALERSHIP), eq("Tai"), eq("Le"));
     }
 
     @Test
@@ -384,7 +399,7 @@ class AuthServiceTest {
 
         assertThat(updated).containsEntry("email", "a@b.c");
         verify(users).save(any(User.class));
-        verify(profiles).save(any(CustomerProfile.class));
+        verify(profiles).updateNames(eq(CUSTOMER_ID), eq("My"), eq("Nguyen"));
     }
 
     @Test

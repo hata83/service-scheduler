@@ -20,6 +20,9 @@ public record RateLimitProperties(String location, boolean trustForwardedFor) {
      * @param dealershipId dealership UUID, or null when the caller has no dealership
      */
     public Resolved resolve(String dealershipId) {
+        if (location == null || location.isBlank()) {
+            return defaultLimits();
+        }
         Map<String, Object> root = JsonConfig.readObject(location);
         Map<String, Object> defaults = asMap(root.get("default"));
         Map<String, Object> overrides = asMap(root.get("dealerships"));
@@ -27,23 +30,54 @@ public record RateLimitProperties(String location, boolean trustForwardedFor) {
         if (dealershipId != null && overrides.containsKey(dealershipId)) {
             selected = asMap(overrides.get(dealershipId));
         }
+        return resolveFromMap(selected, defaults);
+    }
+
+    /**
+     * Resolves limits from a dynamic feature map, falling back to system defaults.
+     */
+    public Resolved resolveFromMap(Map<String, Object> features) {
+        return resolveFromMap(features, defaultMap());
+    }
+
+    private Resolved resolveFromMap(Map<String, Object> selected, Map<String, Object> defaults) {
         return new Resolved(
-                longValue(selected, defaults, "otpSendPerPhonePurpose"),
-                longValue(selected, defaults, "otpSendPerIp"),
-                longValue(selected, defaults, "otpVerifyPerIp"),
-                longValue(selected, defaults, "registerPerIp"),
+                longValue(selected, defaults, "otpSendPerPhonePurpose", 5),
+                longValue(selected, defaults, "otpSendPerIp", 30),
+                longValue(selected, defaults, "otpVerifyPerIp", 10),
+                longValue(selected, defaults, "registerPerIp", 10),
                 secondsValue(selected, defaults, "otpSendPerPhonePurposeWindowSeconds", 600),
                 secondsValue(selected, defaults, "otpSendPerIpWindowSeconds", 60),
                 secondsValue(selected, defaults, "otpVerifyPerIpWindowSeconds", 60),
                 secondsValue(selected, defaults, "registerPerIpWindowSeconds", 60));
     }
 
-    private static long longValue(Map<String, Object> selected, Map<String, Object> defaults, String key) {
+    /**
+     * Returns fleet default rate limits.
+     */
+    public Resolved defaultLimits() {
+        return resolveFromMap(defaultMap(), defaultMap());
+    }
+
+    private static Map<String, Object> defaultMap() {
+        return Map.of(
+                "otpSendPerPhonePurpose", 5L,
+                "otpSendPerIp", 50L,
+                "otpVerifyPerIp", 50L,
+                "registerPerIp", 20L,
+                "otpSendPerPhonePurposeWindowSeconds", 600L,
+                "otpSendPerIpWindowSeconds", 60L,
+                "otpVerifyPerIpWindowSeconds", 60L,
+                "registerPerIpWindowSeconds", 60L);
+    }
+
+    private static long longValue(
+            Map<String, Object> selected, Map<String, Object> defaults, String key, long fallback) {
         Object value = selected.get(key);
         if (value == null) {
             value = defaults.get(key);
         }
-        return value == null ? Long.MAX_VALUE : ((Number) value).longValue();
+        return value == null ? fallback : ((Number) value).longValue();
     }
 
     private static long secondsValue(

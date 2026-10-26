@@ -443,6 +443,7 @@ CREATE TABLE dealerships (
   dealership_cache_ttl_seconds INT NOT NULL DEFAULT 259200,
   slot_cache_ttl_seconds      INT NOT NULL DEFAULT 3600,
   auto_confirm_appointments   BOOLEAN NOT NULL DEFAULT FALSE,
+  features                    JSONB NOT NULL DEFAULT '{}'::jsonb,
   is_active                   BOOLEAN NOT NULL DEFAULT TRUE,
   created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -468,6 +469,7 @@ CREATE TABLE dealerships (
 | `dealership_cache_ttl_seconds` | INT | No | `259200` | Redis cache TTL for dealership configuration (default 3 days). |
 | `slot_cache_ttl_seconds` | INT | No | `3600` | Redis cache TTL for slot availability grids (default 1 hour). |
 | `auto_confirm_appointments` | BOOLEAN | No | `FALSE` | Toggle to auto-confirm new bookings without manual manager intervention. |
+| `features` | JSONB | No | `'{}'::jsonb` | Dynamic feature configuration and per-dealership rate limit overrides. |
 | `is_active` | BOOLEAN | No | `TRUE` | Dealership active status toggle. |
 | `created_at` | TIMESTAMPTZ | No | `NOW()` | Record creation timestamp. |
 | `updated_at` | TIMESTAMPTZ | No | `NOW()` | Record last modification timestamp. |
@@ -1214,6 +1216,7 @@ The ADR documents in `docs/adr/` are the canonical architectural records. This t
 | [ADR-010](adr/ADR-010-multi-value-capacity-constraints.md) | Multi-Value Capacity Constraints for Bays and Technicians | Accepted |
 | [ADR-011](adr/ADR-011-otp-login-with-jwt-http-only-cookie.md) | OTP Login with a JWT in an httpOnly Cookie | Accepted |
 | [ADR-012](adr/ADR-012-service-job-owns-the-bay-reservation.md) | Service Job Owns the Bay Reservation with Multi-Tier GIST Constraints | Accepted |
+| [ADR-013](adr/ADR-013-dynamic-dealership-features.md) | Dynamic Dealership Features and Rate Limits in JSONB | Accepted |
 
 ---
 
@@ -1579,6 +1582,14 @@ Logback with Logstash Encoder produces structured JSON logs with MDC context:
 - `userId` / `userRole`: Authenticated user context.
 - `dealershipId`: Workshop context.
 - `idempotencyKey`: Unique request transaction key.
+
+### 13.3 Operations and Admin Dashboard
+
+The application serves a lightweight operations dashboard at `/admin/` (redirects from `/admin`).
+- An `InMemoryHttpExchangeRepository` records the last 100 HTTP requests.
+- The dashboard queries Actuator endpoints to monitor database connectivity, Redis health, and JVM memory.
+- It displays active Java 25 Virtual Threads and live HTTP exchanges.
+- It presents active dealership dynamic feature flags and rate limit overrides.
 
 ---
 

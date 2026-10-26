@@ -99,6 +99,14 @@ class SchemaMigrationTest {
     }
 
     @Test
+    void seededDealershipCarriesDynamicFeaturesJson() {
+        String features = jdbc.queryForObject(
+                "SELECT features::text FROM dealerships WHERE name = 'Hata Demo Service Center'", String.class);
+
+        assertThat(features).contains("rateLimits").contains("otpSendPerPhonePurpose");
+    }
+
+    @Test
     void phonesMapToThePinnedRoles() {
         List<String> roles = jdbc.queryForList("SELECT role FROM users ORDER BY phone", String.class);
 

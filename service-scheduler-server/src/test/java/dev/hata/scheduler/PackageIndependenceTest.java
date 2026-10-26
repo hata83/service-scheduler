@@ -17,19 +17,52 @@ import com.tngtech.archunit.lang.ArchRule;
 class PackageIndependenceTest {
 
     @ArchTest
-    static final ArchRule featurePackagesDoNotImportEachOther = noClasses()
+    static final ArchRule authPackageDoesNotImportOtherFeaturePackages = noClasses()
             .that()
             .resideInAPackage("dev.hata.scheduler.auth..")
             .should()
             .dependOnClassesThat()
             .resideInAnyPackage(
+                    "dev.hata.scheduler.customer..",
+                    "dev.hata.scheduler.dealership..",
                     "dev.hata.scheduler.appointment..",
                     "dev.hata.scheduler.resource..",
-                    "dev.hata.scheduler.customer..",
                     "dev.hata.scheduler.vehicle..",
                     "dev.hata.scheduler.notification..",
                     "dev.hata.scheduler.scheduling..")
-            .because("AGENTS constraint 1 keeps the feature packages independent");
+            .because("AGENTS constraint 1 keeps feature packages independent");
+
+    @ArchTest
+    static final ArchRule customerPackageDoesNotImportOtherFeaturePackages = noClasses()
+            .that()
+            .resideInAPackage("dev.hata.scheduler.customer..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "dev.hata.scheduler.auth..",
+                    "dev.hata.scheduler.dealership..",
+                    "dev.hata.scheduler.appointment..",
+                    "dev.hata.scheduler.resource..",
+                    "dev.hata.scheduler.vehicle..",
+                    "dev.hata.scheduler.notification..",
+                    "dev.hata.scheduler.scheduling..")
+            .because("customer package is independent and communicates through common");
+
+    @ArchTest
+    static final ArchRule dealershipPackageDoesNotImportOtherFeaturePackages = noClasses()
+            .that()
+            .resideInAPackage("dev.hata.scheduler.dealership..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "dev.hata.scheduler.auth..",
+                    "dev.hata.scheduler.customer..",
+                    "dev.hata.scheduler.appointment..",
+                    "dev.hata.scheduler.resource..",
+                    "dev.hata.scheduler.vehicle..",
+                    "dev.hata.scheduler.notification..",
+                    "dev.hata.scheduler.scheduling..")
+            .because("dealership package is independent and communicates through common");
 
     @ArchTest
     static final ArchRule commonPackageDoesNotImportFeaturePackages = noClasses()
@@ -39,9 +72,10 @@ class PackageIndependenceTest {
             .dependOnClassesThat()
             .resideInAnyPackage(
                     "dev.hata.scheduler.auth..",
+                    "dev.hata.scheduler.customer..",
+                    "dev.hata.scheduler.dealership..",
                     "dev.hata.scheduler.appointment..",
                     "dev.hata.scheduler.resource..",
-                    "dev.hata.scheduler.customer..",
                     "dev.hata.scheduler.vehicle..",
                     "dev.hata.scheduler.notification..",
                     "dev.hata.scheduler.scheduling..")

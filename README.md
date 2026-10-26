@@ -155,11 +155,11 @@ SPRING_PROFILES_ACTIVE=prod             # prod requires the JWT secret and the P
 
 ### Profiles and Backing Services
 
-The `default`, `local`, and `dev` profiles connect to Docker Compose services:
+The default profile connects to local Docker Compose services:
 - PostgreSQL 16 on `localhost:5433` (mapped from container port 5432)
 - Redis 7 on `localhost:6379`
 
-Start PostgreSQL and Redis before starting the application:
+Start PostgreSQL and Redis before you start the application:
 
 ```sh
 # Start PostgreSQL 16 and Redis 7
@@ -176,14 +176,8 @@ cd service-scheduler
 # Build the application
 ./gradlew build
 
-# Option 1: Start with the default profile
+# Start with the default profile
 ./gradlew bootRun
-
-# Option 2: Start with the dev profile
-SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
-
-# Option 3: Start with the local profile
-SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 ```
 
 The application starts on `http://localhost:8080`.
@@ -192,8 +186,10 @@ The application starts on `http://localhost:8080`.
 |---|---|
 | `http://localhost:8080/swagger-ui.html` | Interactive Swagger UI API documentation |
 | `http://localhost:8080/v3/api-docs` | OpenAPI 3.1 schema (JSON) |
+| `http://localhost:8080/admin/` | Admin UI dashboard (system health, JVM metrics, traces, dealership features) |
 | `http://localhost:8080/actuator/health` | Health endpoint |
 | `http://localhost:8080/actuator/prometheus` | Prometheus metrics |
+| `http://localhost:8080/actuator/httpexchanges` | HTTP request trace log |
 
 ### Interactive API Testing with Swagger UI
 
@@ -285,7 +281,7 @@ service-scheduler/
 │   └── workflows/ci.yml        # GitHub Actions CI/CD
 ├── docs/
 │   ├── SYSTEM_DESIGN.md        # Architecture, schema, taxonomy, state machines, API
-│   ├── adr/                    # Architecture Decision Records (ADR-001 to ADR-012)
+│   ├── adr/                    # Architecture Decision Records (ADR-001 to ADR-013)
 │   └── diagrams/               # Archify diagrams (JSON source + HTML viewers)
 ├── gradle/                     # Gradle wrapper
 ├── .gitignore                  # Excludes .agents/, build/, secrets, IDE state
@@ -303,7 +299,7 @@ Documentation lives in `docs/`:
 |---|---|
 | `docs/SYSTEM_DESIGN.md` | Architecture, schema, resource taxonomy, state machines, and API. The design source of truth. |
 | `docs/diagrams/index.html` | Diagram dashboard. Every viewer, grouped by purpose. |
-| `docs/adr/` | Architecture Decision Records (ADR-001 through ADR-012). |
+| `docs/adr/` | Architecture Decision Records (ADR-001 through ADR-013). |
 
 ---
 
