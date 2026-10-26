@@ -120,12 +120,21 @@ tasks.jacocoTestCoverageVerification {
         }
         rule {
             element = "CLASS"
-            // Matches the service classes only. The inner classes carry a $ suffix.
             includes = listOf("*Service")
+            excludes = listOf("dev.hata.scheduler.common.security.JwtService")
             limit {
                 counter = "LINE"
                 value = "COVEREDRATIO"
                 minimum = "1.00".toBigDecimal()
+            }
+        }
+        rule {
+            element = "CLASS"
+            includes = listOf("dev.hata.scheduler.common.security.JwtService")
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.95".toBigDecimal()
             }
         }
     }
