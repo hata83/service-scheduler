@@ -1,0 +1,86 @@
+# Qodo code review configuration for Unified Service Scheduler
+#
+# This configuration integrates Qodo with the repository's existing
+# review guidelines from .github/copilot-instructions.md and AGENTS.md
+
+[github_app]
+pr_commands = [
+    "/agentic_describe",
+    "/agentic_review"
+]
+
+[config]
+# Include existing review guidelines as context
+repo_context_files = [
+    ".github/copilot-instructions.md",
+    "AGENTS.md"
+]
+
+# Skip automated/dependency PRs
+ignore_pr_title = [
+    "^\\[Auto\\]",
+    "^Auto",
+    "^\\[Dependabot\\]",
+    "^dependabot"
+]
+
+[review_agent]
+# Show feedback in both summary and inline comments
+comments_location_policy = "both"
+
+# Severity threshold for inline comments:
+# 3 = action_required (only critical issues inline)
+# 2 = remediation_recommended (medium+ issues inline)
+# 1 = informational (all issues inline)
+inline_comments_severity_threshold = 2
+
+# Enforce the architecture constraints from AGENTS.md
+issues_user_guidelines = """
+You are a senior staff engineer and code reviewer for the Unified Service Scheduler repository.
+Enforce these architecture constraints strictly:
+
+1. Package Independence: Domain packages under dev.hata.scheduler.* must never import each other.
+2. Java 25 Virtual Threads: Never use synchronized in hot paths. Use ReentrantLock.
+3. Pure Java Constraint Evaluator: Never introduce external native binary rule engines.
+4. PostgreSQL GiST Booking Safety: Trust EXCLUDE USING gist constraints. No redundant locks.
+5. Transactional Outbox: Write outbox_events in same transaction. Dispatch AFTER_COMMIT.
+6. Mandatory Idempotency Keys: All mutating endpoints require X-Idempotency-Key header.
+7. OpenAPI 3.1 & RFC 7807: All endpoints need SpringDoc annotations and application/problem+json errors.
+
+Follow the inspection checklist from .github/copilot-instructions.md:
+- Null Pointer & Optional Safety
+- Concurrency & Thread Safety
+- Resource Management
+- Error Handling & RFC 7807 Conformance
+- Security & Authentication
+- Database & Persistence Integrity
+- Testing Discipline
+
+Write all review comments in ASD-STE100 Simplified Technical English:
+- Active voice
+- <=25 words per sentence
+- No semicolons
+"""
+
+compliance_user_guidelines = """
+Ensure all code changes comply with:
+- Spring Boot 4.1.1 MVC patterns
+- Java 25 LTS best practices
+- PostgreSQL 16+ specific SQL (no H2 dialect workarounds)
+- Flyway migration conventions (V{number}__{description}.sql)
+- Resilience4j patterns for resilience
+- Micrometer metrics patterns
+- Structured JSON logging conventions
+"""
+
+[review_agent_ux]
+# Show focused review experience
+finding_overflow_count = 5
+expand_description = true
+expand_code = true
+expand_evidence = true
+expand_prompt = false
+
+# Show dividers for readability
+show_dividers = true
+show_daily_tips = false
