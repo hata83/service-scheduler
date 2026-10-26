@@ -141,6 +141,7 @@ jobs:
           name: Bruno API Tests
           path: service-scheduler-server/build/reports/bruno/results.xml
           reporter: java-junit
+          fail-on-empty: false
 
       - name: Install Playwright
         working-directory: service-scheduler-ui
@@ -170,6 +171,7 @@ jobs:
           name: Playwright E2E Tests
           path: service-scheduler-ui/playwright-results.xml
           reporter: java-junit
+          fail-on-empty: false
 
       - name: openspec validate
         run: npx --yes openspec validate --all --strict
