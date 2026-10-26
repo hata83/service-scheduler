@@ -1,5 +1,5 @@
 CHANGE   phase-1-bootstrap-otp-auth             BRANCH   feature/phase-1-bootstrap-otp-auth
-STATES   14   done 10  current 11  next 12  skipped 0  failed 0  pending 3
+STATES   14   done 11  current 12  next 13  skipped 0  failed 0  pending 2
 TASKS    39   done 39  open 0
 
 # Agentic SDLC state block — reference openspec spec + design + proposal for full 39-task list
@@ -16,8 +16,8 @@ TASKS    39   done 39  open 0
   8  Verify                    done     clean build SUCCESS + 97.7% line + 100% @Service + OpenSpec valid
   9  Approval                  done     HIL-2 approval granted by user
  10  Publish                   done     PR #1 opened vs master: https://github.com/hata83/service-scheduler/pull/1
- 11  PR-Verify                 current  CI checks running on PR #1
- 12  Archive                  pending  /opsx-archive after PR merged
+ 11  PR-Verify                 done     all 6 checks green (Build, Bruno 49/49, Playwright 18/18, OpenSpec, OCR)
+ 12  Archive                  current  /opsx-archive after PR verification
  13  Review-Archive            pending  diagram SVG links + openwiki generation
  14  Merge                     pending  HIL-3 human gate required
 
