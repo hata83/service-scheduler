@@ -25,7 +25,7 @@ Check every tool before you start work:
 | JDK (Java) | OpenJDK 25 LTS | `java --version` | Install JDK 25, set `JAVA_HOME` |
 | Node.js | v20+ | `node -v` | Install LTS Node.js |
 | npm | v10+ | `npm -v` | Included with Node.js |
-| OpenSpec CLI | v1.14+ | `openspec --version` | `npm install -g openspec` |
+| OpenSpec CLI | v1.14+ | `openspec --version` | `npm install -g @fission-ai/openspec` |
 | Bruno CLI | v2.14+ | `npx --yes @usebruno/cli run --help` | Via npx |
 | Git | v2.40+ | `git --version` | Install Git |
 | PostgreSQL | 16+ | `psql --version` | Docker Compose prod profile |
@@ -39,7 +39,7 @@ Follow this sequence:
 
 ```sh
 # 1. Install OpenSpec CLI globally
-npm install -g openspec
+npm install -g @fission-ai/openspec
 
 # 2. Initialize OpenSpec for the repository
 openspec init
@@ -76,7 +76,7 @@ If a skill exists in either location, use it and ignore the other. If it is miss
 
 ```sh
 # Global skills (openspec, code review, ECC, archify, openwiki)
-npm install -g openspec
+npm install -g @fission-ai/openspec
 npx skills add affaan-m/ecc -s agent-architecture-audit -y --agent '*'
 npx skills add affaan-m/ecc -s verification-loop -y --agent '*'
 npx skills add affaan-m/ecc -s e2e-testing -y --agent '*'

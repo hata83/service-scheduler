@@ -111,4 +111,4 @@ jobs:
           node-version: "20"
 
       - name: Validate all specs
-        run: npx --yes openspec validate --all --strict
+        run: npx --yes @fission-ai/openspec@1.14.0 validate --all --strict

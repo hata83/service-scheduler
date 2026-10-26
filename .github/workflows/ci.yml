@@ -175,7 +175,7 @@ jobs:
           fail-on-empty: false
 
       - name: openspec validate
-        run: npx --yes openspec validate --all --strict
+        run: npx --yes @fission-ai/openspec@1.14.0 validate --all --strict
         continue-on-error: true
 
       - name: Full build gate
