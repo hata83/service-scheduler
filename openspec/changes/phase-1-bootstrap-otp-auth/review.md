@@ -133,6 +133,35 @@ TASKS    39   done 39  open 0
 
 ---
 
+### Finding OCR-06: Alignment with OpenBoard Feature-Based Package Architecture and Dynamic Dealership Rate Limits
+
+- **Severity:** Medium
+- **Component:** `dev.hata.scheduler.auth`, `dev.hata.scheduler.customer`, `dev.hata.scheduler.dealership`, `dev.hata.scheduler.common`, `RateLimitProperties.java`, `ArchitectureTest.java`
+- **Description:**
+  1. Package layout: Cleaned up artificial hexagonal layers (`infra/`, `domain/`, `application/`, `adapter/`) to align with `openboard` feature-based packages (`auth`, `customer`, `dealership`) containing nested packages (`controller/`, `service/`, `repository/`, `model/`, `dto/`, `config/`).
+  2. Middleware containment: Moved Redis and database persistence adapters directly into `<feature>.repository` or `common.repository`.
+  3. Controller isolation: Added ArchUnit rule `controllersOnlyReachServiceLayer`. Refactored `AuthFilter` to delegate token authentication to `AuthService.authenticate(token)` returning `Optional<AuthPrincipal>` instead of calling `SessionStore` directly.
+  4. Dynamic rate limits: Dealership features stored in `dealerships.features` JSONB. If omitted or not configured, system dynamically falls back to the default rate limit block from `config/rate-limits.json`.
+  5. Cleanup: Removed legacy script files and static diagram SVGs in favor of Archify HTML viewers.
+- **Reproducer Steps:**
+  1. Inspect package structure for `infra` or `adapter` packages.
+  2. Inspect `AuthFilter` direct access to `SessionStore` repository.
+  3. Run `RateLimitProperties` tests without database features.
+- **Fix:**
+  1. Restructured classes into feature-based packages with nested layers.
+  2. Moved Redis adapters to their respective feature or common repository packages.
+  3. Updated `AuthFilter` to call `AuthService.authenticate()` and added comprehensive unit test coverage in `AuthServiceTest`.
+  4. Added dynamic default config resolution in `RateLimitProperties` and `DealershipService`.
+  5. Implemented `ArchitectureTest` with `featurePackagesAreIndependent`, `commonDoesNotDependOnFeatures`, and `controllersOnlyReachServiceLayer`.
+- **Verification Proof:**
+  - `./gradlew clean build` passes all 17 Gradle tasks.
+  - JaCoCo coverage: 100% on `@Service` classes, 97.7% line overall.
+  - ArchUnit tests pass with zero package coupling violations.
+  - Checkstyle and PMD pass with zero violations.
+- **Status:** RESOLVED
+
+---
+
 ## 3. Full Verification Commands and Proofs
 
 To verify all gates from a clean environment, execute these commands in order:

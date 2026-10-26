@@ -207,19 +207,34 @@ Six marks only: `done`, `current`, `next`, `skipped`, `pending`, `failed`.
 
 These rules shape every code change:
 
-1. **Package independence.** Domain packages under `dev.hata.scheduler.*`: `appointment/`, `resource/`, `customer/`, `vehicle/`, `notification/`, `scheduling/`, `common/`. Feature packages must not import each other. Put shared logic in `common/`. Engineers can add additional feature domain packages later as requirements evolve. ArchUnit enforces this.
+1. **Model the domain.** Structure the code around domains. Let entities hold state and behavior together.
 
-2. **Java 25 Virtual Threads.** Enable with `spring.threads.virtual.enabled=true`. Do not use `synchronized` in hot paths — use `ReentrantLock` to prevent virtual thread pinning.
+2. **Keep packages independent.** Use feature-based packages in `dev.hata.scheduler.*`: `auth/`, `customer/`, `dealership/`, `appointment/`, `resource/`, `vehicle/`, `notification/`, and `scheduling/`.
+   Each feature holds nested packages:
+   - `controller/` — REST controllers, filters, and HTTP endpoints.
+   - `service/` — domain services and business workflows.
+   - `repository/` — Spring Data repositories, cache implementations, and storage adapters.
+   - `model/` — JPA entities, domain models, enums, and identity types.
+   - `dto/` — request and response records.
+   - `event/` — published and consumed domain events.
+   - `handler/` — event handlers and notification listeners.
 
-3. **Java constraint evaluation for service constraints.** Use pure Java `ServiceConstraintEvaluator` backed by relational metadata (`allowed_bay_types`, `service_type_technician_requirements`) for all service type constraint evaluation. Do not introduce external native binary rule engines.
+   One feature package must not import another feature package. Put shared logic, common configuration, exception handling, and cross-feature decoupling ports in `common/`.
+   Controllers only reach the service layer. Controllers must not access repositories directly. ArchUnit enforces every rule.
 
-4. **PostgreSQL EXCLUDE for booking overlap.** The `EXCLUDE USING gist` constraints on `service_jobs` (workshop bays), `appointments` (vehicle VIN), and `job_technician_assignments` (technicians) are the booking safety gates. Do not add redundant application-level locks. Trust the database constraints.
+3. **Dynamic Dealership Features.** Store operational configuration in `dealerships.features` JSONB. If absent or invalid, fallback to default configuration from config.
 
-5. **Transactional Outbox.** Write `OUTBOX_EVENTS` in the same transaction as the appointment mutation. Use `@TransactionalEventListener(AFTER_COMMIT)` for SSE and webhook dispatch. Never fire notifications before commit.
+4. **Java 25 Virtual Threads.** Enable with `spring.threads.virtual.enabled=true`. Do not use `synchronized` in hot paths — use `ReentrantLock` to prevent virtual thread pinning.
 
-6. **Idempotency keys required.** All write endpoints must check `X-Idempotency-Key` before processing. Reject requests without this header with HTTP 400.
+5. **Java constraint evaluation for service constraints.** Use pure Java `ServiceConstraintEvaluator` backed by relational metadata (`allowed_bay_types`, `service_type_technician_requirements`) for all service type constraint evaluation. Do not introduce external native binary rule engines.
 
-7. **OpenAPI 3.1 specification.** All endpoints must have SpringDoc annotations. All error responses must use `application/problem+json` (RFC 7807).
+6. **PostgreSQL EXCLUDE for booking overlap.** The `EXCLUDE USING gist` constraints on `service_jobs` (workshop bays), `appointments` (vehicle VIN), and `job_technician_assignments` (technicians) are the booking safety gates. Do not add redundant application-level locks. Trust the database constraints.
+
+7. **Transactional Outbox.** Write `OUTBOX_EVENTS` in the same transaction as the appointment mutation. Use `@TransactionalEventListener(AFTER_COMMIT)` for SSE and webhook dispatch. Never fire notifications before commit.
+
+8. **Idempotency keys required.** All write endpoints must check `X-Idempotency-Key` before processing. Reject requests without this header with HTTP 400.
+
+9. **OpenAPI 3.1 specification.** All endpoints must have SpringDoc annotations. All error responses must use `application/problem+json` (RFC 7807).
 
 ---
 

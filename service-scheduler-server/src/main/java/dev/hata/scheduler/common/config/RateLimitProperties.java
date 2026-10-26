@@ -34,18 +34,18 @@ public record RateLimitProperties(String location, boolean trustForwardedFor) {
     }
 
     /**
-     * Resolves limits from a dynamic feature map, falling back to system defaults.
+     * Resolves limits from a dynamic feature map, falling back to system defaults from config.
      */
     public Resolved resolveFromMap(Map<String, Object> features) {
-        return resolveFromMap(features, defaultMap());
+        return resolveFromMap(features, defaultMapFromConfig());
     }
 
     private Resolved resolveFromMap(Map<String, Object> selected, Map<String, Object> defaults) {
         return new Resolved(
                 longValue(selected, defaults, "otpSendPerPhonePurpose", 5),
-                longValue(selected, defaults, "otpSendPerIp", 30),
-                longValue(selected, defaults, "otpVerifyPerIp", 10),
-                longValue(selected, defaults, "registerPerIp", 10),
+                longValue(selected, defaults, "otpSendPerIp", 50),
+                longValue(selected, defaults, "otpVerifyPerIp", 50),
+                longValue(selected, defaults, "registerPerIp", 20),
                 secondsValue(selected, defaults, "otpSendPerPhonePurposeWindowSeconds", 600),
                 secondsValue(selected, defaults, "otpSendPerIpWindowSeconds", 60),
                 secondsValue(selected, defaults, "otpVerifyPerIpWindowSeconds", 60),
@@ -53,10 +53,27 @@ public record RateLimitProperties(String location, boolean trustForwardedFor) {
     }
 
     /**
-     * Returns fleet default rate limits.
+     * Returns fleet default rate limits from config or fallback map.
      */
     public Resolved defaultLimits() {
+        if (location != null && !location.isBlank()) {
+            return resolve(null);
+        }
         return resolveFromMap(defaultMap(), defaultMap());
+    }
+
+    private Map<String, Object> defaultMapFromConfig() {
+        if (location != null && !location.isBlank()) {
+            try {
+                Map<String, Object> root = JsonConfig.readObject(location);
+                if (root != null && root.containsKey("default")) {
+                    return asMap(root.get("default"));
+                }
+            } catch (Exception ignored) {
+                // fall back to static defaultMap
+            }
+        }
+        return defaultMap();
     }
 
     private static Map<String, Object> defaultMap() {

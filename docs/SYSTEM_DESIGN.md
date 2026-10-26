@@ -1212,7 +1212,7 @@ The ADR documents in `docs/adr/` are the canonical architectural records. This t
 | [ADR-006](adr/ADR-006-rfc-7807-problem-details-for-all-error-responses.md) | RFC 7807 Problem Details for All Error Responses | Accepted |
 | [ADR-007](adr/ADR-007-rate-limiting-with-resilience4j-and-redis-counters.md) | Rate Limiting with Resilience4j and Redis Counters | Accepted |
 | [ADR-008](adr/ADR-008-idempotency-keys-on-all-write-endpoints.md) | Idempotency Keys on All Write Endpoints | Accepted |
-| [ADR-009](adr/ADR-009-archunit-for-package-independence.md) | ArchUnit for Package Independence | Accepted |
+| [ADR-009](adr/ADR-009-archunit-for-package-independence.md) | ArchUnit for Feature-Based Package Independence | Accepted |
 | [ADR-010](adr/ADR-010-multi-value-capacity-constraints.md) | Multi-Value Capacity Constraints for Bays and Technicians | Accepted |
 | [ADR-011](adr/ADR-011-otp-login-with-jwt-http-only-cookie.md) | OTP Login with a JWT in an httpOnly Cookie | Accepted |
 | [ADR-012](adr/ADR-012-service-job-owns-the-bay-reservation.md) | Service Job Owns the Bay Reservation with Multi-Tier GIST Constraints | Accepted |
@@ -1239,6 +1239,42 @@ The ADR documents in `docs/adr/` are the canonical architectural records. This t
 | Outbox Relay | Application | Polls pending outbox rows using `SKIP LOCKED` and dispatches events to communication adapters. |
 | PostgreSQL 16 | Data | System of record. Enforces overlap prevention using GIST exclusion constraints. |
 | Redis 7 | Data | Ephemeral store for rate limiting counters, OTP codes, slot caches, and idempotency responses. |
+
+### 8.0.1 Package Structure and Domain Boundaries
+
+The backend uses feature-based packages under `dev.hata.scheduler`.
+
+```
+dev.hata.scheduler
+├── auth/                 # Authentication, OTP, and session management
+│   ├── config/           # Auth configuration properties
+│   ├── controller/       # Web controllers and authentication filter
+│   ├── dto/              # Auth request and response records
+│   ├── model/            # User entity and auth models
+│   ├── repository/       # Database and Redis storage adapters
+│   └── service/          # Authentication business logic and JWT service
+├── customer/             # Customer profile management
+│   ├── model/            # Customer profile entity
+│   ├── repository/       # Customer profile database repository
+│   └── service/          # Customer profile service
+├── dealership/           # Dealership metadata and operating hours
+│   ├── model/            # Dealership entity
+│   ├── repository/       # Dealership database repository
+│   └── service/          # Dealership service and dynamic feature resolution
+├── common/               # Shared kernel
+│   ├── config/           # Cross-cutting properties and OpenAPI setup
+│   ├── exception/        # Problem Details exceptions and error handler
+│   ├── port/             # Cross-domain SPI interfaces
+│   ├── repository/       # Cross-cutting Redis adapters
+│   └── web/              # Cross-cutting HTTP filters
+```
+
+Architectural constraints govern the package layout:
+1. Feature packages remain strictly independent. A feature package must not import another feature package.
+2. The `common` package holds shared kernel logic. The `common` package must not import any feature package.
+3. Controllers and filters call only the service layer. Controllers and filters must not access repository layers directly.
+4. Infrastructure adapters live inside their feature package. Redis and database repositories live directly inside `<feature>.repository`.
+5. ArchUnit tests enforce package independence on every build.
 
 ### 8.1 System Data Flow Architecture
 

@@ -36,6 +36,36 @@ The system has four layers: client, application, data, and observability. It use
 
 See [`docs/SYSTEM_DESIGN.md`](docs/SYSTEM_DESIGN.md) for the component roles, the schema, and the state machines. See [`docs/diagrams/index.html`](docs/diagrams/index.html) for the diagram dashboard.
 
+### Feature-Based Package Layout
+
+The backend uses feature-based packages under `dev.hata.scheduler`. ArchUnit tests enforce package independence and layering:
+
+```
+dev.hata.scheduler
+├── auth/                     # authentication feature
+│   ├── controller/           # REST endpoints and authentication filter
+│   ├── service/              # authentication workflows and token issuance
+│   ├── repository/           # user repository, OTP storage, and Redis session store
+│   ├── model/                # User entity, OtpPurpose, and AuthPrincipal
+│   ├── dto/                  # request and response records
+│   └── config/               # auth configuration properties
+├── customer/                 # customer feature: model/, repository/, service/
+├── dealership/               # dealership feature: model/, repository/, service/
+└── common/                   # shared kernel
+    ├── config/               # JSON reader, OpenAPI 3.1, and rate limit properties
+    ├── exception/            # RFC 7807 problem details and exception handlers
+    ├── port/                 # cross-feature decoupling providers
+    ├── repository/           # shared Redis idempotency store and window counter
+    ├── web/                  # cross-cutting HTTP filters
+    └── architecture/         # ArchUnit executable assertions
+```
+
+- A feature package must not import another feature package.
+- The shared kernel `common` must not import a feature package.
+- Controllers only reach the service layer. They never access repositories directly.
+
+See [`docs/adr/ADR-009-archunit-for-package-independence.md`](docs/adr/ADR-009-archunit-for-package-independence.md) for the decision and trade-offs.
+
 ---
 
 ## Features

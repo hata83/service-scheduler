@@ -16,10 +16,11 @@ context: |
   happens in `service-scheduler-ui`: Vue 3, TypeScript, Pinia, Vite, MSW
   mocks, Playwright tests.
 
-  Backend packages are feature-based: `appointment/`, `resource/`,
-  `customer/`, `vehicle/`, `notification/`, `scheduling/`, `common/`. One
-  feature package must not import another. Shared code goes in `common/`.
-  ArchUnit enforces this.
+  Backend packages are feature-based: `auth/`, `customer/`, `dealership/`,
+  `appointment/`, `resource/`, `vehicle/`, `notification/`, `scheduling/`,
+  `common/`. Each feature holds nested packages: `controller/`, `service/`,
+  `repository/`, `model/`, `dto/`, `event/`, `handler/`. One feature package
+  must not import another. Shared code goes in `common/`. ArchUnit enforces this.
 
   Four invariants an agent cannot infer from an empty repository:
   1. PostgreSQL `EXCLUDE USING gist` constraints are the booking safety gates

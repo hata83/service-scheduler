@@ -1,32 +1,62 @@
-# ADR-009: ArchUnit for Package Independence
+# ADR-009: ArchUnit for Feature-Based Package Independence
 
 - **Status:** Accepted
 - **Date:** 2026-10-23
+- **Amended:** 2026-10-26
+- **Project:** Unified Service Scheduler
+
+---
 
 ## Context
 
-Each feature package must not import another feature package.
+Uncontrolled cross-package dependencies cause tight coupling. Code becomes hard to test, refactor, and maintain.
+
+---
 
 ## Decision
 
-Place the domain packages under dev.hata.scheduler: appointment, resource, customer, vehicle, notification, scheduling, and common. An ArchUnit test rejects a cross-feature import.
+Structure backend code into feature-based packages under `dev.hata.scheduler.*`:
+`auth`, `customer`, `dealership`, `appointment`, `resource`, `vehicle`, `notification`, `scheduling`, and `common`.
+
+Each feature package holds nested packages:
+- `controller/` (REST endpoints, filters, and HTTP mapping)
+- `service/` (domain services and business workflows)
+- `repository/` (Spring Data repositories and storage implementations)
+- `model/` (JPA entities, enums, and domain identity objects)
+- `dto/` (request and response records)
+- `event/` (domain events)
+- `handler/` (event listeners)
+
+The `ArchitectureTest` class enforces three rules with ArchUnit:
+1. Feature packages must not import other feature packages.
+2. The `common` package must not import any feature package.
+3. Controllers and filters in `controller/` only reach the service layer (`controller`, `service`, `dto`, `event`, `model`, `exception`, `common`). They never access repositories directly.
+
+---
 
 ## Reason
 
-Package independence allows independent evolution. It supports a later microservice extraction.
+Feature-based packaging models the business domain directly. It keeps related code together while preventing dependency cycles. Shared interfaces in `common` provide clean decoupling contracts.
+
+---
 
 ## Consequences
 
 ### Positive
 
-Package independence allows independent evolution. It supports a later microservice extraction.
+- Feature packages remain independent and testable in isolation.
+- Presentation code cannot bypass business validation to query databases directly.
+- The build gate fails immediately when a new import violates architecture rules.
 
 ### Negative
 
-Cross-domain communication needs a Spring application event. A synchronous cross-domain call needs a shared interface in common.
+- Cross-feature calls require provider interfaces in `common` or Spring domain events.
+- Creating a new feature requires defining clean interface boundaries.
 
-### Alternatives Considered
+---
 
-- Accept cross-package imports and review them manually
-- Use a layered architecture with a shared domain module
+## Alternatives Considered
 
+- Horizontal layer-first packages (`controllers/`, `services/`, `repositories/`).
+- Three-level hexagonal onion layering (`domain/`, `application/`, `adapter/`, `infra/`).
+- Unrestricted imports without automated ArchUnit assertions.
