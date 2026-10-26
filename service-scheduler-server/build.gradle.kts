@@ -85,6 +85,7 @@ tasks.withType<Test> {
     // default 512 MB worker heap. The value stays low so the worker and the
     // Gradle daemon fit together on a small machine.
     maxHeapSize = "768m"
+    reports.html.required.set(false)
     finalizedBy(tasks.jacocoTestReport)
 }
 

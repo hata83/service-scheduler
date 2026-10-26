@@ -20,7 +20,7 @@ This system gives dealership service advisors, managers, and technicians the too
 - **Constraint Engine:** Pure Java `ServiceConstraintEvaluator` evaluates service type resource requirements with microsecond latency.
 - **Real-Time Push:** Direct cookie-authenticated Spring MVC `SseEmitter` streams schedule changes to manager dashboards.
 - **Transactional Outbox:** At-least-once delivery for webhook dispatches and notification events.
-- **Integration Tests:** Bruno CLI suite validates every endpoint against a running server.
+- **Integration Tests:** Bruno CLI suite proves every endpoint against a running server.
 
 ---
 
@@ -72,7 +72,7 @@ Each transition enforces who can trigger it:
 
 ### 4. Relational Resource Constraint Engine
 
-Service type constraints are stored as structured metadata in `service_types` and `service_type_technician_requirements`. The `ServiceConstraintEvaluator` evaluates constraints at booking time in microseconds. Constraints are editable by service managers via API without code redeployments.
+The database stores service type constraints as structured metadata in `service_types` and `service_type_technician_requirements`. The `ServiceConstraintEvaluator` evaluates constraints at booking time in microseconds. Service managers edit constraints via API without code redeployments.
 
 ### 5. Transactional Outbox and Multi-Channel Notifications
 
@@ -85,7 +85,7 @@ Every appointment state change writes an `OUTBOX_EVENTS` row in the same databas
 
 Prometheus metrics at `/actuator/prometheus` include slot utilization, booking conflict count, booking latency percentiles (p50, p95, p99), evaluator latency, and technician utilization.
 
-All log entries are structured JSON with trace ID, span ID, appointment ID, and dealership ID in MDC context.
+The system formats all log entries as structured JSON with trace ID, span ID, appointment ID, and dealership ID in MDC context.
 
 ---
 
@@ -176,7 +176,7 @@ The application starts on `http://localhost:8080`.
 |---|---|
 | `http://localhost:8080/swagger-ui.html` | Interactive API documentation |
 | `http://localhost:8080/v3/api-docs` | OpenAPI 3.1 schema (YAML/JSON) |
-| `http://localhost:8080/actuator/health` | Health check |
+| `http://localhost:8080/actuator/health` | Health endpoint |
 | `http://localhost:8080/actuator/prometheus` | Prometheus metrics |
 
 ### Run with Docker Compose (PostgreSQL + Redis)
@@ -196,7 +196,7 @@ docker compose logs -f service-scheduler
 ### 1. Build and Quality Verification
 
 ```sh
-# Run all checks (Spotless, Checkstyle, PMD, ArchUnit, unit tests)
+# Run all verification tasks (Spotless, Checkstyle, PMD, ArchUnit, unit tests)
 ./gradlew check
 
 # Apply automatic code formatting
@@ -206,7 +206,7 @@ docker compose logs -f service-scheduler
 ./gradlew test jacocoTestReport
 # View report: service-scheduler-server/build/reports/jacoco/test/html/index.html
 
-# Run all quality checks plus build
+# Run all verification tasks plus build
 ./gradlew clean build
 ```
 
@@ -223,17 +223,24 @@ Integration testing verifies database constraints and API contracts:
 # 1. Start local PostgreSQL and Redis services
 docker compose up -d postgres redis
 
-# 2. Start the backend with the test profile
+# 2. Stop any server that already holds port 8080.
+#    A stale server serves the old build and the suite then tests the wrong code.
+#    The backend refuses to start when the port is taken, so read the log.
+
+# 3. Start the backend with the test profile
 SPRING_PROFILES_ACTIVE=test ./gradlew bootRun
 
-# 3. Reset the fixtures so the suite starts clean
+# 4. Reset the fixtures so the suite starts clean
 ./gradlew :service-scheduler-server:resetAuthFixtures
 
-# 4. Execute Bruno API contract test suite
+# 5. Execute Bruno API contract test suite
 npx --yes @usebruno/cli@2.14.1 run service-scheduler-server/src/test/bruno --env local --disable-cookies
 
-# 5. Run Testcontainers integration tests (requires Docker)
-./gradlew test
+# 6. Execute the Playwright E2E suite
+cd service-scheduler-ui && npx playwright test
+
+# 7. Run the full build gate, including the Testcontainers suite
+cd ../.. && ./gradlew clean build
 ```
 
 ---
@@ -285,13 +292,13 @@ The full engineering narrative lives in [`AGENTS.md`](AGENTS.md) — AI Collabor
 | Topic | Where |
 |---|---|
 | Strategy for guiding the AI | `AGENTS.md` — AI Collaboration Narrative, part 1 |
-| Process for verifying the output | `AGENTS.md` — AI Collaboration Narrative, part 2 |
+| Process for checking the output | `AGENTS.md` — AI Collaboration Narrative, part 2 |
 | Process for refining the output | `AGENTS.md` — AI Collaboration Narrative, part 3 |
-| How final quality was ensured | `AGENTS.md` — AI Collaboration Narrative, part 4 |
+| How the team ensured final quality | `AGENTS.md` — AI Collaboration Narrative, part 4 |
 | Design-phase AI assistance and its limits | [`docs/SYSTEM_DESIGN.md`](docs/SYSTEM_DESIGN.md) Section 18 |
 
 ---
 
 ## License
 
-This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
+The Apache License 2.0 licenses this project. See [LICENSE](LICENSE) for details.
