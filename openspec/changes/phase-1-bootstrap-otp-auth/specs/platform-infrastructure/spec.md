@@ -52,11 +52,11 @@ The system SHALL emit JSON logs carrying `requestId` and trace correlation field
 
 ### Requirement: Seed fixtures
 
-The system SHALL seed exactly 1 demo dealership and users 1 admin, 1 manager, 1 technician, and 1 customer with the fixed phones from the design, roles matching those phones, and profile rows for the customer and technician. The seeded customer SHALL belong to the demo dealership. Seed migrations SHALL not duplicate rows when reapplied on a preserved database.
+The system SHALL seed 1 demo dealership, 4 global `users` rows (`type` in `CUSTOMER` or `EMPLOYEE`) with fixed phones, 4 centralized `profiles` rows (one per user), 3 `employees` rows (`role` in `ADMIN`, `MANAGER`, `TECHNICIAN`; `ADMIN` global with `dealership_id IS NULL`, `MANAGER` and `TECHNICIAN` local with `dealership_id` referencing the demo dealership), 1 `technicians` row with career `level`, and `technician_skills` rows with per-skill `level`. Seed migrations SHALL not duplicate rows when reapplied on a preserved database.
 
 #### Scenario: Seed accounts resolve
 - **WHEN** the integration test runs the migrations on PostgreSQL
-- **THEN** queries find exactly 1 dealership row and exactly 4 user rows with the pinned roles and phones, and the seeded customer references the demo dealership
+- **THEN** queries find 1 dealership row, 4 global user rows (`type` in `CUSTOMER` or `EMPLOYEE`), 4 centralized profile rows, 3 employee rows (`ADMIN` global, `MANAGER` and `TECHNICIAN` referencing the demo dealership), 1 technician row with career `level`, and 2 technician skill rows with skill `level`
 
 #### Scenario: Migration re-run stays single
 - **WHEN** the migration set applies again against an already-seeded database

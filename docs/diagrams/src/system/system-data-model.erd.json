@@ -11,7 +11,7 @@
         "label": "Booking core",
         "focus": [
           "users",
-          "customers",
+          "profiles",
           "appointments",
           "service_jobs",
           "job_assignments"
@@ -24,10 +24,11 @@
         "focus": [
           "service_types",
           "workshop_bays",
+          "employees",
           "technicians",
           "technician_skills"
         ],
-        "note": "A bay carries many bay types inline. A technician carries many skills."
+        "note": "A bay carries many bay types inline. A technician carries a career level and many skills with levels."
       },
       {
         "id": "pricing",
@@ -76,6 +77,30 @@
           "type": "varchar(255)"
         },
         {
+          "name": "type",
+          "type": "varchar(20)"
+        }
+      ],
+      "width": 210
+    },
+    {
+      "id": "employees",
+      "label": "employees",
+      "row": 0,
+      "col": 1,
+      "attributes": [
+        {
+          "name": "user_id",
+          "type": "UUID",
+          "key": "pk",
+          "references": "profiles.user_id"
+        },
+        {
+          "name": "employee_id",
+          "type": "varchar(50)",
+          "key": "uk"
+        },
+        {
           "name": "role",
           "type": "varchar(20)"
         },
@@ -86,7 +111,7 @@
           "references": "dealerships.id"
         }
       ],
-      "width": 210
+      "width": 216
     },
     {
       "id": "dealerships",
@@ -127,8 +152,8 @@
       "width": 210
     },
     {
-      "id": "customers",
-      "label": "customers",
+      "id": "profiles",
+      "label": "profiles",
       "row": 1,
       "col": 0,
       "width": 216,
@@ -136,13 +161,8 @@
         {
           "name": "user_id",
           "type": "UUID",
-          "key": "pk"
-        },
-        {
-          "name": "dealership_id",
-          "type": "UUID",
-          "key": "fk",
-          "references": "dealerships.id"
+          "key": "pk",
+          "references": "users.id"
         },
         {
           "name": "first_name",
@@ -168,26 +188,12 @@
         {
           "name": "user_id",
           "type": "UUID",
-          "key": "pk"
+          "key": "pk",
+          "references": "employees.user_id"
         },
         {
-          "name": "dealership_id",
-          "type": "UUID",
-          "key": "fk",
-          "references": "dealerships.id"
-        },
-        {
-          "name": "employee_id",
-          "type": "varchar(50)",
-          "key": "uk"
-        },
-        {
-          "name": "first_name",
-          "type": "varchar(100)"
-        },
-        {
-          "name": "last_name",
-          "type": "varchar(100)"
+          "name": "level",
+          "type": "varchar(20)"
         },
         {
           "name": "is_available",
@@ -217,7 +223,7 @@
           "name": "customer_id",
           "type": "UUID",
           "key": "fk",
-          "references": "customers.user_id"
+          "references": "profiles.user_id"
         },
         {
           "name": "vehicle_id",
@@ -560,24 +566,40 @@
   ],
   "relationships": [
     {
-      "id": "user_customer",
+      "id": "user_profile",
       "from": "users",
-      "to": "customers",
+      "to": "profiles",
       "label": "profile",
       "fromCardinality": "one",
       "toCardinality": "one"
     },
     {
-      "id": "user_technician",
+      "id": "user_employee",
       "from": "users",
+      "to": "employees",
+      "label": "staff",
+      "fromCardinality": "one",
+      "toCardinality": "one"
+    },
+    {
+      "id": "dealership_employee",
+      "from": "dealerships",
+      "to": "employees",
+      "label": "staff",
+      "fromCardinality": "one",
+      "toCardinality": "many"
+    },
+    {
+      "id": "employee_technician",
+      "from": "employees",
       "to": "technicians",
-      "label": "profile",
+      "label": "tech",
       "fromCardinality": "one",
       "toCardinality": "one"
     },
     {
       "id": "appointment_customer",
-      "from": "customers",
+      "from": "profiles",
       "to": "appointments",
       "label": "books",
       "fromCardinality": "one",

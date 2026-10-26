@@ -22,7 +22,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class CustomerServiceTest {
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000005");
-    private static final UUID DEALERSHIP_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @Mock
     private CustomerProfileRepository repository;
@@ -37,7 +36,7 @@ class CustomerServiceTest {
     @Test
     void findByUserIdReturnsMappedView() {
         CustomerProfile profile = new CustomerProfile();
-        profile.assign(USER_ID, DEALERSHIP_ID, "My", "Nguyen");
+        profile.assign(USER_ID, "My", "Nguyen");
         when(repository.findByUserId(USER_ID)).thenReturn(Optional.of(profile));
 
         Optional<CustomerProfileProvider.ProfileView> view = service.findByUserId(USER_ID);
@@ -51,7 +50,7 @@ class CustomerServiceTest {
     void createProfileSavesAndReturnsView() {
         when(repository.save(any(CustomerProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CustomerProfileProvider.ProfileView view = service.createProfile(USER_ID, DEALERSHIP_ID, "Tai", "Le");
+        CustomerProfileProvider.ProfileView view = service.createProfile(USER_ID, "Tai", "Le");
 
         assertThat(view.userId()).isEqualTo(USER_ID);
         assertThat(view.firstName()).isEqualTo("Tai");
@@ -62,7 +61,7 @@ class CustomerServiceTest {
     @Test
     void updateNamesUpdatesExistingProfile() {
         CustomerProfile profile = new CustomerProfile();
-        profile.assign(USER_ID, DEALERSHIP_ID, "My", "Nguyen");
+        profile.assign(USER_ID, "My", "Nguyen");
         when(repository.findByUserId(USER_ID)).thenReturn(Optional.of(profile));
         when(repository.save(any(CustomerProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

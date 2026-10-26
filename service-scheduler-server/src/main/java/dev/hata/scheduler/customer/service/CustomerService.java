@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Customer feature domain service (design D4). Implements the shared
  * {@link CustomerProfileProvider} contract so other feature packages can access
- * customer profile data without package coupling.
+ * global customer profile data without package coupling.
  */
 @Service
 public class CustomerService implements CustomerProfileProvider {
@@ -32,9 +32,9 @@ public class CustomerService implements CustomerProfileProvider {
 
     @Override
     @Transactional
-    public ProfileView createProfile(UUID userId, UUID dealershipId, String firstName, String lastName) {
+    public ProfileView createProfile(UUID userId, String firstName, String lastName) {
         CustomerProfile profile = new CustomerProfile();
-        profile.assign(userId, dealershipId, firstName, lastName);
+        profile.assign(userId, firstName, lastName);
         CustomerProfile saved = repository.save(profile);
         return toView(saved);
     }
@@ -50,11 +50,6 @@ public class CustomerService implements CustomerProfileProvider {
     }
 
     private ProfileView toView(CustomerProfile profile) {
-        return new ProfileView(
-                profile.getUserId(),
-                profile.getDealershipId(),
-                profile.getFirstName(),
-                profile.getLastName(),
-                profile.getLocale());
+        return new ProfileView(profile.getUserId(), profile.getFirstName(), profile.getLastName(), profile.getLocale());
     }
 }

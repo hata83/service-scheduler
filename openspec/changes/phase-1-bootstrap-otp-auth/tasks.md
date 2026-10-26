@@ -2,24 +2,24 @@
 
 ```
 CHANGE   phase-1-bootstrap-otp-auth      BRANCH   feature/phase-1-bootstrap-otp-auth
-STATES   14   done 13  current 14  next 0   skipped 0  failed 0  pending 0
+STATES   14   done 10  current 1  next 1   skipped 0  failed 0  pending 2
 TASKS    39   done 39  open 0
 
   #   state                     mark     proof
-  1   Propose                   done     openspec validate --strict: valid + HIL-1 approval (8 rounds)
-  2   Branch                    done     empty master 1611a24 + feature/phase-1-bootstrap-otp-auth
-  3   Plan                      done     D2 rate limit JSON + D8 idempotency + D7 OTP slots
-  4   Code                      done     auth endpoints + entities + filters + rate limit config
-  5   Format                    done     spotlessApply clean; Palantir 2.71
-  6   Test                      done     115 unit tests + 49 Bruno requests + 18 Playwright E2E
-  7   Review                    done     ocr delegate preview clean; review.md documented
-  8   Verify                    done     clean build SUCCESS + 97.7% line + 100% @Service + OpenSpec valid
+  1   Propose                   done     openspec validate --strict: valid + HIL-1 approval
+  2   Branch                    done     branch is feature/phase-1-bootstrap-otp-auth
+  3   Plan                      done     users.type, centralized profiles, employees, Swagger UI 3.0.2
+  4   Code                      done     V1/V2 schema, User.type, Employee/Technician, SpringDoc 3.0.2
+  5   Format                    done     spotlessApply clean (Palantir Java Format 2.71)
+  6   Test                      done     152 JUnit tests, 49 Bruno requests, 20 Playwright E2E passed
+  7   Review                    done     ocr delegate preview clean; review.md updated with fixes
+  8   Verify                    done     ./gradlew clean build SUCCESS (100% @Service, 94.3% overall)
   9   Request approval          done     HIL-2 approval granted by user
-  10  Publish                   done     PR #1 opened vs master: https://github.com/hata83/service-scheduler/pull/1
-  11  Verify PR                 done     all 6 checks green (Build, Bruno, Playwright, OpenSpec, OCR)
-  12  Archive                   done     openspec archive: 2026-10-26-phase-1-bootstrap-otp-auth
-  13  Review archive            done     archive verified on PR #1; all CI checks green
-  14  Merge                     current  HIL-3 human gate
+  10  Publish                   done     git push origin feature/phase-1-bootstrap-otp-auth (PR #1)
+  11  Verify PR                 current  GitHub Actions CI checks & Copilot review
+  12  Archive                   next     openspec archive
+  13  Review archive            pending  PR archive review
+  14  Merge                     pending  HIL-3 human gate
 ```
 
 ## 1. Branch setup (State 2)
@@ -45,8 +45,8 @@ TASKS    39   done 39  open 0
 
 ## 4. Schema and seed (Flyway, PostgreSQL-only)
 
-- [x] 4.1 Add `V1__platform_and_auth_schema.sql` for `dealerships`, `users`, `customers`, `technicians`, `technician_skills` — PostgreSQL-only DDL per design D4 (UUID PKs, `timestamptz` audit columns, role CHECK). Verify `bootRun` (compose) and `integrationTest` (Testcontainers) both apply it, and that nothing references H2.
-- [x] 4.2 Add `V2__seed_dealer_and_auth.sql` seeding 1 demo dealership, 1 admin, 1 manager, 1 technician (+skills row), and 1 customer scoped to that dealership, with the fixed UUIDs and phones from design D4. Verify `integrationTest` counts 4 user rows, the matching profile rows, and the customer's dealership reference after migration. (HIL-1 round 9 note: earlier text said 5 user rows; spec scenario, proposal wording, and design D4 all pin four accounts, so the stray count is corrected instead of seeding a phantom 5th user.)
+- [x] 4.1 Add `V1__platform_and_auth_schema.sql` for `users` (global, `type` in `CUSTOMER`/`EMPLOYEE`, no `dealership_id`), `profiles` (centralized personal profile for all accounts), `dealerships`, `employees` (abstract employee with `employee_id`, `role` in `ADMIN`/`MANAGER`/`TECHNICIAN`, and `dealership_id` CHECK: `ADMIN` global `NULL`, `MANAGER`/`TECHNICIAN` local `NOT NULL`), `technicians` (technician career `level` and `is_available`), and `technician_skills` (multi-skill with `level`) — PostgreSQL-only DDL per design D4. Verify `bootRun` (compose) and `test` (Testcontainers) both apply it, and that nothing references H2.
+- [x] 4.2 Add `V2__seed_dealer_and_auth.sql` seeding 1 demo dealership, 4 global `users` rows, 4 centralized `profiles` rows, 3 `employees` rows (`ADM-0001` global, `MGR-0001` and `TEC-0001` local to the demo dealership), 1 `technicians` row (`SENIOR`), and 2 `technician_skills` rows (`ENGINE` at `SENIOR`, `BRAKES` at `TECHNICIAN`). Verify `SchemaMigrationTest` counts 4 users, 4 profiles, 1 dealership, 3 employees, 1 technician, and 2 technician_skills rows after migration.
 
 ## 5. OTP login capacity (`otp-login`)
 
@@ -57,7 +57,7 @@ TASKS    39   done 39  open 0
 - [x] 5.5 TDD BE-1/BE-2: `JwtService` (jjwt HS256, claims per design D5, 8h expiry, jti) + Redis session store (`auth:session:{jti}`). Verify the unit test fails before and passes after.
 - [x] 5.6 Implement `AuthFilter`, `@RequireRole`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout` per design D5/D6. Add Bruno files `api/auth/me-after-login.bru`, `api/auth/me-unauthenticated.bru`, `api/auth/logout-revokes-session.bru`. Verify all three pass.
 - [x] 5.7 Implement `POST /api/v1/auth/otp/verify` (login-only: consumes LOGIN-purpose OTP, never creates rows; idempotency key required with cached replay; wrong/expired/wrong-purpose/unknown-phone 401 problem+json; unknown-phone detail names registration). Add Bruno files `api/auth/login-customer.bru`, `api/auth/login-manager.bru`, `api/auth/login-technician.bru`, `api/auth/login-admin.bru`, `api/auth/verify-wrong-code.bru`, `api/auth/verify-expired-code.bru`, `api/auth/verify-rejects-register-purpose.bru`, `api/auth/verify-unknown-phone.bru`, `api/auth/verify-missing-idempotency-key.bru`, `api/auth/verify-idempotent-replay.bru`. Verify all ten pass.
-- [x] 5.8 TDD BE-1/BE-2: `ProfileService` (email for every role; names for CUSTOMER and TECHNICIAN via design D13; phone field rejected), then implement `PATCH /api/v1/auth/me` with idempotency. Add Bruno files `api/auth/me-patch-updates-profile.bru`, `api/auth/me-patch-rejects-phone.bru`, `api/auth/me-patch-rejects-staff-names.bru`, `api/auth/me-patch-missing-idempotency-key.bru`. Verify the test fails before and passes after, then all four Bruno files pass.
+- [x] 5.8 TDD BE-1/BE-2: centralized profile update (email and `profiles` names editable for every role via design D13; phone field rejected with 400), then implement `PATCH /api/v1/auth/me` with idempotency. Add Bruno files `api/auth/me-patch-updates-profile.bru`, `api/auth/me-patch-rejects-phone.bru`, `api/auth/me-patch-rejects-staff-names.bru`, `api/auth/me-patch-missing-idempotency-key.bru`. Verify the test fails before and passes after, then all four Bruno files pass.
 - [x] 5.9 Refresh `docs/diagrams/src/system/otp-login.sequence.json` if task work shifts the flow (the viewer `docs/diagrams/system/otp-login.html` was finalized and browser-checked at State 1), re-run `archify finalize sequence ... --quality showcase`. Verify `archify validate` passes and the viewer is current, then link the diagram from the capacity's spec mapping.
 - [x] 5.10 Update the `### Capacity Mapping` table in `specs/otp-login/spec.md` if requirement names shift during implementation. Verify one row per `### Requirement:` block with its diagram reference.
 - [x] 5.11 Create `service-scheduler-ui/tests/e2e/otp-login.spec.ts` (API-level Playwright E2E, one test per scenario) against the compose-stacked server. Verify it passes.

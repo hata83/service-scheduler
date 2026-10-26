@@ -126,4 +126,16 @@ class ArchitectureTest {
                 .allowEmptyShould(true);
         rule.check(classes);
     }
+
+    @Test
+    void servicesDoNotDependOnServletApi() {
+        ArchRule rule = noClasses()
+                .that()
+                .resideInAPackage("..service..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAnyPackage("jakarta.servlet..", "javax.servlet..")
+                .allowEmptyShould(true);
+        rule.check(classes);
+    }
 }

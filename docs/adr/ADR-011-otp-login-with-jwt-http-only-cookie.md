@@ -32,7 +32,7 @@ Replace password login with a phone-based OTP login that returns a JWT in an htt
 7. Every OTP slot and every session cookie is single-use. A wrong code never consumes a live code.
 8. **SSE Authentication:** The browser opens `EventSource('/api/v1/notifications/stream', { withCredentials: true })`. The browser automatically transmits the `httpOnly` cookie. This eliminates the need for a separate pre-auth ticket endpoint.
 
-The service stays stateless. The JWT carries user id, phone, role, and dealership id.
+The service stays stateless. The JWT carries user id, phone, role, and active dealership id (`null` for global `CUSTOMER` and `ADMIN`, and the local `employees.dealership_id` for `MANAGER` and `TECHNICIAN`). Personal profile attributes (`first_name`, `last_name`, `locale`) are centralized in `profiles` for all four roles.
 
 ---
 

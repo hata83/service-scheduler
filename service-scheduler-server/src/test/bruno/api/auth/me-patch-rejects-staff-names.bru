@@ -18,15 +18,16 @@ headers {
 
 body:json {
   {
-    "firstName": "Not",
-    "lastName": "Editable"
+    "firstName": "Chief",
+    "lastName": "Admin"
   }
 }
 
 tests {
-  test("staff role patch with names responds 400", function() {
-    expect(res.getStatus()).to.equal(400);
-    expect(res.getHeader('content-type')).to.include("application/problem+json");
+  test("staff role patch with names updates centralized profile with 200", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().firstName).to.equal("Chief");
+    expect(res.getBody().lastName).to.equal("Admin");
   });
   
 }

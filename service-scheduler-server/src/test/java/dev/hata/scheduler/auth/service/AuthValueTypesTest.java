@@ -13,6 +13,7 @@ import dev.hata.scheduler.common.otp.OtpProperties;
 import dev.hata.scheduler.common.otp.OtpType;
 import dev.hata.scheduler.common.security.AuthPrincipal;
 import dev.hata.scheduler.common.security.JwtProperties;
+import dev.hata.scheduler.common.security.JwtService;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -29,13 +30,12 @@ class AuthValueTypesTest {
     @Test
     void userCarriesItsColumns() {
         User user = new User();
-        user.assign(USER_ID, "+84900000004", "CUSTOMER", DEALERSHIP);
+        user.assign(USER_ID, "+84900000004", "CUSTOMER");
         user.setEmail("my.nguyen@example.com");
 
         assertThat(user.getId()).isEqualTo(USER_ID);
         assertThat(user.getPhone()).isEqualTo("+84900000004");
-        assertThat(user.getRole()).isEqualTo("CUSTOMER");
-        assertThat(user.getDealershipId()).isEqualTo(DEALERSHIP);
+        assertThat(user.getType()).isEqualTo(User.TYPE_CUSTOMER);
         assertThat(user.getEmail()).isEqualTo("my.nguyen@example.com");
         assertThat(user.isActive()).isTrue();
         assertThat(user.getCreatedAt()).isNotNull();
@@ -111,5 +111,26 @@ class AuthValueTypesTest {
         assertThat(properties.ttl()).isEqualTo(Duration.ofMinutes(5));
         assertThat(properties.echo()).isTrue();
         assertThat(properties.channel()).isEqualTo("zalo-stub");
+    }
+
+    @Test
+    void authDtosCarryTheirFields() {
+        dev.hata.scheduler.auth.dto.OtpSendResponse otpSend =
+                new dev.hata.scheduler.auth.dto.OtpSendResponse("+84900000004", "LOGIN", "123456");
+        assertThat(otpSend.phone()).isEqualTo("+84900000004");
+        assertThat(otpSend.type()).isEqualTo("LOGIN");
+        assertThat(otpSend.otpCode()).isEqualTo("123456");
+
+        dev.hata.scheduler.auth.dto.AuthResponse authResp =
+                new dev.hata.scheduler.auth.dto.AuthResponse(USER_ID, "CUSTOMER", "+84900000004", DEALERSHIP);
+        assertThat(authResp.id()).isEqualTo(USER_ID);
+        assertThat(authResp.role()).isEqualTo("CUSTOMER");
+        assertThat(authResp.phone()).isEqualTo("+84900000004");
+        assertThat(authResp.dealershipId()).isEqualTo(DEALERSHIP);
+
+        JwtService.Issued issued = new JwtService.Issued("tok", "jti", java.time.Instant.now());
+        dev.hata.scheduler.auth.dto.AuthSession session = new dev.hata.scheduler.auth.dto.AuthSession(authResp, issued);
+        assertThat(session.user()).isEqualTo(authResp);
+        assertThat(session.session()).isEqualTo(issued);
     }
 }

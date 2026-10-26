@@ -6,11 +6,11 @@
   "status": "pass",
   "visualReview": "not-requested",
   "provenance": "current",
-  "deliveryReceiptId": "5a266dbd-6afe-4ab0-bc6d-390c0f24c32a",
+  "deliveryReceiptId": "6acfb0a7-06dc-4906-a77b-8edea17e1c14",
   "artifact": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\otp-login.html",
-    "sha256": "e5d1cafb5b712a684358e6a13f7d228e9e36ab5ee5be161d88ce9ca8e90b6799",
-    "bytes": 819112
+    "sha256": "9cf3d6b8dfb6d4d8db928855e444758f0725bd801efacbe14742eff591ae1942",
+    "bytes": 819118
   },
   "state": {
     "detail": "read",

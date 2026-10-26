@@ -7,13 +7,13 @@
   "quality": "showcase",
   "specification": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\otp-login.sequence.json",
-    "sha256": "c376337617221328dc1568394b90c84011d04ac629792f03d8359d16b3eece2a",
-    "bytes": 5032
+    "sha256": "5d737d0d613ba8c3aba5059a357ed172f619f6ae0863d5839497afd4119a1c8b",
+    "bytes": 5039
   },
   "artifact": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\otp-login.html",
-    "sha256": "e5d1cafb5b712a684358e6a13f7d228e9e36ab5ee5be161d88ce9ca8e90b6799",
-    "bytes": 819112
+    "sha256": "9cf3d6b8dfb6d4d8db928855e444758f0725bd801efacbe14742eff591ae1942",
+    "bytes": 819118
   },
   "gates": {
     "validate": "pass",
@@ -37,13 +37,13 @@
     "installedVersion": "3.2.0",
     "availableVersion": "3.2.0",
     "releaseNotes": null,
-    "checkedAt": "2026-10-25T09:29:22.168Z",
+    "checkedAt": "2026-10-26T12:00:03.507Z",
     "source": "cache",
     "noticeRequired": false,
     "noticeText": null
   },
   "visualReview": "not-requested",
-  "durationMs": 3727,
+  "durationMs": 3756,
   "browserCheck": {
     "requested": true,
     "ran": true

@@ -14,17 +14,17 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 /**
  * Restores the seeded fixtures so the Bruno and Playwright suites can run
  * again. The task deletes the registered test customers, restores the seeded
- * customer profile, and clears the idempotency, rate-limit, OTP and session
+ * centralized profiles, and clears the idempotency, rate-limit, OTP and session
  * keys in Redis.
- *
- * The reset uses JDBC and the Redis client, so it works against the Docker
- * Compose services and against the CI service containers.
  */
 public final class AuthFixtureReset {
 
     private static final Logger log = LoggerFactory.getLogger(AuthFixtureReset.class);
 
     private static final String TEST_PHONE_PATTERN = "+849000009%";
+    private static final String ADMIN_ID = "00000000-0000-0000-0000-000000000002";
+    private static final String MANAGER_ID = "00000000-0000-0000-0000-000000000003";
+    private static final String TECH_ID = "00000000-0000-0000-0000-000000000004";
     private static final String CUSTOMER_ID = "00000000-0000-0000-0000-000000000005";
 
     private AuthFixtureReset() {}
@@ -40,15 +40,27 @@ public final class AuthFixtureReset {
     }
 
     private static void resetDatabase(String url, String user, String password) throws Exception {
-        String sql = "DELETE FROM customers WHERE user_id IN (SELECT id FROM users WHERE phone LIKE '"
+        String sql = "DELETE FROM profiles WHERE user_id IN (SELECT id FROM users WHERE phone LIKE '"
                 + TEST_PHONE_PATTERN
                 + "'); DELETE FROM users WHERE phone LIKE '"
                 + TEST_PHONE_PATTERN
-                + "'; UPDATE customers SET first_name = 'Demo', last_name = 'Customer' WHERE user_id = '"
+                + "'; UPDATE profiles SET first_name = 'Demo', last_name = 'Admin' WHERE user_id = '"
+                + ADMIN_ID
+                + "'; UPDATE profiles SET first_name = 'Demo', last_name = 'Manager' WHERE user_id = '"
+                + MANAGER_ID
+                + "'; UPDATE profiles SET first_name = 'Demo', last_name = 'Technician' WHERE user_id = '"
+                + TECH_ID
+                + "'; UPDATE profiles SET first_name = 'Demo', last_name = 'Customer' WHERE user_id = '"
                 + CUSTOMER_ID
-                + "'; UPDATE users SET email = NULL WHERE id = '"
+                + "'; UPDATE users SET email = NULL WHERE id IN ('"
+                + ADMIN_ID
+                + "', '"
+                + MANAGER_ID
+                + "', '"
+                + TECH_ID
+                + "', '"
                 + CUSTOMER_ID
-                + "';";
+                + "');";
         try (Connection connection = DriverManager.getConnection(url, user, password);
                 Statement statement = connection.createStatement()) {
             statement.execute(sql);

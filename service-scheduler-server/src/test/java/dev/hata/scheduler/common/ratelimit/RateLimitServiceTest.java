@@ -1,6 +1,5 @@
 package dev.hata.scheduler.common.ratelimit;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -20,7 +19,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.mock.web.MockHttpServletRequest;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -40,38 +38,8 @@ class RateLimitServiceTest {
     @BeforeEach
     void setUp() {
         properties = new RateLimitProperties("classpath:config/rate-limits-test.json", false);
-        service = new RateLimitService(counter, dealershipFeatures, properties);
+        service = new RateLimitService(counter, dealershipFeatures);
         when(dealershipFeatures.resolveRateLimits(any())).thenReturn(properties.resolve(null));
-    }
-
-    @Test
-    void extractsRemoteAddrWhenForwardingDisabled() {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRemoteAddr("10.0.0.1");
-        request.addHeader("X-Forwarded-For", "203.0.113.1");
-
-        assertThat(service.clientIp(request)).isEqualTo("10.0.0.1");
-    }
-
-    @Test
-    void extractsForwardedForWhenEnabled() {
-        RateLimitProperties forwarding = new RateLimitProperties("classpath:config/rate-limits-test.json", true);
-        RateLimitService forwardingService = new RateLimitService(counter, dealershipFeatures, forwarding);
-
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRemoteAddr("10.0.0.1");
-        request.addHeader("X-Forwarded-For", "203.0.113.1, 10.0.0.1");
-
-        assertThat(forwardingService.clientIp(request)).isEqualTo("203.0.113.1");
-
-        MockHttpServletRequest nullHeader = new MockHttpServletRequest();
-        nullHeader.setRemoteAddr("10.0.0.2");
-        assertThat(forwardingService.clientIp(nullHeader)).isEqualTo("10.0.0.2");
-
-        MockHttpServletRequest blankHeader = new MockHttpServletRequest();
-        blankHeader.setRemoteAddr("10.0.0.3");
-        blankHeader.addHeader("X-Forwarded-For", "   ");
-        assertThat(forwardingService.clientIp(blankHeader)).isEqualTo("10.0.0.3");
     }
 
     @Test

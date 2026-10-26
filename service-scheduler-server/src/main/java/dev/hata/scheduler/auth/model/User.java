@@ -9,13 +9,17 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * The {@code users} row. The table carries one identity for every role
- * (design D4). The entity stays in the {@code auth} package, so the auth
- * feature never imports another feature package (AGENTS constraint 1).
+ * The global {@code users} row. The table carries one global identity with
+ * {@code type} ({@code CUSTOMER} or {@code EMPLOYEE}); employee authorization
+ * roles ({@code ADMIN}, {@code MANAGER}, {@code TECHNICIAN}) live in
+ * {@code employees.role} without duplication (design D4).
  */
 @Entity
 @Table(name = "users")
 public class User {
+
+    public static final String TYPE_CUSTOMER = "CUSTOMER";
+    public static final String TYPE_EMPLOYEE = "EMPLOYEE";
 
     @Id
     @Column(name = "id", nullable = false)
@@ -27,11 +31,8 @@ public class User {
     @Column(name = "email")
     private String email;
 
-    @Column(name = "role", nullable = false)
-    private String role;
-
-    @Column(name = "dealership_id")
-    private UUID dealershipId;
+    @Column(name = "type", nullable = false)
+    private String type;
 
     @Column(name = "is_active", nullable = false)
     private boolean active;
@@ -45,13 +46,12 @@ public class User {
     public User() {}
 
     /**
-     * Fills the row for a new account.
+     * Fills the row for a new global user account.
      */
-    public void assign(UUID id, String phone, String role, UUID dealershipId) {
+    public void assign(UUID id, String phone, String type) {
         this.id = id;
         this.phone = phone;
-        this.role = role;
-        this.dealershipId = dealershipId;
+        this.type = type;
         this.active = true;
         Instant now = Instant.now();
         this.createdAt = now;
@@ -78,12 +78,8 @@ public class User {
         return email;
     }
 
-    public String getRole() {
-        return role;
-    }
-
-    public UUID getDealershipId() {
-        return dealershipId;
+    public String getType() {
+        return type;
     }
 
     public boolean isActive() {

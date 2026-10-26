@@ -9,7 +9,7 @@ Three user roles need different access scopes. A session must be invalidatable o
 
 ## Decision
 
-Issue a JWT Bearer token with role and dealershipId claims. Store the token in Redis with a 24-hour TTL. A logout deletes the Redis key.
+Issue a stateless HS256 JWT in an `httpOnly` cookie with `sub`, `role`, `ph`, `did` (active dealership id), and `jti` claims. Dealership scope resolves from `employees`: `null` for global `CUSTOMER` (non-employee) and global `ADMIN` (`employees.dealership_id IS NULL`), and the local `employees.dealership_id` for `MANAGER` and `TECHNICIAN`. Logout clears the client cookie (`Max-Age=0`).
 
 ## Reason
 

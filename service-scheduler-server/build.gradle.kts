@@ -65,8 +65,8 @@ dependencies {
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 
-    // OpenAPI 3.1 & Swagger UI
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5")
+    // OpenAPI 3.1 & Swagger UI (SpringDoc 3.x for Spring Boot 4)
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
 
     // Testing & Quality Gates
     testImplementation("org.springframework.boot:spring-boot-starter-test")

@@ -35,6 +35,7 @@ tests {
   test("admin login responds 200 with the ADMIN role", function() {
     expect(res.getStatus()).to.equal(200);
     expect(res.getBody().role).to.equal("ADMIN");
+    expect(res.getBody().dealershipId).to.be.null;
   });
   
 }

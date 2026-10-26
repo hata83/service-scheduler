@@ -37,7 +37,6 @@ public class DealershipService implements DealershipFeaturesProvider {
     @Override
     @Transactional(readOnly = true)
     public RateLimitProperties.Resolved resolveRateLimits(UUID dealershipId) {
-        // If a test rate limit location is specified (e.g. rate-limits-test.json), use it for test speed
         if (properties.location() != null && properties.location().contains("test")) {
             return properties.resolve(dealershipId == null ? null : dealershipId.toString());
         }

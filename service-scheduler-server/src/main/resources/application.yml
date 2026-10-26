@@ -29,7 +29,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,prometheus,metrics,httpexchanges,info
+        include: health,prometheus,metrics,info
   endpoint:
     health:
       show-details: always
@@ -68,6 +68,7 @@ app:
     trust-forwarded-for: false
 
 springdoc:
+  show-actuator: true
   api-docs:
     path: /v3/api-docs
     enabled: true

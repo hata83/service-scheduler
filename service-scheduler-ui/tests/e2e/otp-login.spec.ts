@@ -39,6 +39,36 @@ test.describe('OTP login', () => {
     });
   }
 
+  test('each role edits its centralized profile names via PATCH /me', async ({ playwright, baseURL }) => {
+    const request = await apiContext(playwright, baseURL!);
+    const phone = '+84900000002';
+    const code = await sendOtp(request, phone, 'LOGIN');
+
+    const verify = await request.post('/api/v1/auth/otp/verify', {
+      headers: { 'X-Idempotency-Key': idempotencyKey('otp-verify-manager-profile', phone) },
+      data: { phone, code }
+    });
+
+    expect(verify.status(), await verify.text()).toBe(200);
+    const body = await verify.json();
+    expect(body.role).toBe('MANAGER');
+    expect(body.dealershipId).toBe('00000000-0000-0000-0000-000000000001');
+
+    const cookie = sessionCookie(verify);
+    const patch = await request.patch('/api/v1/auth/me', {
+      headers: {
+        Cookie: `jwt=${cookie}`,
+        'X-Idempotency-Key': idempotencyKey('patch-me-manager', phone)
+      },
+      data: { firstName: 'Minh', lastName: 'Manager' }
+    });
+
+    expect(patch.status(), await patch.text()).toBe(200);
+    const patched = await patch.json();
+    expect(patched.firstName).toBe('Minh');
+    expect(patched.lastName).toBe('Manager');
+  });
+
   test('a wrong code is rejected', async ({ playwright, baseURL }) => {
     const request = await apiContext(playwright, baseURL!);
     const phone = freshPhone();

@@ -31,7 +31,7 @@
       "id": "auth",
       "type": "backend",
       "label": "Auth",
-      "sublabel": "JWT + Redis sessions"
+      "sublabel": "stateless HS256 JWT"
     },
     {
       "id": "users",
@@ -119,7 +119,7 @@
       "from": "api",
       "to": "users",
       "y": 500,
-      "label": "insert CUSTOMER + profile",
+      "label": "insert global CUSTOMER + profile",
       "variant": "default"
     },
     {
@@ -143,7 +143,7 @@
       "from": "auth",
       "to": "api",
       "y": 630,
-      "label": "signed JWT + redis session jti",
+      "label": "signed stateless JWT",
       "variant": "return"
     },
     {

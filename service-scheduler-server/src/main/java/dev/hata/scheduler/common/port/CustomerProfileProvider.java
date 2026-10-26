@@ -4,16 +4,16 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Shared contract for customer profile management (design D4/D13). Feature
+ * Shared contract for global customer profile management (design D4/D13). Feature
  * packages access customer profile data through this interface without
  * depending directly on the customer domain package.
  */
 public interface CustomerProfileProvider {
 
     /**
-     * Customer profile data transfer record.
+     * Global customer profile data transfer record.
      */
-    record ProfileView(UUID userId, UUID dealershipId, String firstName, String lastName, String locale) {}
+    record ProfileView(UUID userId, String firstName, String lastName, String locale) {}
 
     /**
      * Finds profile by user id.
@@ -21,9 +21,9 @@ public interface CustomerProfileProvider {
     Optional<ProfileView> findByUserId(UUID userId);
 
     /**
-     * Creates a new customer profile.
+     * Creates a new global customer profile.
      */
-    ProfileView createProfile(UUID userId, UUID dealershipId, String firstName, String lastName);
+    ProfileView createProfile(UUID userId, String firstName, String lastName);
 
     /**
      * Updates first and last name.

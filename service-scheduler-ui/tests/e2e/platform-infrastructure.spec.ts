@@ -35,6 +35,22 @@ test.describe('Platform infrastructure', () => {
     expect(response.status()).toBe(404);
   });
 
+  test('swagger ui and openapi 3.1 docs expose all endpoints', async ({ playwright, baseURL }) => {
+    const request = await apiContext(playwright, baseURL!);
+    const swaggerUi = await request.get('/swagger-ui/index.html');
+    expect(swaggerUi.status()).toBe(200);
+
+    const apiDocs = await request.get('/v3/api-docs');
+    expect(apiDocs.status()).toBe(200);
+    const spec = await apiDocs.json();
+    expect(spec.openapi).toMatch(/^3\./);
+    expect(spec.paths['/api/v1/auth/otp/send']).toBeTruthy();
+    expect(spec.paths['/api/v1/auth/otp/verify']).toBeTruthy();
+    expect(spec.paths['/api/v1/auth/register']).toBeTruthy();
+    expect(spec.paths['/api/v1/auth/me']).toBeTruthy();
+    expect(spec.paths['/api/v1/auth/logout']).toBeTruthy();
+  });
+
   test('the seed fixtures hold the four accounts of the demo dealership', async ({ playwright, baseURL }) => {
     const request = await apiContext(playwright, baseURL!);
     const accounts = [

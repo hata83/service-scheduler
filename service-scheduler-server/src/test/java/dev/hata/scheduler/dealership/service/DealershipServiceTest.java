@@ -60,7 +60,7 @@ class DealershipServiceTest {
 
         assertThat(limits.otpSendPerPhonePurpose()).isEqualTo(7);
         assertThat(limits.otpSendPerIp()).isEqualTo(60);
-        assertThat(limits.otpVerifyPerIp()).isEqualTo(50); // default fallback
+        assertThat(limits.otpVerifyPerIp()).isEqualTo(50);
     }
 
     @Test

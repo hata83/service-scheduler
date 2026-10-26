@@ -9,19 +9,18 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 /**
- * The {@code customers} profile row. A customer owns one profile that carries
- * the first and last names (design D4).
+ * The centralized {@code profiles} row. Every user across all four roles
+ * ({@code CUSTOMER}, {@code ADMIN}, {@code MANAGER}, {@code TECHNICIAN}) owns
+ * one centralized profile that carries the first and last names and locale
+ * (design D4/D13).
  */
 @Entity
-@Table(name = "customers")
+@Table(name = "profiles")
 public class CustomerProfile {
 
     @Id
     @Column(name = "user_id", nullable = false)
     private UUID userId;
-
-    @Column(name = "dealership_id")
-    private UUID dealershipId;
 
     @Column(name = "first_name", nullable = false)
     private String firstName;
@@ -29,7 +28,7 @@ public class CustomerProfile {
     @Column(name = "last_name", nullable = false)
     private String lastName;
 
-    @Column(name = "locale")
+    @Column(name = "locale", nullable = false)
     private String locale;
 
     @Column(name = "created_at", nullable = false)
@@ -41,11 +40,10 @@ public class CustomerProfile {
     public CustomerProfile() {}
 
     /**
-     * Fills the row for a new customer profile.
+     * Fills the row for a new centralized user profile.
      */
-    public void assign(UUID userId, UUID dealershipId, String firstName, String lastName) {
+    public void assign(UUID userId, String firstName, String lastName) {
         this.userId = userId;
-        this.dealershipId = dealershipId;
         this.firstName = firstName;
         this.lastName = lastName;
         this.locale = "en_US";
@@ -65,10 +63,6 @@ public class CustomerProfile {
 
     public UUID getUserId() {
         return userId;
-    }
-
-    public UUID getDealershipId() {
-        return dealershipId;
     }
 
     public String getFirstName() {

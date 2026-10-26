@@ -233,9 +233,12 @@ TECHNICIAN cannot:
 ### 4.1 Entity Relationship
 
 ```
-USERS (1) ---- (1) CUSTOMERS [role=CUSTOMER, phone-based OTP]
-USERS (1) ---- (1) TECHNICIANS [role=TECHNICIAN]
+USERS (1) ---- (1) PROFILES [centralized first_name, last_name, locale for all 4 roles]
+PROFILES (1) ---- (0..1) EMPLOYEES [employee_id, role IN (ADMIN, MANAGER, TECHNICIAN), dealership_id]
+EMPLOYEES (1) ---- (0..1) TECHNICIANS [role=TECHNICIAN, career level, is_available]
+TECHNICIANS (1) ---- (N) TECHNICIAN_SKILLS [skill code + skill proficiency level]
 
+DEALERSHIPS (1) ---- (N) EMPLOYEES [local MANAGER and TECHNICIAN; global ADMIN has dealership_id=NULL]
 DEALERSHIPS (1) ---- (N) VEHICLES [brand, model, year, vehicle_type metadata - no VIN]
 DEALERSHIPS (1) ---- (N) WORKSHOP_BAYS [bay_name, bay_types[]]
 DEALERSHIPS (1) ---- (N) SERVICE_TYPES
@@ -260,15 +263,14 @@ The PostgreSQL 16 schema enforces concurrency, integrity, and auditability at th
 
 #### 4.2.1 `users` Table
 
-Identity and Access Management credentials and authorization roles:
+Global Identity and Access Management credentials and account type (`CUSTOMER` or `EMPLOYEE`):
 
 ```sql
 CREATE TABLE users (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   phone           VARCHAR(30) UNIQUE NOT NULL,
   email           VARCHAR(255),
-  role            VARCHAR(20) NOT NULL CHECK (role IN ('CUSTOMER','MANAGER','TECHNICIAN','ADMIN')),
-  dealership_id   UUID REFERENCES dealerships(id),
+  type            VARCHAR(20) NOT NULL CHECK (type IN ('CUSTOMER','EMPLOYEE')),
   is_active       BOOLEAN NOT NULL DEFAULT TRUE,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -279,39 +281,37 @@ CREATE TABLE users (
 
 | Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| `id` | UUID | No | `gen_random_uuid()` | Primary key. Unique user identifier. |
+| `id` | UUID | No | `gen_random_uuid()` | Primary key. Unique global user identifier. |
 | `phone` | VARCHAR(30) | No | None | Unique phone number. Primary login identifier and OTP recipient. |
 | `email` | VARCHAR(255) | Yes | None | Optional email address for receipts and notifications. |
-| `role` | VARCHAR(20) | No | None | Authorization role: `CUSTOMER`, `MANAGER`, `TECHNICIAN`, `ADMIN`. |
-| `dealership_id` | UUID | Yes | None | Scoped dealership FK. NULL for global `ADMIN` and self-registered `CUSTOMER`. |
+| `type` | VARCHAR(20) | No | None | Account classification: `CUSTOMER` or `EMPLOYEE` (staff role lives in `employees.role`). |
 | `is_active` | BOOLEAN | No | `TRUE` | Account active status. Inactive accounts cannot log in. |
 | `created_at` | TIMESTAMPTZ | No | `NOW()` | Record creation timestamp. |
 | `updated_at` | TIMESTAMPTZ | No | `NOW()` | Record last modification timestamp. |
 | `created_by` | UUID | Yes | None | Creator user reference. |
 | `updated_by` | UUID | Yes | None | Updater user reference. |
 
-**Taxonomy — User Roles:**
+**Taxonomy — Account Types & Authorization Roles:**
 
-| Role | Scope | Description |
-|---|---|---|
-| `ADMIN` | System & All Dealerships | System administrator. Holds all manager privileges across dealerships and manages dealerships, global settings, and staff. |
-| `MANAGER` | Assigned Dealership | Dealership staff. Full operational authority over appointments, walk-in customer registration, bays, technicians, check-in, and schedules. |
-| `TECHNICIAN` | Assigned Jobs | Workshop technician. Views assigned jobs, updates execution status, and logs technical inspection notes. |
-| `CUSTOMER` | Own Records | Vehicle owner. Self-registers, books appointments, reviews cost estimates, cancels own appointments before check-in. |
+| `users.type` | `employees.role` | Scope | Description |
+|---|---|---|---|
+| `EMPLOYEE` | `ADMIN` | System & Global | Global employee (`employees.dealership_id IS NULL`). Holds all manager privileges across dealerships and manages dealerships, global settings, and staff. |
+| `EMPLOYEE` | `MANAGER` | Local Dealership | Dealership employee (`employees.dealership_id IS NOT NULL`). Full operational authority over appointments, bays, technicians, check-in, and schedules at the assigned dealership. |
+| `EMPLOYEE` | `TECHNICIAN` | Local Dealership | Workshop technician (`employees.dealership_id IS NOT NULL`) with a career `level` in `technicians` and multi-skill proficiency rows in `technician_skills`. |
+| `CUSTOMER` | *(none)* | Global (All Dealerships) | Vehicle owner with a centralized profile in `profiles`. Self-registers globally, selects any dealership to book appointments, and reviews estimates. |
 
 ---
 
-#### 4.2.2 `customers` Table
+#### 4.2.2 `profiles` Table
 
-Customer profiles linked to IAM identities:
+Centralized personal profile attributes for all four roles (`CUSTOMER`, `ADMIN`, `MANAGER`, `TECHNICIAN`), enabling uniform profile lookup and updates:
 
 ```sql
-CREATE TABLE customers (
+CREATE TABLE profiles (
   user_id             UUID PRIMARY KEY REFERENCES users(id),
-  dealership_id       UUID REFERENCES dealerships(id),
   first_name          VARCHAR(100) NOT NULL,
   last_name           VARCHAR(100) NOT NULL,
-  locale              VARCHAR(10) DEFAULT 'en_US',
+  locale              VARCHAR(10) NOT NULL DEFAULT 'en_US',
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by          UUID REFERENCES users(id),
@@ -322,10 +322,43 @@ CREATE TABLE customers (
 | Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
 | `user_id` | UUID | No | None | Primary key referencing `users(id)`. |
-| `dealership_id` | UUID | Yes | None | Preferred or registering dealership FK. Cached for fast dealership queries. |
-| `first_name` | VARCHAR(100) | No | None | Customer given name. |
-| `last_name` | VARCHAR(100) | No | None | Customer family name. |
-| `locale` | VARCHAR(10) | Yes | `'en_US'` | Preferred language and formatting locale (e.g., `en_US`, `vi_VN`). |
+| `first_name` | VARCHAR(100) | No | None | User given name. |
+| `last_name` | VARCHAR(100) | No | None | User family name. |
+| `locale` | VARCHAR(10) | No | `'en_US'` | Preferred language and formatting locale (e.g., `en_US`, `vi_VN`). |
+| `created_at` | TIMESTAMPTZ | No | `NOW()` | Record creation timestamp. |
+| `updated_at` | TIMESTAMPTZ | No | `NOW()` | Record last modification timestamp. |
+| `created_by` | UUID | Yes | None | Creator user reference. |
+| `updated_by` | UUID | Yes | None | Updater user reference. |
+
+---
+
+#### 4.2.2b `employees` Table
+
+Base employee abstraction for `ADMIN`, `MANAGER`, and `TECHNICIAN` roles, enforcing global scope for `ADMIN` and local dealership scope for `MANAGER` and `TECHNICIAN`:
+
+```sql
+CREATE TABLE employees (
+  user_id             UUID PRIMARY KEY REFERENCES profiles(user_id),
+  employee_id         VARCHAR(50) UNIQUE NOT NULL,
+  role                VARCHAR(20) NOT NULL CHECK (role IN ('ADMIN','MANAGER','TECHNICIAN')),
+  dealership_id       UUID REFERENCES dealerships(id),
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by          UUID REFERENCES users(id),
+  updated_by          UUID REFERENCES users(id),
+  CONSTRAINT chk_employee_dealership_scope CHECK (
+    (role = 'ADMIN' AND dealership_id IS NULL) OR
+    (role IN ('MANAGER','TECHNICIAN') AND dealership_id IS NOT NULL)
+  )
+);
+```
+
+| Column | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| `user_id` | UUID | No | None | Primary key referencing `profiles(user_id)`. |
+| `employee_id` | VARCHAR(50) | No | None | Unique staff badge or employee identifier (e.g., `ADM-0001`, `MGR-0001`, `TEC-0001`). |
+| `role` | VARCHAR(20) | No | None | Employee role: `ADMIN`, `MANAGER`, or `TECHNICIAN`. |
+| `dealership_id` | UUID | Yes | None | `NULL` for global `ADMIN`. `NOT NULL` for local `MANAGER` and `TECHNICIAN`. |
 | `created_at` | TIMESTAMPTZ | No | `NOW()` | Record creation timestamp. |
 | `updated_at` | TIMESTAMPTZ | No | `NOW()` | Record last modification timestamp. |
 | `created_by` | UUID | Yes | None | Creator user reference. |
@@ -335,15 +368,13 @@ CREATE TABLE customers (
 
 #### 4.2.3 `technicians` Table
 
-Workshop technician staffing records:
+Workshop technician specialization extending `employees` with overall career certification grade and shift availability:
 
 ```sql
 CREATE TABLE technicians (
-  user_id             UUID PRIMARY KEY REFERENCES users(id),
-  dealership_id       UUID NOT NULL REFERENCES dealerships(id),
-  employee_id         VARCHAR(50) UNIQUE NOT NULL,
-  first_name          VARCHAR(100) NOT NULL,
-  last_name           VARCHAR(100) NOT NULL,
+  user_id             UUID PRIMARY KEY REFERENCES employees(user_id),
+  level               VARCHAR(20) NOT NULL
+                         CHECK (level IN ('TRAINEE','JUNIOR','TECHNICIAN','SENIOR','MASTER')),
   is_available        BOOLEAN NOT NULL DEFAULT TRUE,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -354,11 +385,8 @@ CREATE TABLE technicians (
 
 | Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| `user_id` | UUID | No | None | Primary key referencing `users(id)`. |
-| `dealership_id` | UUID | No | None | Dealership FK. |
-| `employee_id` | VARCHAR(50) | No | None | Unique dealership staff identifier or badge number. |
-| `first_name` | VARCHAR(100) | No | None | Technician given name. |
-| `last_name` | VARCHAR(100) | No | None | Technician family name. |
+| `user_id` | UUID | No | None | Primary key referencing `employees(user_id)`. |
+| `level` | VARCHAR(20) | No | None | Overall technician career grade: `TRAINEE`, `JUNIOR`, `TECHNICIAN`, `SENIOR`, `MASTER`. |
 | `is_available` | BOOLEAN | No | `TRUE` | Operational shift availability toggle. If false, excluded from slot grid matching. |
 | `created_at` | TIMESTAMPTZ | No | `NOW()` | Record creation timestamp. |
 | `updated_at` | TIMESTAMPTZ | No | `NOW()` | Record last modification timestamp. |
@@ -374,7 +402,11 @@ Multi-skill qualifications and proficiency levels per technician:
 ```sql
 CREATE TABLE technician_skills (
   technician_id   UUID NOT NULL REFERENCES technicians(user_id),
-  skill           VARCHAR(30) NOT NULL,
+  skill           VARCHAR(30) NOT NULL CHECK (skill IN (
+                    'ENGINE','TRANSMISSION','ELECTRICAL_GENERAL','EV_SYSTEMS',
+                    'ADAS_CALIBRATION','DIAGNOSTICIAN','BRAKES','ALIGNMENT',
+                    'BODYWORK','WARRANTY_SPECIALIST'
+                  )),
   level           VARCHAR(20) NOT NULL
                      CHECK (level IN ('TRAINEE','JUNIOR','TECHNICIAN','SENIOR','MASTER')),
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -410,15 +442,17 @@ CREATE TABLE technician_skills (
 | `BODYWORK` | Bodywork & Paint | Structural alignment, panel replacement, paint blending | `BODYWORK_REPAIR` |
 | `WARRANTY_SPECIALIST` | Warranty & Recall | OEM warranty documentation, recall campaign execution | `WARRANTY_RECALL` |
 
-**Taxonomy — Skill Levels:**
+**Taxonomy — Technician Career Grades (`technicians.level`) & Skill Proficiency Levels (`technician_skills.level`):**
 
-| Level Rank | Level Code | Capabilities | Supervised? |
-|---|---|---|---|
-| 1 | `TRAINEE` | Apprentice. Basic maintenance under direct supervision. | Yes |
-| 2 | `JUNIOR` | Certified on routine service. Standard parts replacement. | Periodic |
-| 3 | `TECHNICIAN` | Fully qualified journeyman. Independent diagnostic and repair. | No |
-| 4 | `SENIOR` | Advanced specialist. Complex diagnostics and major overhauls. | No |
-| 5 | `MASTER` | Master technician. Technical lead, sign-off on major structural work. | No |
+Each technician carries an overall career grade in `technicians.level` (workshop authority and supervision tier) and holds multiple domain competencies in `technician_skills`, each with its own proficiency rank (`technician_skills.level`):
+
+| Level Rank | Level Code | Career Grade (`technicians.level`) | Domain Skill Proficiency (`technician_skills.level`) | Supervised? |
+|---|---|---|---|---|
+| 1 | `TRAINEE` | Apprentice technician in training | Basic maintenance and inspection under direct mentor supervision | Yes |
+| 2 | `JUNIOR` | Junior maintenance technician | Certified for routine preventive maintenance and standard parts replacement | Periodic |
+| 3 | `TECHNICIAN` | Certified line technician (journeyman) | Independent fault diagnosis, mechanical repair, and standard warranty work | No |
+| 4 | `SENIOR` | Senior specialist technician | Complex subsystem diagnostics, high-voltage EV, and major assembly overhauls | No |
+| 5 | `MASTER` | Master technician / shop foreman | Multi-system technical lead, sign-off authority on structural and recall work | No |
 
 ---
 

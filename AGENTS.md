@@ -80,6 +80,9 @@ npm install -g @fission-ai/openspec
 npx skills add affaan-m/ecc -s agent-architecture-audit -y --agent '*'
 npx skills add affaan-m/ecc -s verification-loop -y --agent '*'
 npx skills add affaan-m/ecc -s e2e-testing -y --agent '*'
+npx skills add affaan-m/ecc -s springboot-patterns -y --agent '*'
+npx skills add affaan-m/ecc -s java-coding-standards -y --agent '*'
+npx skills add affaan-m/ecc -s vue-patterns -y --agent '*'
 git clone https://github.com/tt-a1i/archify ~/.agents/skills/archify
 git clone https://github.com/alibaba/open-code-review ~/.agents/skills/open-code-review
 git clone https://github.com/langchain-ai/openwiki ~/.agents/skills/openwiki
@@ -220,21 +223,13 @@ These rules shape every code change:
    - `handler/` — event handlers and notification listeners.
 
    One feature package must not import another feature package. Put shared logic, common configuration, exception handling, and cross-feature decoupling ports in `common/`.
-   Controllers only reach the service layer. Controllers must not access repositories directly. ArchUnit enforces every rule.
-
-3. **Dynamic Dealership Features.** Store operational configuration in `dealerships.features` JSONB. If absent or invalid, fallback to default configuration from config.
-
-4. **Java 25 Virtual Threads.** Enable with `spring.threads.virtual.enabled=true`. Do not use `synchronized` in hot paths — use `ReentrantLock` to prevent virtual thread pinning.
-
-5. **Java constraint evaluation for service constraints.** Use pure Java `ServiceConstraintEvaluator` backed by relational metadata (`allowed_bay_types`, `service_type_technician_requirements`) for all service type constraint evaluation. Do not introduce external native binary rule engines.
-
-6. **PostgreSQL EXCLUDE for booking overlap.** The `EXCLUDE USING gist` constraints on `service_jobs` (workshop bays), `appointments` (vehicle VIN), and `job_technician_assignments` (technicians) are the booking safety gates. Do not add redundant application-level locks. Trust the database constraints.
-
-7. **Transactional Outbox.** Write `OUTBOX_EVENTS` in the same transaction as the appointment mutation. Use `@TransactionalEventListener(AFTER_COMMIT)` for SSE and webhook dispatch. Never fire notifications before commit.
+   Controllers only reach the service layer. Controllers must not access repositories directly. Service classes only receive typed DTO requests and primitives. They return typed DTO responses. Services never import `jakarta.servlet` or `javax.servlet` types. ArchUnit enforces every rule.
 
 8. **Idempotency keys required.** All write endpoints must check `X-Idempotency-Key` before processing. Reject requests without this header with HTTP 400.
 
 9. **OpenAPI 3.1 specification.** All endpoints must have SpringDoc annotations. All error responses must use `application/problem+json` (RFC 7807).
+
+11. **Coding Standards and Pattern Delegation.** Load Spring Boot patterns and Java standards from ECC (`.agents/skills/springboot-patterns` and `.agents/skills/java-coding-standards`) for Java and Spring Boot backend development. Frontend code follows `.agents/skills/vue-patterns`. Always run Spotless, Checkstyle, and PMD before completing tasks.
 
 ---
 
@@ -305,7 +300,7 @@ npx --yes @usebruno/cli@2.14.1 run src/test/bruno --env local --disable-cookies
 | Flyway | 10+ | Schema migrations |
 | Constraint Evaluator | Pure Java | Spring service, relational metadata, microsecond latency |
 | Resilience4j | 2.x | Rate limiting, retry, circuit breaker |
-| SpringDoc | 2.x | OpenAPI 3.1 generation |
+| SpringDoc | 3.x | OpenAPI 3.1 generation |
 | Micrometer | 1.14+ | Metrics |
 | Logstash Encoder | 8.x | Structured JSON logging |
 | PostgreSQL | 16+ | The only database. Docker Compose for dev, Testcontainers for CI |
@@ -430,17 +425,6 @@ Fix every critical and high finding. Repeat from preview until a pass reports no
 Document every review run in `openspec/changes/<change-slug>/review.md`. Include finding lists, severity ranks, status results, reproduction steps, and re-check proofs.
 All code reviews, Bruno integration tests, and Playwright E2E tests must pass. If any check fails, return to the loop (`code → format → test → review → fix → code → ...`).
 
-### `copilot-pr-review` (Cloud GitHub Copilot Review)
-
-GitHub Copilot agent reviews pull requests on GitHub.com.
-Configure `.github/copilot-instructions.md` and `.github/workflows/copilot-setup-steps.yml`.
-The cloud Copilot agent posts inline review comments on code files in the pull request diff.
-Fetch cloud review comments locally:
-```sh
-gh api repos/:owner/:repo/pulls/:number/comments
-```
-The local agent fixes each finding, tests it, documents it in `openspec/changes/<change-slug>/review.md`, and pushes the fix.
-
 ### `agent-architecture-audit` (ECC)
 
 Dispatch the `architect` subagent from ECC at States 3 and 4 (before implementation starts). It checks:
@@ -457,6 +441,18 @@ npx skills add affaan-m/ecc -s agent-architecture-audit
 ### `verification-loop` (ECC)
 
 The verification loop skill enforces the testing ladder from Section 5. Load it before State 4 starts.
+
+### `springboot-patterns` (ECC)
+
+Enforce Spring Boot architecture patterns: REST API design, layered controller-service-repository structure, data access, validation, exception handling, and logging.
+
+### `java-coding-standards` (ECC)
+
+Enforce Spring Boot and Java coding standards: naming conventions, immutability, Optional discipline, stream usage, typed DTOs, and package layouts.
+
+### `vue-patterns` (ECC)
+
+Enforce Vue 3 Composition API patterns, Pinia state stores, Vue Router navigation, component decoupling, and TypeScript type safety.
 
 ### `openwiki` (Code Wiki)
 

@@ -5,7 +5,6 @@ import java.util.UUID;
 import dev.hata.scheduler.common.exception.AuthException;
 import dev.hata.scheduler.common.port.DealershipFeaturesProvider;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -18,26 +17,10 @@ public class RateLimitService {
 
     private final WindowCounter counter;
     private final DealershipFeaturesProvider dealershipFeatures;
-    private final RateLimitProperties properties;
 
-    public RateLimitService(
-            WindowCounter counter, DealershipFeaturesProvider dealershipFeatures, RateLimitProperties properties) {
+    public RateLimitService(WindowCounter counter, DealershipFeaturesProvider dealershipFeatures) {
         this.counter = counter;
         this.dealershipFeatures = dealershipFeatures;
-        this.properties = properties;
-    }
-
-    /**
-     * Extracts caller client IP respecting configured trustForwardedFor policy.
-     */
-    public String clientIp(HttpServletRequest request) {
-        if (properties.trustForwardedFor()) {
-            String forwarded = request.getHeader("X-Forwarded-For");
-            if (forwarded != null && !forwarded.isBlank()) {
-                return forwarded.split(",")[0].trim();
-            }
-        }
-        return request.getRemoteAddr();
     }
 
     /**

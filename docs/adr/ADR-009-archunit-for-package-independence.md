@@ -27,10 +27,13 @@ Each feature package holds nested packages:
 - `event/` (domain events)
 - `handler/` (event listeners)
 
-The `ArchitectureTest` class enforces three rules with ArchUnit:
+The `ArchitectureTest` class enforces six rules with ArchUnit:
 1. Feature packages must not import other feature packages.
-2. The `common` package must not import any feature package.
-3. Controllers and filters in `controller/` only reach the service layer (`controller`, `service`, `dto`, `event`, `model`, `exception`, `common`). They never access repositories directly.
+2. Feature packages must not import `infra`.
+3. The `common` package must not import any feature package or `infra`.
+4. The `infra` package must not import any feature package.
+5. Controllers in `controller/` only reach the service layer (`controller`, `service`, `dto`, `event`, `model`, `exception`, `common`). They never access repositories directly.
+6. Service classes in `service/` never import `jakarta.servlet` or `javax.servlet` types.
 
 ---
 

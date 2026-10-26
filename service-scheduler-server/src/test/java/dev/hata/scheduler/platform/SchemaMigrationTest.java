@@ -76,35 +76,45 @@ class SchemaMigrationTest {
     @Test
     void seedCountsMatchTheFourAccountContract() {
         Integer users = jdbc.queryForObject("SELECT count(*) FROM users", Integer.class);
+        Integer profiles = jdbc.queryForObject("SELECT count(*) FROM profiles", Integer.class);
         Integer dealerships = jdbc.queryForObject("SELECT count(*) FROM dealerships", Integer.class);
-        Integer customers = jdbc.queryForObject("SELECT count(*) FROM customers", Integer.class);
+        Integer employees = jdbc.queryForObject("SELECT count(*) FROM employees", Integer.class);
         Integer technicians = jdbc.queryForObject("SELECT count(*) FROM technicians", Integer.class);
         Integer skills = jdbc.queryForObject("SELECT count(*) FROM technician_skills", Integer.class);
 
         assertThat(users).isEqualTo(4);
+        assertThat(profiles).isEqualTo(4);
         assertThat(dealerships).isEqualTo(1);
-        assertThat(customers).isEqualTo(1);
+        assertThat(employees).isEqualTo(3);
         assertThat(technicians).isEqualTo(1);
-        assertThat(skills).isEqualTo(1);
+        assertThat(skills).isEqualTo(2);
     }
 
     @Test
-    void staffReferenceDemoDealershipWhileCustomerAndAdminAreGlobal() {
+    void centralizedProfilesAndEmployeeScopeTaxonomyResolve() {
         String demoDealershipId = jdbc.queryForObject(
                 "SELECT id::text FROM dealerships WHERE name = 'Hata Demo Service Center'", String.class);
-        String customerDealershipId = jdbc.queryForObject(
-                "SELECT u.dealership_id::text FROM users u WHERE u.phone = '+84900000004'", String.class);
         String adminDealershipId = jdbc.queryForObject(
-                "SELECT u.dealership_id::text FROM users u WHERE u.phone = '+84900000001'", String.class);
+                "SELECT e.dealership_id::text FROM employees e "
+                        + "JOIN users u ON u.id = e.user_id WHERE u.phone = '+84900000001'",
+                String.class);
         String managerDealershipId = jdbc.queryForObject(
-                "SELECT u.dealership_id::text FROM users u WHERE u.phone = '+84900000002'", String.class);
+                "SELECT e.dealership_id::text FROM employees e "
+                        + "JOIN users u ON u.id = e.user_id WHERE u.phone = '+84900000002'",
+                String.class);
         String techDealershipId = jdbc.queryForObject(
-                "SELECT u.dealership_id::text FROM users u WHERE u.phone = '+84900000003'", String.class);
+                "SELECT e.dealership_id::text FROM employees e "
+                        + "JOIN users u ON u.id = e.user_id WHERE u.phone = '+84900000003'",
+                String.class);
+        String techLevel = jdbc.queryForObject(
+                "SELECT t.level FROM technicians t "
+                        + "JOIN users u ON u.id = t.user_id WHERE u.phone = '+84900000003'",
+                String.class);
 
-        assertThat(customerDealershipId).isNull();
         assertThat(adminDealershipId).isNull();
         assertThat(managerDealershipId).isEqualTo(demoDealershipId);
         assertThat(techDealershipId).isEqualTo(demoDealershipId);
+        assertThat(techLevel).isEqualTo("SENIOR");
     }
 
     @Test
@@ -116,10 +126,13 @@ class SchemaMigrationTest {
     }
 
     @Test
-    void phonesMapToThePinnedRoles() {
-        List<String> roles = jdbc.queryForList("SELECT role FROM users ORDER BY phone", String.class);
+    void phonesMapToThePinnedTypesAndEmployeeRoles() {
+        List<String> userTypes = jdbc.queryForList("SELECT type FROM users ORDER BY phone", String.class);
+        List<String> employeeRoles = jdbc.queryForList(
+                "SELECT e.role FROM employees e JOIN users u ON u.id = e.user_id ORDER BY u.phone", String.class);
 
-        assertThat(roles).containsExactly("ADMIN", "MANAGER", "TECHNICIAN", "CUSTOMER");
+        assertThat(userTypes).containsExactly("EMPLOYEE", "EMPLOYEE", "EMPLOYEE", "CUSTOMER");
+        assertThat(employeeRoles).containsExactly("ADMIN", "MANAGER", "TECHNICIAN");
     }
 
     private record BeginSchemaHistoryRow(String version, String description, boolean success) {}

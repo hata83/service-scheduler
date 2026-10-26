@@ -1,10 +1,13 @@
 # ─── Agent skills and workflows ───────────────────────────────────────────────
 # Never commit .agents/ to Git. Skills are local-only.
 .agents/
+agent/
+skills-lock.json
 
 # ─── Gradle ───────────────────────────────────────────────────────────────────
 .gradle/
 **/build/
+**/bin/
 !**/src/main/**/build/
 !**/src/test/**/build/
 

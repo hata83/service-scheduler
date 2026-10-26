@@ -1,12 +1,15 @@
 package dev.hata.scheduler.auth.service;
 
-import java.time.Duration;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
+import dev.hata.scheduler.auth.dto.AuthResponse;
+import dev.hata.scheduler.auth.dto.AuthSession;
+import dev.hata.scheduler.auth.dto.IdentityResponse;
+import dev.hata.scheduler.auth.dto.OtpSendResponse;
+import dev.hata.scheduler.auth.dto.ProfilePatchRequest;
+import dev.hata.scheduler.auth.dto.RegisterRequest;
 import dev.hata.scheduler.auth.model.User;
 import dev.hata.scheduler.auth.repository.UserRepository;
 import dev.hata.scheduler.common.exception.AuthException;
@@ -15,21 +18,20 @@ import dev.hata.scheduler.common.idempotency.IdempotencyStore;
 import dev.hata.scheduler.common.otp.OtpService;
 import dev.hata.scheduler.common.otp.OtpType;
 import dev.hata.scheduler.common.port.CustomerProfileProvider;
+import dev.hata.scheduler.common.port.TechnicianProfileProvider;
 import dev.hata.scheduler.common.ratelimit.RateLimitService;
 import dev.hata.scheduler.common.security.AuthPrincipal;
 import dev.hata.scheduler.common.security.JwtService;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * The auth use cases: OTP issuance, login, registration, identity and logout
- * (design D5/D7/D11). Every write runs the ADR-008 idempotency replay first,
- * then the ADR-007 rate limit, then the business rules.
+ * The auth use cases: OTP issuance, login, registration, and centralized profile
+ * management (design D4/D5/D7/D11/D13). Methods accept input DTOs and value types,
+ * returning domain DTO responses without servlet coupling.
  */
 @Service
 public class AuthService {
@@ -41,6 +43,7 @@ public class AuthService {
     private final JwtService jwt;
     private final UserRepository users;
     private final CustomerProfileProvider profiles;
+    private final TechnicianProfileProvider employees;
     private final IdempotencyService idempotency;
     private final RateLimitService rateLimits;
 
@@ -49,122 +52,133 @@ public class AuthService {
             JwtService jwt,
             UserRepository users,
             CustomerProfileProvider profiles,
+            TechnicianProfileProvider employees,
             IdempotencyService idempotency,
             RateLimitService rateLimits) {
         this.otp = otp;
         this.jwt = jwt;
         this.users = users;
         this.profiles = profiles;
+        this.employees = employees;
         this.idempotency = idempotency;
         this.rateLimits = rateLimits;
     }
 
     /**
      * Issues a purpose-scoped OTP and publishes an event for channel dispatch (design D7).
-     * A replayed idempotency key returns the cached 202 body and dispatches nothing.
+     * A replayed idempotency key returns the cached response and dispatches nothing.
      */
-    public Result sendOtp(String phone, String typeWire, String idempotencyKey, HttpServletRequest request) {
+    public OtpSendResponse sendOtp(String phone, String typeWire, String clientIp, String idempotencyKey) {
         String slot = idempotency.slot("otp-send", phone, idempotencyKey);
         Optional<IdempotencyStore.CachedResponse> cached = idempotency.load(slot);
         if (cached.isPresent()) {
-            return Result.fromCached(cached.get());
+            try {
+                return MAPPER.readValue(cached.get().body(), OtpSendResponse.class);
+            } catch (Exception ignored) {
+                // fallback to re-evaluating on deserialization failure
+            }
         }
         requirePhone(phone);
         OtpType type = OtpType.fromWire(typeWire);
-        String ip = rateLimits.clientIp(request);
-
         UUID dealershipId = findDealershipId(phone);
-        rateLimits.checkOtpSend(phone, type.value(), ip, dealershipId);
+        rateLimits.checkOtpSend(phone, type.value(), clientIp, dealershipId);
 
         String code = otp.generateAndSend(phone, type);
-
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("phone", phone);
-        body.put("type", type.name());
-        if (otp.isEchoEnabled()) {
-            body.put("otpCode", code);
+        OtpSendResponse response = new OtpSendResponse(phone, type.name(), otp.isEchoEnabled() ? code : null);
+        try {
+            idempotency.store(
+                    slot, new IdempotencyStore.CachedResponse(202, MAPPER.writeValueAsString(response), null));
+        } catch (Exception ignored) {
+            // cache store failure does not fail business execution
         }
-        Result result = new Result(202, body, null);
-        idempotency.store(slot, result.toCached());
-        return result;
+        return response;
     }
 
     /**
-     * Logs in a seeded account. Verify never creates a user row (spec: login by verified OTP).
+     * Logs in an account by verified OTP. Verify never creates a user row (spec: login by verified OTP).
+     * When {@code users.type} is {@code CUSTOMER}, role is {@code CUSTOMER} and dealershipId is null;
+     * when {@code users.type} is {@code EMPLOYEE}, role and dealershipId resolve from {@code employees}.
      */
     @Transactional
-    public Result verifyOtp(String phone, String code, String idempotencyKey, HttpServletRequest request) {
+    public AuthSession verifyOtp(String phone, String code, String clientIp, String idempotencyKey) {
         String slot = idempotency.slot("otp-verify", phone, idempotencyKey);
         Optional<IdempotencyStore.CachedResponse> cached = idempotency.load(slot);
         if (cached.isPresent()) {
-            return Result.fromCached(cached.get());
+            return readCachedSession(cached.get());
         }
         requirePhone(phone);
-        String ip = rateLimits.clientIp(request);
-
         UUID dealershipId = findDealershipId(phone);
-        rateLimits.checkOtpVerify(ip, dealershipId);
+        rateLimits.checkOtpVerify(clientIp, dealershipId);
 
         Optional<User> found = users.findByPhone(phone);
         if (found.isEmpty()) {
-            otp.verify(phone, OtpType.LOGIN, code);
             throw new AuthException(
                     HttpStatus.UNAUTHORIZED,
-                    "Phone is not registered",
-                    "This phone has no account. Register the customer first, then log in.");
+                    "Account not found",
+                    "No account exists for this phone. Register first at POST /api/v1/auth/register.");
         }
         User user = found.get();
+
         if (!otp.verify(phone, OtpType.LOGIN, code)) {
             throw new AuthException(
                     HttpStatus.UNAUTHORIZED,
                     "OTP verification failed",
                     "The code is wrong, expired, or was issued for another purpose.");
         }
-        Result result = issueSession(user, 200);
-        idempotency.store(slot, result.toCached());
-        return result;
+
+        ResolvedScope scope = resolveScope(user);
+        AuthSession session = issueSession(user, scope.role(), scope.dealershipId());
+        cacheSession(slot, 200, session);
+        return session;
+    }
+
+    private ResolvedScope resolveScope(User user) {
+        if (User.TYPE_EMPLOYEE.equals(user.getType())) {
+            TechnicianProfileProvider.EmployeeView emp = employees
+                    .findByUserId(user.getId())
+                    .orElseThrow(() -> new AuthException(
+                            HttpStatus.UNAUTHORIZED,
+                            "Employee profile missing",
+                            "The employee account has no employee record."));
+            return new ResolvedScope(emp.role(), emp.dealershipId());
+        }
+        return new ResolvedScope(User.TYPE_CUSTOMER, null);
     }
 
     /**
-     * Creates the customer account and the login session in one call
-     * (design D11 / spec: one-shot registration).
-     * Customer accounts are global across dealerships (dealershipId is null).
+     * Creates the global customer account ({@code type = CUSTOMER}), centralized profile,
+     * and login session in one call (design D11).
      */
     @Transactional
-    public Result register(
-            String phone,
-            String firstName,
-            String lastName,
-            String code,
-            boolean roleSupplied,
-            String idempotencyKey,
-            HttpServletRequest request) {
-        String slot = idempotency.slot("register", phone, idempotencyKey);
+    public AuthSession register(RegisterRequest req, String clientIp, String idempotencyKey) {
+        String slot = idempotency.slot("register", req.phone(), idempotencyKey);
         Optional<IdempotencyStore.CachedResponse> cached = idempotency.load(slot);
         if (cached.isPresent()) {
-            return Result.fromCached(cached.get());
+            return readCachedSession(cached.get());
         }
-        requirePhone(phone);
-        if (roleSupplied) {
+        requirePhone(req.phone());
+        if (req.role() != null && !req.role().isBlank()) {
             throw new AuthException(
                     HttpStatus.FORBIDDEN,
                     "Role pinning",
                     "Registration always creates a CUSTOMER account and rejects a role field.");
         }
-        if (firstName == null || firstName.isBlank() || lastName == null || lastName.isBlank()) {
+        if (req.firstName() == null
+                || req.firstName().isBlank()
+                || req.lastName() == null
+                || req.lastName().isBlank()) {
             throw new AuthException(
                     HttpStatus.BAD_REQUEST, "Invalid request body", "The request needs a firstName and a lastName.");
         }
-        String ip = rateLimits.clientIp(request);
-        rateLimits.checkRegister(ip);
+        rateLimits.checkRegister(clientIp);
 
-        if (users.existsByPhone(phone)) {
+        if (users.existsByPhone(req.phone())) {
             throw new AuthException(
                     HttpStatus.CONFLICT,
                     "Phone already registered",
                     "This phone already belongs to an account. Use the login flow instead.");
         }
-        if (!otp.verify(phone, OtpType.REGISTER, code)) {
+        if (!otp.verify(req.phone(), OtpType.REGISTER, req.code())) {
             throw new AuthException(
                     HttpStatus.UNAUTHORIZED,
                     "OTP verification failed",
@@ -172,161 +186,143 @@ public class AuthService {
         }
 
         UUID userId = UUID.randomUUID();
-        User user = newUser(userId, phone, "CUSTOMER", null);
+        User user = newUser(userId, req.phone(), User.TYPE_CUSTOMER);
         users.save(user);
-        profiles.createProfile(userId, null, firstName.trim(), lastName.trim());
+        profiles.createProfile(userId, req.firstName().trim(), req.lastName().trim());
 
-        Result result = issueSession(user, 201);
-        idempotency.store(slot, result.toCached());
-        return result;
+        AuthSession session = issueSession(user, User.TYPE_CUSTOMER, null);
+        cacheSession(slot, 201, session);
+        return session;
     }
 
     /**
-     * Returns the caller identity (spec: session introspection).
+     * Returns the caller identity and centralized profile names (spec: session introspection).
      */
     @Transactional(readOnly = true)
-    public Map<String, Object> me(AuthPrincipal principal) {
+    public IdentityResponse me(AuthPrincipal principal) {
         User user = users.findById(principal.userId())
                 .orElseThrow(() ->
                         new AuthException(HttpStatus.UNAUTHORIZED, "Session invalid", "The session has no account."));
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("id", user.getId().toString());
-        body.put("role", user.getRole());
-        body.put("phone", user.getPhone());
-        body.put(
-                "dealershipId",
-                user.getDealershipId() == null ? null : user.getDealershipId().toString());
-        body.put("email", user.getEmail());
-        profiles.findByUserId(user.getId()).ifPresent(profile -> {
-            body.put("firstName", profile.firstName());
-            body.put("lastName", profile.lastName());
-        });
-        return body;
+        return buildIdentityResponse(user, principal.role(), principal.dealershipId());
     }
 
     /**
-     * Applies the editable profile fields (spec: profile edit after login).
-     * The phone never changes, and staff roles carry no editable name fields.
+     * Applies the editable profile fields via the centralized {@code profiles} table
+     * for all accounts ({@code CUSTOMER} and {@code EMPLOYEE}).
      */
     @Transactional
-    public Map<String, Object> patchMe(
-            AuthPrincipal principal,
-            String firstName,
-            String lastName,
-            String email,
-            boolean phoneSupplied,
-            String idempotencyKey) {
-        if (phoneSupplied) {
+    public IdentityResponse patchMe(AuthPrincipal principal, ProfilePatchRequest patch, String idempotencyKey) {
+        String slot = idempotency.slot("patch-me", principal.phone(), idempotencyKey);
+        Optional<IdempotencyStore.CachedResponse> cached = idempotency.load(slot);
+        if (cached.isPresent()) {
+            try {
+                return MAPPER.readValue(cached.get().body(), IdentityResponse.class);
+            } catch (Exception ignored) {
+                // fallback to re-evaluating on deserialization failure
+            }
+        }
+        if (patch.phone() != null) {
             throw new AuthException(
                     HttpStatus.BAD_REQUEST,
                     "Phone is not editable",
-                    "The phone number is the login identity and never changes.");
+                    "The phone is the login identity and never changes.");
         }
         User user = users.findById(principal.userId())
                 .orElseThrow(() ->
                         new AuthException(HttpStatus.UNAUTHORIZED, "Session invalid", "The session has no account."));
-        boolean staff = "CUSTOMER".equals(user.getRole()) || "TECHNICIAN".equals(user.getRole());
-        boolean namesSupplied = firstName != null || lastName != null;
-        if (namesSupplied && !staff) {
-            throw new AuthException(
-                    HttpStatus.BAD_REQUEST,
-                    "Names are not editable for this role",
-                    "Only a CUSTOMER or a TECHNICIAN can change the profile names.");
-        }
-        if (email != null) {
-            user.setEmail(email.trim());
+        if (patch.email() != null) {
+            user.setEmail(patch.email().trim());
             users.save(user);
         }
-        if (namesSupplied) {
+        if (patch.firstName() != null || patch.lastName() != null) {
             CustomerProfileProvider.ProfileView current = profiles.findByUserId(user.getId())
-                    .orElseThrow(() -> new AuthException(
-                            HttpStatus.NOT_FOUND, "Profile missing", "The account has no customer profile."));
-            String newFirst = firstName != null && !firstName.isBlank() ? firstName.trim() : current.firstName();
-            String newLast = lastName != null && !lastName.isBlank() ? lastName.trim() : current.lastName();
+                    .orElseThrow(() ->
+                            new AuthException(HttpStatus.NOT_FOUND, "Profile missing", "The account has no profile."));
+            String newFirst = resolveName(patch.firstName(), current.firstName());
+            String newLast = resolveName(patch.lastName(), current.lastName());
             profiles.updateNames(user.getId(), newFirst, newLast);
         }
-        return me(principal);
+        IdentityResponse response = buildIdentityResponse(user, principal.role(), principal.dealershipId());
+        try {
+            idempotency.store(
+                    slot, new IdempotencyStore.CachedResponse(200, MAPPER.writeValueAsString(response), null));
+        } catch (Exception ignored) {
+            // cache store failure does not fail business execution
+        }
+        return response;
     }
 
-    /**
-     * Builds the session cookie header.
-     */
-    public String sessionCookie(String token, Duration maxAge) {
-        return jwt.cookieName() + "=" + token + "; Path=/; HttpOnly; SameSite=Strict; Max-Age=" + maxAge.toSeconds();
+    private static String resolveName(String candidate, String fallback) {
+        return candidate != null && !candidate.isBlank() ? candidate.trim() : fallback;
     }
 
-    /**
-     * Stateless logout: client-side cookie clearing handles revocation.
-     */
-    public void logout(AuthPrincipal principal) {
-        // In a stateless JWT architecture, logout clears the cookie on the client.
-    }
-
-    /**
-     * Builds the cookie header that clears the session cookie.
-     */
-    public String clearedCookie() {
-        return jwt.cookieName() + "=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0";
-    }
-
-    private Result issueSession(User user, int status) {
-        JwtService.Issued issued = jwt.issue(
+    private IdentityResponse buildIdentityResponse(User user, String sessionRole, UUID sessionDealershipId) {
+        CustomerProfileProvider.ProfileView profile =
+                profiles.findByUserId(user.getId()).orElse(null);
+        return new IdentityResponse(
                 user.getId().toString(),
-                user.getRole(),
+                sessionRole,
                 user.getPhone(),
-                user.getDealershipId() == null ? null : user.getDealershipId().toString());
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("id", user.getId().toString());
-        body.put("role", user.getRole());
-        body.put("phone", user.getPhone());
-        body.put(
-                "dealershipId",
-                user.getDealershipId() == null ? null : user.getDealershipId().toString());
-        return new Result(status, body, sessionCookie(issued.token(), jwt.ttl()));
+                sessionDealershipId != null ? sessionDealershipId.toString() : null,
+                user.getEmail(),
+                profile != null ? profile.firstName() : null,
+                profile != null ? profile.lastName() : null);
+    }
+
+    private AuthSession readCachedSession(IdempotencyStore.CachedResponse cached) {
+        try {
+            AuthResponse authResponse = MAPPER.readValue(cached.body(), AuthResponse.class);
+            JwtService.Issued issued = new JwtService.Issued(cached.setCookie(), null, null);
+            return new AuthSession(authResponse, issued);
+        } catch (Exception ex) {
+            throw new AuthException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Idempotency replay failed",
+                    "Idempotency replay failed: " + ex.getMessage(),
+                    ex);
+        }
+    }
+
+    private void cacheSession(String slot, int status, AuthSession session) {
+        try {
+            String bodyJson = MAPPER.writeValueAsString(session.user());
+            idempotency.store(
+                    slot,
+                    new IdempotencyStore.CachedResponse(
+                            status, bodyJson, session.session().token()));
+        } catch (Exception ignored) {
+            // cache store failure does not fail business execution
+        }
+    }
+
+    private AuthSession issueSession(User user, String role, UUID activeDealershipId) {
+        String dealershipIdStr = activeDealershipId != null ? activeDealershipId.toString() : null;
+        JwtService.Issued issued = jwt.issue(user.getId().toString(), role, user.getPhone(), dealershipIdStr);
+        AuthResponse authResponse = new AuthResponse(user.getId(), role, user.getPhone(), activeDealershipId);
+        return new AuthSession(authResponse, issued);
     }
 
     private UUID findDealershipId(String phone) {
-        return users.findByPhone(phone).map(User::getDealershipId).orElse(null);
+        return users.findByPhone(phone)
+                .flatMap(user -> employees.findByUserId(user.getId()))
+                .map(TechnicianProfileProvider.EmployeeView::dealershipId)
+                .orElse(null);
     }
 
-    private void requirePhone(String phone) {
+    private static void requirePhone(String phone) {
         if (phone == null || !E164.matcher(phone).matches()) {
             throw new AuthException(
                     HttpStatus.BAD_REQUEST,
                     "Invalid phone number",
-                    "The phone number must use the E.164 format, for example +84900000004.");
+                    "The phone must be in E.164 format, for example +84900000004.");
         }
     }
 
-    private User newUser(UUID id, String phone, String role, UUID dealershipId) {
+    private User newUser(UUID id, String phone, String type) {
         User user = new User();
-        user.assign(id, phone, role, dealershipId);
+        user.assign(id, phone, type);
         return user;
     }
 
-    /**
-     * A response with its status, body and optional session cookie.
-     */
-    public record Result(int status, Map<String, Object> body, String setCookie) {
-
-        public static Result fromCached(IdempotencyStore.CachedResponse cached) {
-            Map<String, Object> body;
-            try {
-                body = MAPPER.readValue(cached.body(), new TypeReference<Map<String, Object>>() {});
-            } catch (Exception ignored) {
-                body = Map.of();
-            }
-            return new Result(cached.status(), body, cached.hasSetCookie() ? cached.setCookie() : null);
-        }
-
-        public IdempotencyStore.CachedResponse toCached() {
-            String raw;
-            try {
-                raw = MAPPER.writeValueAsString(body);
-            } catch (Exception ignored) {
-                raw = "{}";
-            }
-            return new IdempotencyStore.CachedResponse(status, raw, setCookie);
-        }
-    }
+    private record ResolvedScope(String role, UUID dealershipId) {}
 }

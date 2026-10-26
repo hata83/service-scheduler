@@ -42,27 +42,26 @@ The backend uses feature-based packages under `dev.hata.scheduler`. ArchUnit tes
 
 ```
 dev.hata.scheduler
-├── auth/                     # authentication feature
-│   ├── controller/           # REST endpoints and authentication filter
-│   ├── service/              # authentication workflows and token issuance
-│   ├── repository/           # user repository, OTP storage, and Redis session store
-│   ├── model/                # User entity, OtpPurpose, and AuthPrincipal
-│   ├── dto/                  # request and response records
-│   └── config/               # auth configuration properties
-├── customer/                 # customer feature: model/, repository/, service/
-├── dealership/               # dealership feature: model/, repository/, service/
+├── auth/                     # authentication feature: controller, service, repository, model, dto
+├── customer/                 # customer feature: model (CustomerProfile -> profiles), repository, service
+├── dealership/               # dealership feature: model (Dealership), repository, service
+├── resource/                 # resource feature: model (Employee, Technician, TechnicianSkill, SkillLevel), repository, service
+├── infra/                    # infrastructure: redis window counter, flyway migrations
 └── common/                   # shared kernel
-    ├── config/               # JSON reader, OpenAPI 3.1, and rate limit properties
-    ├── exception/            # RFC 7807 problem details and exception handlers
+    ├── filter/               # ClientIpResolver, AuthFilter, IdempotencyFilter
+    ├── security/             # JwtService, AuthPrincipal, JwtProperties
+    ├── otp/                  # OtpService, OtpStorage, OtpType, OtpProperties
+    ├── ratelimit/            # RateLimitService, RateLimitProperties
+    ├── idempotency/          # IdempotencyService, IdempotencyStore
+    ├── exception/            # RFC 7807 ApiProblem, AuthException, GlobalExceptionHandler
     ├── port/                 # cross-feature decoupling providers
-    ├── repository/           # shared Redis idempotency store and window counter
-    ├── web/                  # cross-cutting HTTP filters
     └── architecture/         # ArchUnit executable assertions
 ```
 
 - A feature package must not import another feature package.
 - The shared kernel `common` must not import a feature package.
 - Controllers only reach the service layer. They never access repositories directly.
+- Service classes never import servlet types (`jakarta.servlet.*`). Controllers handle HTTP serialization.
 
 See [`docs/adr/ADR-009-archunit-for-package-independence.md`](docs/adr/ADR-009-archunit-for-package-independence.md) for the decision and trade-offs.
 
@@ -216,10 +215,8 @@ The application starts on `http://localhost:8080`.
 |---|---|
 | `http://localhost:8080/swagger-ui.html` | Interactive Swagger UI API documentation |
 | `http://localhost:8080/v3/api-docs` | OpenAPI 3.1 schema (JSON) |
-| `http://localhost:8080/admin/` | Admin UI dashboard (system health, JVM metrics, traces, dealership features) |
-| `http://localhost:8080/actuator/health` | Health endpoint |
+| `http://localhost:8080/actuator/health` | Health endpoint (proves DB and Redis connectivity) |
 | `http://localhost:8080/actuator/prometheus` | Prometheus metrics |
-| `http://localhost:8080/actuator/httpexchanges` | HTTP request trace log |
 
 ### Interactive API Testing with Swagger UI
 

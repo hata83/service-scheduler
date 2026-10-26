@@ -2,9 +2,8 @@ package dev.hata.scheduler.auth.controller;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -14,13 +13,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.Map;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.UUID;
 
+import dev.hata.scheduler.auth.dto.AuthResponse;
+import dev.hata.scheduler.auth.dto.AuthSession;
+import dev.hata.scheduler.auth.dto.IdentityResponse;
+import dev.hata.scheduler.auth.dto.OtpSendResponse;
+import dev.hata.scheduler.auth.dto.ProfilePatchRequest;
+import dev.hata.scheduler.auth.dto.RegisterRequest;
 import dev.hata.scheduler.auth.service.AuthService;
 import dev.hata.scheduler.common.exception.AuthException;
 import dev.hata.scheduler.common.exception.GlobalExceptionHandler;
 import dev.hata.scheduler.common.filter.AuthFilter;
+import dev.hata.scheduler.common.filter.ClientIpResolver;
 import dev.hata.scheduler.common.security.AuthPrincipal;
+import dev.hata.scheduler.common.security.JwtService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +38,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -50,19 +60,29 @@ class AuthControllerTest {
     @Mock
     private AuthService auth;
 
+    @Mock
+    private JwtService jwt;
+
+    @Mock
+    private ClientIpResolver ipResolver;
+
     private MockMvc mvc;
 
     @BeforeEach
     void setUp() {
-        mvc = MockMvcBuilders.standaloneSetup(new AuthController(auth))
+        when(jwt.cookieName()).thenReturn("jwt");
+        when(jwt.ttl()).thenReturn(Duration.ofHours(8));
+        when(ipResolver.resolve(any())).thenReturn("127.0.0.1");
+
+        mvc = MockMvcBuilders.standaloneSetup(new AuthController(auth, jwt, ipResolver))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
 
     @Test
     void sendOtpReturns202() throws Exception {
-        when(auth.sendOtp(anyString(), anyString(), anyString(), any()))
-                .thenReturn(new AuthService.Result(202, Map.of("phone", "+84900000004", "otpCode", "483920"), null));
+        when(auth.sendOtp(eq("+84900000004"), eq("LOGIN"), eq("127.0.0.1"), eq("key-1")))
+                .thenReturn(new OtpSendResponse("+84900000004", "LOGIN", "483920"));
 
         mvc.perform(post("/api/v1/auth/otp/send")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -94,7 +114,7 @@ class AuthControllerTest {
 
     @Test
     void sendOtpRejectsAnUnknownType() throws Exception {
-        when(auth.sendOtp(anyString(), anyString(), anyString(), any()))
+        when(auth.sendOtp(anyString(), eq("NOPE"), anyString(), anyString()))
                 .thenThrow(new IllegalArgumentException("unknown OTP type"));
 
         mvc.perform(post("/api/v1/auth/otp/send")
@@ -107,15 +127,19 @@ class AuthControllerTest {
 
     @Test
     void verifyOtpReturnsTheSessionCookie() throws Exception {
-        when(auth.verifyOtp(anyString(), anyString(), anyString(), any()))
-                .thenReturn(new AuthService.Result(200, Map.of("role", "CUSTOMER"), "jwt=token; Path=/; HttpOnly"));
+        UUID userId = UUID.randomUUID();
+        AuthResponse response = new AuthResponse(userId, "CUSTOMER", "+84900000004", null);
+        JwtService.Issued issued =
+                new JwtService.Issued("token-xyz", "jti-1", Instant.now().plus(Duration.ofHours(8)));
+        when(auth.verifyOtp(eq("+84900000004"), eq("483920"), eq("127.0.0.1"), eq("key-2")))
+                .thenReturn(new AuthSession(response, issued));
 
         mvc.perform(post("/api/v1/auth/otp/verify")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("X-Idempotency-Key", "key-2")
                         .content("{\"phone\":\"+84900000004\",\"code\":\"483920\"}"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Set-Cookie", containsString("jwt=token")))
+                .andExpect(header().string("Set-Cookie", containsString("jwt=token-xyz")))
                 .andExpect(jsonPath("$.role").value("CUSTOMER"));
     }
 
@@ -129,80 +153,50 @@ class AuthControllerTest {
 
     @Test
     void registerReturns201() throws Exception {
-        when(auth.register(anyString(), anyString(), anyString(), anyString(), anyBoolean(), anyString(), any()))
-                .thenReturn(new AuthService.Result(201, Map.of("role", "CUSTOMER"), "jwt=token; Path=/; HttpOnly"));
+        UUID userId = UUID.randomUUID();
+        AuthResponse response = new AuthResponse(userId, "CUSTOMER", "+84900000999", null);
+        JwtService.Issued issued =
+                new JwtService.Issued("token-reg", "jti-2", Instant.now().plus(Duration.ofHours(8)));
+        when(auth.register(any(RegisterRequest.class), eq("127.0.0.1"), eq("key-3")))
+                .thenReturn(new AuthSession(response, issued));
 
         mvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("X-Idempotency-Key", "key-3")
                         .content(REGISTER_BODY))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Set-Cookie", containsString("jwt=token")));
+                .andExpect(header().string("Set-Cookie", containsString("jwt=token-reg")))
+                .andExpect(jsonPath("$.role").value("CUSTOMER"));
     }
 
     @Test
-    void registerForwardsTheRoleFlag() throws Exception {
-        when(auth.register(anyString(), anyString(), anyString(), anyString(), anyBoolean(), anyString(), any()))
-                .thenReturn(new AuthService.Result(201, Map.of("role", "CUSTOMER"), null));
+    void registerAnswers403ForARoleField() throws Exception {
+        when(auth.register(any(RegisterRequest.class), anyString(), anyString()))
+                .thenThrow(new AuthException(
+                        HttpStatus.FORBIDDEN, "Role pinning", "Registration always creates a CUSTOMER account."));
 
         mvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("X-Idempotency-Key", "key-3")
                         .content(REGISTER_WITH_ROLE))
-                .andExpect(status().isCreated());
-
-        verify(auth)
-                .register(
-                        anyString(),
-                        anyString(),
-                        anyString(),
-                        anyString(),
-                        org.mockito.ArgumentMatchers.eq(true),
-                        anyString(),
-                        any());
-    }
-
-    @Test
-    void registerRejectsAMissingIdempotencyKey() throws Exception {
-        mvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(REGISTER_BODY))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void registerAnswers403ForARoleField() throws Exception {
-        when(auth.register(anyString(), anyString(), anyString(), anyString(), anyBoolean(), anyString(), any()))
-                .thenThrow(new AuthException(
-                        org.springframework.http.HttpStatus.FORBIDDEN,
-                        "Role pinning",
-                        "Registration always creates a CUSTOMER account."));
-
-        mvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Idempotency-Key", "key-3")
-                        .content(REGISTER_BODY))
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
     }
 
     @Test
     void meReturnsTheIdentity() throws Exception {
-        when(auth.me(any())).thenReturn(Map.of("id", "id-1", "role", "CUSTOMER"));
+        IdentityResponse identity =
+                new IdentityResponse("id-1", "CUSTOMER", "+84900000004", null, "c@demo.vn", "My", "Nguyen");
+        when(auth.me(any())).thenReturn(identity);
 
         mvc.perform(get("/api/v1/auth/me").requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.role").value("CUSTOMER"));
+                .andExpect(jsonPath("$.role").value("CUSTOMER"))
+                .andExpect(jsonPath("$.firstName").value("My"));
     }
 
     @Test
     void meRejectsAMissingSession() throws Exception {
-        when(auth.me(any()))
-                .thenThrow(new AuthException(
-                        org.springframework.http.HttpStatus.UNAUTHORIZED,
-                        "No session",
-                        "The request carries no valid session cookie."));
-
         mvc.perform(get("/api/v1/auth/me"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
@@ -210,8 +204,9 @@ class AuthControllerTest {
 
     @Test
     void patchMeAppliesTheEditableFields() throws Exception {
-        when(auth.patchMe(any(), any(), any(), any(), anyBoolean(), anyString()))
-                .thenReturn(Map.of("email", "a@b.c"));
+        IdentityResponse updated =
+                new IdentityResponse("id-1", "CUSTOMER", "+84900000004", null, "a@b.c", "My", "Nguyen");
+        when(auth.patchMe(any(), any(ProfilePatchRequest.class), eq("key-4"))).thenReturn(updated);
 
         mvc.perform(patch("/api/v1/auth/me")
                         .requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal())
@@ -220,21 +215,6 @@ class AuthControllerTest {
                         .content("{\"firstName\":\"My\",\"lastName\":\"Nguyen\",\"email\":\"a@b.c\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("a@b.c"));
-    }
-
-    @Test
-    void patchMeForwardsThePhoneFlag() throws Exception {
-        when(auth.patchMe(any(), any(), any(), any(), anyBoolean(), anyString()))
-                .thenReturn(Map.of());
-
-        mvc.perform(patch("/api/v1/auth/me")
-                        .requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Idempotency-Key", "key-4")
-                        .content("{\"phone\":\"+84900000888\"}"))
-                .andExpect(status().isOk());
-
-        verify(auth).patchMe(any(), any(), any(), any(), org.mockito.ArgumentMatchers.eq(true), anyString());
     }
 
     @Test
@@ -247,8 +227,6 @@ class AuthControllerTest {
 
     @Test
     void logoutClearsTheCookie() throws Exception {
-        when(auth.clearedCookie()).thenReturn("jwt=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0");
-
         mvc.perform(post("/api/v1/auth/logout").requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal()))
                 .andExpect(status().isNoContent())
                 .andExpect(header().string("Set-Cookie", containsString("Max-Age=0")));
@@ -261,10 +239,6 @@ class AuthControllerTest {
 
     private static AuthPrincipal principal() {
         return new AuthPrincipal(
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000005"),
-                "CUSTOMER",
-                "+84900000004",
-                java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"),
-                "jti-1");
+                UUID.fromString("00000000-0000-0000-0000-000000000005"), "CUSTOMER", "+84900000004", null, "jti-1");
     }
 }

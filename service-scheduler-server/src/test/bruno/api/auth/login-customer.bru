@@ -41,6 +41,7 @@ tests {
   test("customer login carries the CUSTOMER role", function() {
     expect(res.getBody().role).to.equal("CUSTOMER");
     expect(res.getBody().phone).to.equal("+84900000004");
+    expect(res.getBody().dealershipId).to.be.null;
   });
   
 

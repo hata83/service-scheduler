@@ -7,13 +7,13 @@
   "quality": "showcase",
   "specification": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\customer-registration.sequence.json",
-    "sha256": "8c89c6bb567a64ff592faf98ee98476824d5384ea121154b1b5d47cf988c1b18",
-    "bytes": 5178
+    "sha256": "b75a6fd7e4867ea69228bd32030994e216a98462f890f424868b6f3cd7fcacbf",
+    "bytes": 5174
   },
   "artifact": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\customer-registration.html",
-    "sha256": "b72211a92a8965c1fd0324a1465901124990f83e88ef76828335df54777be9a4",
-    "bytes": 819392
+    "sha256": "265b727cf950e814d9c1fbadcdaa58471c984ddf5bff316d5f2e72e29268e582",
+    "bytes": 819384
   },
   "gates": {
     "validate": "pass",
@@ -37,13 +37,13 @@
     "installedVersion": "3.2.0",
     "availableVersion": "3.2.0",
     "releaseNotes": null,
-    "checkedAt": "2026-10-25T09:29:22.168Z",
+    "checkedAt": "2026-10-26T12:00:03.507Z",
     "source": "cache",
     "noticeRequired": false,
     "noticeText": null
   },
   "visualReview": "not-requested",
-  "durationMs": 3613,
+  "durationMs": 3709,
   "browserCheck": {
     "requested": true,
     "ran": true

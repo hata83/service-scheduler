@@ -5,16 +5,16 @@
   "status": "pass",
   "type": "erd",
   "quality": "showcase",
-  "startedAt": "2026-10-25T09:38:09.205Z",
+  "startedAt": "2026-10-26T13:50:39.843Z",
   "specification": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\system-data-model.erd.json",
-    "sha256": "9109ba7870b15063d8d051e6197359e14172b6f4b2f6626ac7a752a109913231",
-    "bytes": 16471
+    "sha256": "87eaf4e5f8742e527f236ec283b652b0115007e55b46fcc5fe5b050cb3cb0e53",
+    "bytes": 16242
   },
   "artifact": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-model.html",
-    "sha256": "0d9ab3feba3c345526bee6732cd7377ce1da210ec27cb0079736a744acd96dd2",
-    "bytes": 883341
+    "sha256": "103c68581c71b949916c74167b6ddcf162cae8826dff9838dbfea99c15cf1613",
+    "bytes": 885715
   },
   "stages": {
     "validate": {
@@ -38,8 +38,8 @@
         "ok": true,
         "command": "validate",
         "specification": {
-          "sha256": "9109ba7870b15063d8d051e6197359e14172b6f4b2f6626ac7a752a109913231",
-          "bytes": 16471
+          "sha256": "87eaf4e5f8742e527f236ec283b652b0115007e55b46fcc5fe5b050cb3cb0e53",
+          "bytes": 16242
         },
         "validation": {
           "checksPassed": 9,
@@ -54,7 +54,7 @@
     "deliver": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 850,
+      "durationMs": 1047,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
@@ -68,19 +68,19 @@
       ],
       "receipt": {
         "schemaVersion": 1,
-        "receiptId": "e22224f3-69a7-4a4c-8611-b96487ca4eab",
+        "receiptId": "f55598a5-e68a-4388-a91e-1f00f80006ee",
         "ok": true,
         "command": "deliver",
         "type": "erd",
         "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\system-data-model.erd.json",
         "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-model.html",
         "specification": {
-          "sha256": "9109ba7870b15063d8d051e6197359e14172b6f4b2f6626ac7a752a109913231",
-          "bytes": 16471
+          "sha256": "87eaf4e5f8742e527f236ec283b652b0115007e55b46fcc5fe5b050cb3cb0e53",
+          "bytes": 16242
         },
         "artifact": {
-          "sha256": "0d9ab3feba3c345526bee6732cd7377ce1da210ec27cb0079736a744acd96dd2",
-          "bytes": 883341
+          "sha256": "103c68581c71b949916c74167b6ddcf162cae8826dff9838dbfea99c15cf1613",
+          "bytes": 885715
         },
         "validation": {
           "checksPassed": 9,
@@ -106,7 +106,7 @@
     "check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 177,
+      "durationMs": 225,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
@@ -118,8 +118,8 @@
         "ok": true,
         "file": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-model.html",
         "artifact": {
-          "sha256": "0d9ab3feba3c345526bee6732cd7377ce1da210ec27cb0079736a744acd96dd2",
-          "bytes": 883341
+          "sha256": "103c68581c71b949916c74167b6ddcf162cae8826dff9838dbfea99c15cf1613",
+          "bytes": 885715
         },
         "checks": [
           {
@@ -194,7 +194,7 @@
             "routesOverSuggestedBends": 2,
             "maxStretch": 1.436,
             "routesOverSuggestedStretch": 1,
-            "minSegmentPx": 24,
+            "minSegmentPx": 16,
             "minInteriorSegmentPx": 38,
             "shortSegmentCount": 0,
             "shortEndpointSegmentCount": 0,
@@ -216,8 +216,8 @@
                   "from": "service_types",
                   "to": "service_type_costs",
                   "label": "has cost matrix",
-                  "collectionIndex": 9,
-                  "artifactIndex": 10
+                  "collectionIndex": 11,
+                  "artifactIndex": 12
                 },
                 "bends": 3,
                 "stretch": 1.074
@@ -228,8 +228,8 @@
                   "from": "appointments",
                   "to": "vehicles",
                   "label": "for vehicle",
-                  "collectionIndex": 11,
-                  "artifactIndex": 12
+                  "collectionIndex": 13,
+                  "artifactIndex": 14
                 },
                 "bends": 6,
                 "stretch": 1.436
@@ -261,13 +261,13 @@
           "issues": []
         },
         "provenance": "current",
-        "deliveryReceiptId": "e22224f3-69a7-4a4c-8611-b96487ca4eab"
+        "deliveryReceiptId": "f55598a5-e68a-4388-a91e-1f00f80006ee"
       }
     },
     "browser-check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 2787,
+      "durationMs": 2945,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
@@ -285,11 +285,11 @@
         "status": "pass",
         "visualReview": "not-requested",
         "provenance": "current",
-        "deliveryReceiptId": "e22224f3-69a7-4a4c-8611-b96487ca4eab",
+        "deliveryReceiptId": "f55598a5-e68a-4388-a91e-1f00f80006ee",
         "artifact": {
           "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-model.html",
-          "sha256": "0d9ab3feba3c345526bee6732cd7377ce1da210ec27cb0079736a744acd96dd2",
-          "bytes": 883341
+          "sha256": "103c68581c71b949916c74167b6ddcf162cae8826dff9838dbfea99c15cf1613",
+          "bytes": 885715
         },
         "state": {
           "detail": "read",
@@ -311,7 +311,7 @@
               "innerWidth": 1440,
               "innerHeight": 900,
               "scrollWidth": 1440,
-              "scrollHeight": 1165,
+              "scrollHeight": 1132,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -326,9 +326,9 @@
                 "bodyPaddingPx": 12,
                 "headerPx": 52,
                 "diagramChromePx": 78,
-                "svgPx": 1022,
+                "svgPx": 989,
                 "cardsPx": 0,
-                "viewBoxHeight": 1226
+                "viewBoxHeight": 1186
               },
               "viewBoxWidth": 1391,
               "minimumProjectedNodeTextPx": 7.505391804457226,
@@ -361,7 +361,7 @@
               "innerWidth": 1600,
               "innerHeight": 1000,
               "scrollWidth": 1600,
-              "scrollHeight": 1231,
+              "scrollHeight": 1198,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -376,9 +376,9 @@
                 "bodyPaddingPx": 64,
                 "headerPx": 60,
                 "diagramChromePx": 84,
-                "svgPx": 1022,
+                "svgPx": 989,
                 "cardsPx": 0,
-                "viewBoxHeight": 1226
+                "viewBoxHeight": 1186
               },
               "viewBoxWidth": 1391,
               "minimumProjectedNodeTextPx": 7.505391804457226,
@@ -411,7 +411,7 @@
               "innerWidth": 1920,
               "innerHeight": 1080,
               "scrollWidth": 1920,
-              "scrollHeight": 1231,
+              "scrollHeight": 1198,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -426,9 +426,9 @@
                 "bodyPaddingPx": 64,
                 "headerPx": 60,
                 "diagramChromePx": 84,
-                "svgPx": 1022,
+                "svgPx": 989,
                 "cardsPx": 0,
-                "viewBoxHeight": 1226
+                "viewBoxHeight": 1186
               },
               "viewBoxWidth": 1391,
               "minimumProjectedNodeTextPx": 7.505391804457226,
@@ -470,20 +470,20 @@
               "readerOverflow": null,
               "readerFit": "intrinsic-height",
               "ok": true,
-              "readerWidth": 1278,
-              "diagramWidth": 1228,
+              "readerWidth": 1319,
+              "diagramWidth": 1269,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 68,
                 "diagramChromePx": 94,
                 "svgPx": 1082,
                 "cardsPx": 0,
-                "viewBoxHeight": 1226
+                "viewBoxHeight": 1186
               },
               "viewBoxWidth": 1391,
-              "minimumProjectedNodeTextPx": 7.9453630481667865,
-              "minimumProjectedNonEdgeTextPx": 7.9453630481667865,
-              "minimumProjectedEdgeTextPx": 7.9453630481667865,
+              "minimumProjectedNodeTextPx": 8.210639827462257,
+              "minimumProjectedNonEdgeTextPx": 8.210639827462257,
+              "minimumProjectedEdgeTextPx": 8.210639827462257,
               "minimumProjectedNodeText": "PK",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
@@ -564,7 +564,7 @@
               "innerWidth": 1440,
               "innerHeight": 900,
               "scrollWidth": 1440,
-              "scrollHeight": 1165,
+              "scrollHeight": 1132,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -579,9 +579,9 @@
                 "bodyPaddingPx": 12,
                 "headerPx": 52,
                 "diagramChromePx": 78,
-                "svgPx": 1022,
+                "svgPx": 989,
                 "cardsPx": 0,
-                "viewBoxHeight": 1226
+                "viewBoxHeight": 1186
               },
               "viewBoxWidth": 1391,
               "minimumProjectedNodeTextPx": 7.505391804457226,
@@ -614,7 +614,7 @@
               "innerWidth": 1600,
               "innerHeight": 1000,
               "scrollWidth": 1600,
-              "scrollHeight": 1231,
+              "scrollHeight": 1198,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -629,9 +629,9 @@
                 "bodyPaddingPx": 64,
                 "headerPx": 60,
                 "diagramChromePx": 84,
-                "svgPx": 1022,
+                "svgPx": 989,
                 "cardsPx": 0,
-                "viewBoxHeight": 1226
+                "viewBoxHeight": 1186
               },
               "viewBoxWidth": 1391,
               "minimumProjectedNodeTextPx": 7.505391804457226,
@@ -664,7 +664,7 @@
               "innerWidth": 1920,
               "innerHeight": 1080,
               "scrollWidth": 1920,
-              "scrollHeight": 1231,
+              "scrollHeight": 1198,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -679,9 +679,9 @@
                 "bodyPaddingPx": 64,
                 "headerPx": 60,
                 "diagramChromePx": 84,
-                "svgPx": 1022,
+                "svgPx": 989,
                 "cardsPx": 0,
-                "viewBoxHeight": 1226
+                "viewBoxHeight": 1186
               },
               "viewBoxWidth": 1391,
               "minimumProjectedNodeTextPx": 7.505391804457226,
@@ -723,20 +723,20 @@
               "readerOverflow": null,
               "readerFit": "intrinsic-height",
               "ok": true,
-              "readerWidth": 1278,
-              "diagramWidth": 1228,
+              "readerWidth": 1319,
+              "diagramWidth": 1269,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 68,
                 "diagramChromePx": 94,
                 "svgPx": 1082,
                 "cardsPx": 0,
-                "viewBoxHeight": 1226
+                "viewBoxHeight": 1186
               },
               "viewBoxWidth": 1391,
-              "minimumProjectedNodeTextPx": 7.9453630481667865,
-              "minimumProjectedNonEdgeTextPx": 7.9453630481667865,
-              "minimumProjectedEdgeTextPx": 7.9453630481667865,
+              "minimumProjectedNodeTextPx": 8.210639827462257,
+              "minimumProjectedNonEdgeTextPx": 8.210639827462257,
+              "minimumProjectedEdgeTextPx": 8.210639827462257,
               "minimumProjectedNodeText": "PK",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
@@ -769,7 +769,7 @@
               "innerWidth": 1440,
               "innerHeight": 900,
               "scrollWidth": 1440,
-              "scrollHeight": 1165,
+              "scrollHeight": 1132,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -784,9 +784,9 @@
                 "bodyPaddingPx": 12,
                 "headerPx": 52,
                 "diagramChromePx": 78,
-                "svgPx": 1022,
+                "svgPx": 989,
                 "cardsPx": 0,
-                "viewBoxHeight": 1226
+                "viewBoxHeight": 1186
               },
               "viewBoxWidth": 1391,
               "minimumProjectedNodeTextPx": 7.505391804457226,
@@ -819,7 +819,7 @@
               "innerWidth": 1600,
               "innerHeight": 1000,
               "scrollWidth": 1600,
-              "scrollHeight": 1231,
+              "scrollHeight": 1198,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -834,9 +834,9 @@
                 "bodyPaddingPx": 64,
                 "headerPx": 60,
                 "diagramChromePx": 84,
-                "svgPx": 1022,
+                "svgPx": 989,
                 "cardsPx": 0,
-                "viewBoxHeight": 1226
+                "viewBoxHeight": 1186
               },
               "viewBoxWidth": 1391,
               "minimumProjectedNodeTextPx": 7.505391804457226,
@@ -869,7 +869,7 @@
               "innerWidth": 1920,
               "innerHeight": 1080,
               "scrollWidth": 1920,
-              "scrollHeight": 1231,
+              "scrollHeight": 1198,
               "overflowX": false,
               "overflowY": true,
               "verticalScrollAccepted": true,
@@ -884,9 +884,9 @@
                 "bodyPaddingPx": 64,
                 "headerPx": 60,
                 "diagramChromePx": 84,
-                "svgPx": 1022,
+                "svgPx": 989,
                 "cardsPx": 0,
-                "viewBoxHeight": 1226
+                "viewBoxHeight": 1186
               },
               "viewBoxWidth": 1391,
               "minimumProjectedNodeTextPx": 7.505391804457226,
@@ -928,20 +928,20 @@
               "readerOverflow": null,
               "readerFit": "intrinsic-height",
               "ok": true,
-              "readerWidth": 1278,
-              "diagramWidth": 1228,
+              "readerWidth": 1319,
+              "diagramWidth": 1269,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 68,
                 "diagramChromePx": 94,
                 "svgPx": 1082,
                 "cardsPx": 0,
-                "viewBoxHeight": 1226
+                "viewBoxHeight": 1186
               },
               "viewBoxWidth": 1391,
-              "minimumProjectedNodeTextPx": 7.9453630481667865,
-              "minimumProjectedNonEdgeTextPx": 7.9453630481667865,
-              "minimumProjectedEdgeTextPx": 7.9453630481667865,
+              "minimumProjectedNodeTextPx": 8.210639827462257,
+              "minimumProjectedNonEdgeTextPx": 8.210639827462257,
+              "minimumProjectedEdgeTextPx": 8.210639827462257,
               "minimumProjectedNodeText": "PK",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
@@ -987,14 +987,14 @@
     "browserCheckReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-model.browser-check.json"
   },
   "visualReview": "not-requested",
-  "finishedAt": "2026-10-25T09:38:13.673Z",
-  "durationMs": 4467,
+  "finishedAt": "2026-10-26T13:50:44.904Z",
+  "durationMs": 5061,
   "update": {
     "status": "current",
     "installedVersion": "3.2.0",
     "availableVersion": "3.2.0",
     "releaseNotes": null,
-    "checkedAt": "2026-10-25T09:29:22.168Z",
+    "checkedAt": "2026-10-26T12:00:03.507Z",
     "source": "cache",
     "noticeRequired": false,
     "noticeText": null

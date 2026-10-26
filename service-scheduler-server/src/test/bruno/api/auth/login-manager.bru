@@ -32,9 +32,10 @@ script:post-response {
 }
 
 tests {
-  test("manager login responds 200 with the MANAGER role", function() {
+  test("manager login responds 200 with the MANAGER role and local dealership", function() {
     expect(res.getStatus()).to.equal(200);
     expect(res.getBody().role).to.equal("MANAGER");
+    expect(res.getBody().dealershipId).to.equal("00000000-0000-0000-0000-000000000001");
   });
   
 }

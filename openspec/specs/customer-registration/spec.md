@@ -7,7 +7,7 @@ Customer registration by phone submits profile info plus a REGISTER-purpose OTP 
 
 ### Requirement: One-shot registration
 
-The system SHALL create a CUSTOMER user and a customer profile, and issue a login session, when `POST /api/v1/auth/register` carries a phone number, profile name fields, a REGISTER-purpose OTP code, and an `X-Idempotency-Key` header. The system SHALL verify the OTP inside the same action: a wrong, expired, or LOGIN-purpose-code submission SHALL fail with 401 and create nothing. A successful response SHALL be 201 with `Set-Cookie: jwt`, so the created customer is logged in at once. The system SHALL limit register to 10 requests per IP per minute and SHALL respond with 429 beyond it.
+The system SHALL create a global CUSTOMER user and a global customer profile without `dealership_id`, and issue a login session, when `POST /api/v1/auth/register` carries a phone number, profile name fields, a REGISTER-purpose OTP code, and an `X-Idempotency-Key` header. The system SHALL verify the OTP inside the same action: a wrong, expired, or LOGIN-purpose-code submission SHALL fail with 401 and create nothing. A successful response SHALL be 201 with `Set-Cookie: jwt`, so the created customer is logged in at once. The system SHALL limit register to 10 requests per IP per minute and SHALL respond with 429 beyond it.
 
 #### Scenario: New customer registers and is logged in
 - **WHEN** an unregistered phone submits profile names, a REGISTER-purpose OTP code, and an idempotency key

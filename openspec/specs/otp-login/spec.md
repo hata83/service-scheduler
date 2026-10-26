@@ -39,7 +39,7 @@ The system SHALL cache the send response for 24 hours under the record `idempote
 
 ### Requirement: Login by verified OTP
 
-The system SHALL resolve the phone to an existing user, consume the LOGIN-purpose OTP, and set the JWT session in an `httpOnly` cookie named `jwt` when `POST /api/v1/auth/otp/verify` carries the correct code. The response body SHALL carry the resolved user id, role, and phone. Verify SHALL never create a user or profile row. The system SHALL reject a verify request without the idempotency key with 400, and SHALL limit verify to 10 requests per IP per minute with 429 beyond it. The system SHALL respond with 401 for a wrong code, an expired code, an unregistered phone, or an OTP issued for the wrong purpose, and the problem detail SHALL name registration for an unregistered phone.
+The system SHALL resolve the phone to an existing user, consume the LOGIN-purpose OTP, and set the JWT session in an `httpOnly` cookie named `jwt` when `POST /api/v1/auth/otp/verify` carries the correct code. The response body SHALL carry the resolved user id, role, phone, and active `dealershipId`. When `users.type` is `CUSTOMER`, `role` SHALL be `CUSTOMER` and `dealershipId` SHALL be `null`. When `users.type` is `EMPLOYEE`, `role` (`ADMIN`, `MANAGER`, `TECHNICIAN`) and `dealershipId` (`null` for global `ADMIN`, local `dealership_id` for `MANAGER` and `TECHNICIAN`) SHALL resolve from `employees`. Verify SHALL never create a user or profile row. The system SHALL reject a verify request without the idempotency key with 400, and SHALL limit verify to 10 requests per IP per minute with 429 beyond it. The system SHALL respond with 401 for a wrong code, an expired code, an unregistered phone, or an OTP issued for the wrong purpose, and the problem detail SHALL name registration for an unregistered phone.
 
 #### Scenario: Each seeded role logs in
 - **WHEN** each seeded account (customer, manager, technician, admin) verifies its LOGIN-purpose OTP
@@ -75,11 +75,11 @@ The system SHALL cache the verify response for 24 hours under the record `idempo
 
 ### Requirement: Session introspection
 
-The system SHALL return the caller's identity from `GET /api/v1/auth/me` for a valid session cookie, and SHALL respond with 401 without one. The identity carries the user id, role, phone, dealershipId, email, and, for CUSTOMER and TECHNICIAN, the profile names.
+The system SHALL return the caller's identity from `GET /api/v1/auth/me` for a valid session cookie, and SHALL respond with 401 without one. The identity carries the user id, role, phone, dealershipId, email, and the centralized `profiles` first and last names for every role (`CUSTOMER`, `ADMIN`, `MANAGER`, `TECHNICIAN`).
 
 #### Scenario: Identity after login
 - **WHEN** the client calls me with the cookie from a fresh login
-- **THEN** the response is 200 and carries that account's identity fields
+- **THEN** the response is 200 and carries that account's identity and centralized profile fields
 
 #### Scenario: No cookie
 - **WHEN** the client calls me with no session cookie
@@ -87,7 +87,7 @@ The system SHALL return the caller's identity from `GET /api/v1/auth/me` for a v
 
 ### Requirement: Profile edit after login
 
-The system SHALL apply `PATCH /api/v1/auth/me` with an `X-Idempotency-Key` to the caller's editable details: email for every role, and profile first/last names for CUSTOMER and TECHNICIAN. The phone is the login identity and SHALL never be editable; a patch body that carries a phone field SHALL fail with 400. A CUSTOMER or TECHNICIAN response body SHALL reflect name changes.
+The system SHALL apply `PATCH /api/v1/auth/me` with an `X-Idempotency-Key` to the caller's editable details: email on `users` and centralized `profiles` first/last names for every role (`CUSTOMER`, `ADMIN`, `MANAGER`, `TECHNICIAN`). The phone is the login identity and SHALL never be editable; a patch body that carries a phone field SHALL fail with 400.
 
 #### Scenario: Customer edits profile names
 - **WHEN** a logged-in customer patches new first and last names with an idempotency key
@@ -97,9 +97,9 @@ The system SHALL apply `PATCH /api/v1/auth/me` with an `X-Idempotency-Key` to th
 - **WHEN** the patch body includes a phone field
 - **THEN** the response is 400 with an `application/problem+json` body and no field changes
 
-#### Scenario: Staff role edits name
-- **WHEN** a MANAGER or ADMIN patches first and last names
-- **THEN** the response is 400 with an `application/problem+json` body, because staff roles carry no editable name fields
+#### Scenario: Staff role edits centralized profile names
+- **WHEN** a logged-in ADMIN, MANAGER, or TECHNICIAN patches first and last names
+- **THEN** the response is 200 and updates the centralized profile row for that employee
 
 ### Requirement: Logout revocation
 
