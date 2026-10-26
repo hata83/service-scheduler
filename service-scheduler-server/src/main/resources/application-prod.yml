@@ -4,6 +4,8 @@ spring:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
+  flyway:
+    locations: classpath:db/migration
   data:
     redis:
       host: ${SPRING_DATA_REDIS_HOST}
@@ -22,5 +24,7 @@ app:
       cookie-secure: true
     otp:
       echo: false
+      channel: zalo-webhook
+      webhook-url: ${ZALO_WEBHOOK_URL}
   ratelimits:
     trust-forwarded-for: false

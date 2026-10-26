@@ -56,17 +56,13 @@ class RedisIdempotencyStoreTest {
 
     @Test
     void loadReadsTheCachedResponse() {
-        when(values.get("slot"))
-                .thenReturn(
-                        "{\"status\":201,\"body\":\"{\\\"role\\\":\\\"CUSTOMER\\\"}\",\"setCookie\":\"jwt=token\"}");
+        when(values.get("slot")).thenReturn("{\"status\":201,\"body\":\"{\\\"role\\\":\\\"CUSTOMER\\\"}\"}");
 
         IdempotencyStore.CachedResponse cached = storage.load("slot");
 
         assertThat(cached).isNotNull();
         assertThat(cached.status()).isEqualTo(201);
         assertThat(cached.body()).contains("CUSTOMER");
-        assertThat(cached.setCookie()).isEqualTo("jwt=token");
-        assertThat(cached.hasSetCookie()).isTrue();
     }
 
     @Test
@@ -78,26 +74,20 @@ class RedisIdempotencyStoreTest {
 
     @Test
     void storeWritesTheRecordWithTheTtlAndClaimsLocks() {
-        IdempotencyStore.CachedResponse cached = new IdempotencyStore.CachedResponse(200, "{}", null);
+        IdempotencyStore.CachedResponse cached = new IdempotencyStore.CachedResponse(200, "{}");
 
         storage.store("slot", cached);
         verify(values).set(eq("slot"), any(String.class), any(Duration.class));
 
-        when(values.setIfAbsent(eq("slot:lock"), eq("1"), any(Duration.class))).thenReturn(true);
-        assertThat(storage.tryClaim("slot")).isTrue();
+        when(values.setIfAbsent(eq("slot:lock"), eq("owner"), any(Duration.class)))
+                .thenReturn(true);
+        assertThat(storage.tryClaim("slot", "owner")).isTrue();
 
-        when(values.setIfAbsent(eq("slot:lock"), eq("1"), any(Duration.class))).thenReturn(false);
-        assertThat(storage.tryClaim("slot")).isFalse();
+        when(values.setIfAbsent(eq("slot:lock"), eq("owner"), any(Duration.class)))
+                .thenReturn(false);
+        assertThat(storage.tryClaim("slot", "owner")).isFalse();
 
-        storage.releaseClaim("slot");
-        verify(redis).delete("slot:lock");
-    }
-
-    @Test
-    void aCachedResponseWithoutACookieReportsNoCookie() {
-        assertThat(new IdempotencyStore.CachedResponse(200, "{}", null).hasSetCookie())
-                .isFalse();
-        assertThat(new IdempotencyStore.CachedResponse(200, "{}", " ").hasSetCookie())
-                .isFalse();
+        storage.releaseClaim("slot", "owner");
+        verify(redis).execute(any(), any(), any());
     }
 }

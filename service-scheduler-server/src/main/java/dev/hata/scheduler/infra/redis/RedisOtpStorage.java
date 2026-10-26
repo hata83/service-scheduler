@@ -14,14 +14,27 @@ import org.springframework.stereotype.Component;
 /**
  * Redis adapter for OTP storage (design D7):
  * {@code otp:{type}:{phone}} with a configurable TTL, one live code per slot,
- * and single-use consumption that deletes only on a match.
+ * single-use consumption that deletes on a match, and brute-force protection
+ * that invalidates the code after {@link #MAX_FAILED_ATTEMPTS} failed guesses.
  */
 @Component
 public class RedisOtpStorage implements OtpStorage {
 
+    public static final int MAX_FAILED_ATTEMPTS = 5;
+
     private static final DefaultRedisScript<Boolean> CONSUME_SCRIPT = new DefaultRedisScript<>(
-            "local stored = redis.call('GET', KEYS[1]) " + "if stored == false then return false end "
-                    + "if stored == ARGV[1] then redis.call('DEL', KEYS[1]) return true end "
+            "local stored = redis.call('GET', KEYS[1]) "
+                    + "if stored == false then return false end "
+                    + "if stored == ARGV[1] then "
+                    + "  redis.call('DEL', KEYS[1], KEYS[2]) "
+                    + "  return true "
+                    + "end "
+                    + "local attempts = redis.call('INCR', KEYS[2]) "
+                    + "local pttl = redis.call('PTTL', KEYS[1]) "
+                    + "if pttl > 0 then redis.call('PEXPIRE', KEYS[2], pttl) end "
+                    + "if attempts >= tonumber(ARGV[2]) then "
+                    + "  redis.call('DEL', KEYS[1], KEYS[2]) "
+                    + "end "
                     + "return false",
             Boolean.class);
 
@@ -33,6 +46,7 @@ public class RedisOtpStorage implements OtpStorage {
 
     @Override
     public void save(String phone, OtpType type, String code, Duration ttl) {
+        redis.delete(attemptsKey(type, phone));
         redis.opsForValue().set(key(type, phone), code, ttl);
     }
 
@@ -41,7 +55,11 @@ public class RedisOtpStorage implements OtpStorage {
         if (code == null) {
             return false;
         }
-        Boolean matched = redis.execute(CONSUME_SCRIPT, List.of(key(type, phone)), code);
+        Boolean matched = redis.execute(
+                CONSUME_SCRIPT,
+                List.of(key(type, phone), attemptsKey(type, phone)),
+                code,
+                String.valueOf(MAX_FAILED_ATTEMPTS));
         return Boolean.TRUE.equals(matched);
     }
 
@@ -52,5 +70,9 @@ public class RedisOtpStorage implements OtpStorage {
 
     private static String key(OtpType type, String phone) {
         return "otp:" + type.value() + ":" + phone;
+    }
+
+    private static String attemptsKey(OtpType type, String phone) {
+        return "otp:attempts:" + type.value() + ":" + phone;
     }
 }

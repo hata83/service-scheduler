@@ -19,7 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * Uses the stateless JwtService for in-memory token verification.
  */
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 2)
+@Order(Ordered.HIGHEST_PRECEDENCE + 1)
 public class AuthFilter extends OncePerRequestFilter {
 
     public static final String PRINCIPAL_ATTRIBUTE = "dev.hata.scheduler.principal";

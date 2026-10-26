@@ -7,9 +7,12 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.HexFormat;
+import java.util.UUID;
 
 import dev.hata.scheduler.common.idempotency.IdempotencyStore;
+import dev.hata.scheduler.common.security.AuthPrincipal;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;
@@ -22,21 +25,23 @@ import org.slf4j.MDC;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StreamUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingResponseWrapper;
 
 /**
- * Enforces {@code X-Idempotency-Key} on write endpoints, binds the idempotency
- * slot to a SHA-256 hash of the request payload, claims an atomic in-flight
- * lock, and caches/replays 2xx responses in {@link IdempotencyStore} (ADR-008 / design D8).
+ * Enforces {@code X-Idempotency-Key} on write endpoints after {@link AuthFilter},
+ * bounds request body size, binds the idempotency slot to the caller principal
+ * and SHA-256 request payload hash, claims an owner-scoped atomic lock, and
+ * caches/replays 2xx JSON bodies in {@link IdempotencyStore} (ADR-008 / design D8).
  */
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 1)
+@Order(Ordered.HIGHEST_PRECEDENCE + 2)
 public class IdempotencyFilter extends OncePerRequestFilter {
 
     public static final String HEADER = "X-Idempotency-Key";
     public static final String MDC_KEY = "idempotencyKey";
+    public static final int MAX_KEY_LENGTH = 128;
+    public static final int MAX_BODY_BYTES = 64 * 1024;
 
     private final IdempotencyStore store;
 
@@ -52,20 +57,34 @@ public class IdempotencyFilter extends OncePerRequestFilter {
             return;
         }
         String key = request.getHeader(HEADER);
-        if (key == null || key.isBlank()) {
+        if (key == null || key.isBlank() || key.length() > MAX_KEY_LENGTH) {
             writeProblem(
                     response,
                     HttpServletResponse.SC_BAD_REQUEST,
                     "Idempotency key missing",
-                    "Request must include an X-Idempotency-Key header.",
+                    "Request must include a valid X-Idempotency-Key header (1..128 chars).",
                     request.getRequestURI());
             return;
         }
 
-        byte[] bodyBytes = StreamUtils.copyToByteArray(request.getInputStream());
-        CachedBodyRequest wrappedRequest = new CachedBodyRequest(request, bodyBytes);
-        String bodyHash = sha256Hex(bodyBytes);
-        String slot = store.slot(request.getMethod() + ":" + request.getRequestURI(), bodyHash, key);
+        byte[] rawBytes = request.getInputStream().readNBytes(MAX_BODY_BYTES + 1);
+        if (rawBytes.length > MAX_BODY_BYTES) {
+            writeProblem(
+                    response,
+                    HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE,
+                    "Request body too large",
+                    "Write request body must not exceed 65536 bytes.",
+                    request.getRequestURI());
+            return;
+        }
+
+        CachedBodyRequest wrappedRequest = new CachedBodyRequest(request, rawBytes);
+        String callerScope = resolveCallerScope(request);
+        String bodyHash = sha256Hex(rawBytes);
+        String endpoint = request.getMethod() + ":" + request.getRequestURI();
+        String scope = callerScope + ":" + bodyHash;
+        String slot = store.slot(endpoint, scope, key);
+        String claimOwner = UUID.randomUUID().toString();
 
         MDC.put(MDC_KEY, sha256Hex(key.getBytes(StandardCharsets.UTF_8)).substring(0, 12));
         try {
@@ -74,7 +93,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
                 replayResponse(response, cached);
                 return;
             }
-            if (!store.tryClaim(slot)) {
+            if (!store.tryClaim(slot, claimOwner)) {
                 writeProblem(
                         response,
                         HttpServletResponse.SC_CONFLICT,
@@ -90,29 +109,33 @@ public class IdempotencyFilter extends OncePerRequestFilter {
                 int status = wrappedResponse.getStatus();
                 if (status >= 200 && status < 300) {
                     String respBody = new String(wrappedResponse.getContentAsByteArray(), StandardCharsets.UTF_8);
-                    String setCookie = wrappedResponse.getHeader("Set-Cookie");
                     try {
-                        store.store(slot, new IdempotencyStore.CachedResponse(status, respBody, setCookie));
+                        store.store(slot, new IdempotencyStore.CachedResponse(status, respBody));
                     } catch (RuntimeException ignored) {
                         // Cache store failure does not fail an already-completed request
                     }
                 }
                 wrappedResponse.copyBodyToResponse();
             } finally {
-                store.releaseClaim(slot);
+                store.releaseClaim(slot, claimOwner);
             }
         } finally {
             MDC.remove(MDC_KEY);
         }
     }
 
+    private static String resolveCallerScope(HttpServletRequest request) {
+        Object attr = request.getAttribute(AuthFilter.PRINCIPAL_ATTRIBUTE);
+        if (attr instanceof AuthPrincipal principal && principal.userId() != null) {
+            return principal.userId().toString();
+        }
+        return "anon";
+    }
+
     private static void replayResponse(HttpServletResponse response, IdempotencyStore.CachedResponse cached)
             throws IOException {
         response.setStatus(cached.status());
         response.setContentType("application/json");
-        if (cached.hasSetCookie()) {
-            response.addHeader("Set-Cookie", cached.setCookie());
-        }
         response.getWriter().write(cached.body());
     }
 
@@ -150,7 +173,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
 
         CachedBodyRequest(HttpServletRequest request, byte[] cachedBody) {
             super(request);
-            this.cachedBody = cachedBody.clone();
+            this.cachedBody = Arrays.copyOf(cachedBody, cachedBody.length);
         }
 
         @Override

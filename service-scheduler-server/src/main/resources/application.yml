@@ -1,6 +1,8 @@
 spring:
   application:
     name: service-scheduler-server
+  profiles:
+    default: dev
   threads:
     virtual:
       enabled: true
@@ -32,8 +34,7 @@ management:
         include: health,prometheus
   endpoint:
     health:
-      show-details: always
-      show-components: always
+      show-details: never
   health:
     redis:
       enabled: true
@@ -49,15 +50,15 @@ management:
 app:
   auth:
     jwt:
-      # Dev-only default; prod profile requires JWT_SECRET and fails fast without it
-      secret: ${JWT_SECRET:dev-only-insecure-secret-change-me-in-prod-0123456789}
+      # Required in base/prod config; dev and test profiles supply local test keys
+      secret: ${JWT_SECRET}
       issuer: "service-scheduler"
       ttl: 8h
       cookie-name: jwt
-      cookie-secure: false
+      cookie-secure: true
     otp:
       ttl: 5m
-      echo: ${APP_AUTH_OTP_ECHO:true}
+      echo: false
       channel: zalo-stub
   ratelimits:
     trust-forwarded-for: false
@@ -68,9 +69,15 @@ app:
       otp-send-ip:
         limit: 30
         window: 1m
+      otp-verify-phone:
+        limit: 5
+        window: 10m
       otp-verify-ip:
         limit: 10
         window: 1m
+      register-phone:
+        limit: 5
+        window: 10m
       register-ip:
         limit: 10
         window: 1m

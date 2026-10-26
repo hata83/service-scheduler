@@ -31,7 +31,11 @@ class RedisOtpStorageTest {
 
     @org.junit.jupiter.api.BeforeEach
     void clean() {
-        redisTemplate.delete(java.util.List.of("otp:login:" + PHONE, "otp:register:" + PHONE));
+        redisTemplate.delete(java.util.List.of(
+                "otp:login:" + PHONE,
+                "otp:register:" + PHONE,
+                "otp:attempts:login:" + PHONE,
+                "otp:attempts:register:" + PHONE));
     }
 
     @Test
@@ -85,10 +89,16 @@ class RedisOtpStorageTest {
     }
 
     @Test
-    void getReadsTheStoredCode() {
+    void getReadsTheStoredCodeAndFailedGuessesInvalidateAfterMaxAttempts() {
         otpStorage.save(PHONE, OtpType.LOGIN, "888888", TTL);
 
         assertThat(otpStorage.get(PHONE, OtpType.LOGIN)).contains("888888");
         assertThat(otpStorage.get(PHONE, OtpType.REGISTER)).isEmpty();
+
+        for (int i = 0; i < RedisOtpStorage.MAX_FAILED_ATTEMPTS; i++) {
+            assertThat(otpStorage.consume(PHONE, OtpType.LOGIN, "000000")).isFalse();
+        }
+        assertThat(otpStorage.get(PHONE, OtpType.LOGIN)).isEmpty();
+        assertThat(otpStorage.consume(PHONE, OtpType.LOGIN, "888888")).isFalse();
     }
 }

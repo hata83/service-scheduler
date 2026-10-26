@@ -4,8 +4,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.crypto.SecretKey;
 
 import io.jsonwebtoken.Claims;
@@ -14,8 +16,8 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Service;
 
 /**
- * Issues and reads stateless HS256 JWT tokens with embedded caller identity claims.
- * Cryptographic validation runs in memory without contacting Redis session stores.
+ * Issues, reads, and revokes HS256 JWT tokens with embedded caller identity claims.
+ * Cryptographic verification and revocation checks run in memory.
  */
 @Service
 public class JwtService {
@@ -25,6 +27,7 @@ public class JwtService {
     private final String issuer;
     private final String jwtCookieName;
     private final boolean secureCookie;
+    private final Map<String, Instant> revokedTokens = new ConcurrentHashMap<>();
 
     public JwtService(JwtProperties properties) {
         this.tokenTtl = properties.ttl();
@@ -97,6 +100,33 @@ public class JwtService {
     }
 
     /**
+     * Revokes the given token identifier in memory until its expiration horizon.
+     */
+    public void revoke(String jti) {
+        if (jti == null || jti.isBlank()) {
+            return;
+        }
+        Instant now = Instant.now();
+        revokedTokens.entrySet().removeIf(entry -> !entry.getValue().isAfter(now));
+        revokedTokens.put(jti, now.plus(tokenTtl));
+    }
+
+    private boolean isRevoked(String jti) {
+        if (jti == null) {
+            return false;
+        }
+        Instant exp = revokedTokens.get(jti);
+        if (exp == null) {
+            return false;
+        }
+        if (!exp.isAfter(Instant.now())) {
+            revokedTokens.remove(jti);
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Reads and cryptographically verifies claims of a signed token.
      */
     public Optional<Claims> read(String token) {
@@ -121,18 +151,24 @@ public class JwtService {
     public Optional<AuthPrincipal> authenticate(String token) {
         return read(token).flatMap(claims -> {
             try {
+                String jti = claims.getId();
+                if (isRevoked(jti)) {
+                    return Optional.empty();
+                }
                 UUID userId = UUID.fromString(claims.getSubject());
                 String role = claims.get("role", String.class);
                 String phone = claims.get("ph", String.class);
+                if (role == null || role.isBlank() || phone == null || phone.isBlank()) {
+                    return Optional.empty();
+                }
                 String did = claims.get("did", String.class);
                 UUID dealershipId = (did != null && !did.isBlank()) ? UUID.fromString(did) : null;
                 String email = claims.get("email", String.class);
                 String firstName = claims.get("fn", String.class);
                 String lastName = claims.get("ln", String.class);
-                String jti = claims.getId();
                 return Optional.of(
                         new AuthPrincipal(userId, role, phone, dealershipId, email, firstName, lastName, jti));
-            } catch (IllegalArgumentException ex) {
+            } catch (IllegalArgumentException | NullPointerException ex) {
                 return Optional.empty();
             }
         });

@@ -38,13 +38,14 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_PROFILES_ACTIVE: default
+      SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/service_scheduler
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-scheduler}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-scheduler}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: "6379"
-      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me-in-prod-0123456789}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      ZALO_WEBHOOK_URL: ${ZALO_WEBHOOK_URL:-http://localhost:8080/actuator/health}
       APP_AUTH_OTP_ECHO: "false"
     depends_on:
       postgres:

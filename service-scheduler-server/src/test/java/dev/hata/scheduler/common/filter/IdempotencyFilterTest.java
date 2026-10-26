@@ -51,7 +51,7 @@ class IdempotencyFilterTest {
         when(store.slot(anyString(), anyString(), anyString()))
                 .thenAnswer(inv ->
                         "idempotency:" + inv.getArgument(0) + ":" + inv.getArgument(1) + ":" + inv.getArgument(2));
-        when(store.tryClaim(anyString())).thenReturn(true);
+        when(store.tryClaim(anyString(), anyString())).thenReturn(true);
         filter = new IdempotencyFilter(store);
     }
 
@@ -106,12 +106,8 @@ class IdempotencyFilterTest {
 
         assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_ACCEPTED);
         assertThat(response.getContentAsString()).contains("+84900000004");
-        verify(store)
-                .store(
-                        anyString(),
-                        eq(new IdempotencyStore.CachedResponse(
-                                202, "{\"phone\":\"+84900000004\"}", "jwt=tok; HttpOnly")));
-        verify(store).releaseClaim(anyString());
+        verify(store).store(anyString(), eq(new IdempotencyStore.CachedResponse(202, "{\"phone\":\"+84900000004\"}")));
+        verify(store).releaseClaim(anyString(), anyString());
 
         doThrow(new RuntimeException("redis down")).when(store).store(anyString(), any());
         MockHttpServletRequest secondRequest = new MockHttpServletRequest("POST", "/api/v1/auth/otp/send");
@@ -128,15 +124,13 @@ class IdempotencyFilterTest {
         request.addHeader("X-Idempotency-Key", "key-replay");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        when(store.load(anyString()))
-                .thenReturn(
-                        new IdempotencyStore.CachedResponse(201, "{\"role\":\"CUSTOMER\"}", "jwt=cached; HttpOnly"));
+        when(store.load(anyString())).thenReturn(new IdempotencyStore.CachedResponse(201, "{\"role\":\"CUSTOMER\"}"));
 
         filter.doFilter(request, response, chain);
 
         assertThat(response.getStatus()).isEqualTo(201);
-        assertThat(response.getHeader("Set-Cookie")).isEqualTo("jwt=cached; HttpOnly");
         assertThat(response.getContentAsString()).isEqualTo("{\"role\":\"CUSTOMER\"}");
+        assertThat(response.getHeader("Set-Cookie")).isNull();
         verify(chain, never()).doFilter(any(), any());
     }
 
@@ -146,7 +140,7 @@ class IdempotencyFilterTest {
         request.addHeader("X-Idempotency-Key", "key-inflight");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        when(store.tryClaim(anyString())).thenReturn(false);
+        when(store.tryClaim(anyString(), anyString())).thenReturn(false);
 
         filter.doFilter(request, response, chain);
 

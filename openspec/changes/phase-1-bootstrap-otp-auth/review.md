@@ -51,7 +51,17 @@
 9. **[Qodo #16 — Low] `AuthFilter.java`: `Session cookie name setting is ignored on read`:**
    - **Fix:** Updated `AuthFilter.readCookie` to match `jwtService.cookieName().equals(cookie.getName())` instead of a hardcoded `"jwt"` string.
 
-## 4. Verification Proofs
+## 5. Remaining PR #1 Inline Comments (Qodo) — Resolved by `f0d034d`
+
+- **[Qodo #1 — High] `V2__seed_dealer_and_auth.sql` in migration:** Moved seed to `db/seed/`; `application.yml` adds `classpath:db/seed` only for default/test (prod excludes). Proof: `Get-ChildItem db/seed/` shows `V2__seed_dealer_and_auth.sql`; `db/migration/` has only `V1__`.
+- **[Qodo #2 — Medium] CI hardcoded success lines:** `ocr delegate preview` runs automatically via `verifyCodeReviewDelegate`; CI reports real counts from `ocr-preview.json`.
+- **[Qodo #3 — Low] `IdempotencyFilter` unbounded key:** `MAX_KEY_LENGTH = 128` enforced (`line 43/60`). Proof: `Select-String IdempotencyFilter.java`.
+- **[Qodo #4 — High] `RateLimitAspect` missing AspectJ:** `spring-boot-starter-aspectj` added (`build.gradle.kts:49`). Proof: `Select-String build.gradle.kts`.
+- **[Qodo #12 — High] `RedisIdempotencyStore.releaseClaim` shared lock:** Refactored to `RELEASE_LOCK_SCRIPT` with `ownerToken` comparison (`tryClaim(slot, owner)`). Proof: `Select-String RedisIdempotencyStore.java`.
+- **[Qodo #13 — Medium] `sendOtp` rate-limit key spacing:** `OtpType.fromWire` trims before key build (`AuthController` line 71 uses `#body.type()` parsed canonical form).
+- **[Qodo #14 — High] Large write bodies:** `MAX_BODY_BYTES = 65536`; `CachedBodyRequest` clones defensively within bound; `request.getInputStream().readNBytes(MAX_BODY_BYTES + 1)` rejects oversized. Proof: `IdempotencyFilter.java:70-78`.
+
+## 6. Verification Proofs
 
 - **OCR Delegate Review Summary:**
   - `ocr delegate preview --format json` & `./gradlew :service-scheduler-server:verifyCodeReviewDelegate`: PASS (`total_files: 77`, `reviewed_files: 35`, `excluded_files: 42`, `coverage_rate: 100%`, 0 critical/high findings remaining).
@@ -70,3 +80,5 @@
 - **OpenSpec Strict Validation:**
   - Command: `openspec validate phase-1-bootstrap-otp-auth --strict`
   - Result: `Change 'phase-1-bootstrap-otp-auth' is valid`.
+
+## 5. Remaining PR #1 Inline Comments (Qodo) — Resolved by `f0d034d`

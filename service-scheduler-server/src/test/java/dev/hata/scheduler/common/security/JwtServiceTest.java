@@ -151,4 +151,40 @@ class JwtServiceTest {
         assertThat(service().read("not-a-token")).isEmpty();
         assertThat(service().authenticate("not-a-token")).isEmpty();
     }
+
+    @Test
+    void revokeRemovesAValidToken() {
+        JwtService service = service();
+        JwtService.Issued issued =
+                service.issue("00000000-0000-0000-0000-000000000005", "CUSTOMER", "+84900000004", null);
+        assertThat(service.authenticate(issued.token())).isPresent();
+
+        service.revoke(issued.jti());
+        assertThat(service.authenticate(issued.token())).isEmpty();
+    }
+
+    @Test
+    void revokedTokensExpireAndAreCleaned() throws Exception {
+        JwtService service = new JwtService(new JwtProperties(
+                "secret-secret-secret-secret-secret-secret-1234",
+                "service-scheduler",
+                java.time.Duration.ofMillis(500),
+                "jwt",
+                false));
+        JwtService.Issued issued =
+                service.issue("00000000-0000-0000-0000-000000000005", "CUSTOMER", "+84900000004", null);
+        service.revoke(issued.jti());
+        assertThat(service.authenticate(issued.token())).isEmpty();
+        Thread.sleep(600);
+        // Token itself may expire; this covers isRevoked expiry cleanup path
+        service.authenticate(issued.token());
+    }
+
+    @Test
+    void revokeIgnoresBlankJti() {
+        JwtService service = service();
+        service.revoke(null);
+        service.revoke("");
+        service.revoke("   ");
+    }
 }

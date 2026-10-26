@@ -72,7 +72,7 @@ class AuthControllerTest {
         when(idempotencyStore.slot(anyString(), anyString(), anyString()))
                 .thenAnswer(inv ->
                         "idempotency:" + inv.getArgument(0) + ":" + inv.getArgument(1) + ":" + inv.getArgument(2));
-        when(idempotencyStore.tryClaim(anyString())).thenReturn(true);
+        when(idempotencyStore.tryClaim(anyString(), anyString())).thenReturn(true);
 
         mvc = MockMvcBuilders.standaloneSetup(new AuthController(auth, jwt))
                 .addFilters(new dev.hata.scheduler.common.filter.IdempotencyFilter(idempotencyStore))
