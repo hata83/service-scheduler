@@ -125,12 +125,13 @@ jobs:
           SPRING_DATA_REDIS_PORT: "6379"
 
       - name: Bruno API contract tests
-        run: >
-          npx --yes @usebruno/cli@2.14.1
-          run service-scheduler-server/src/test/bruno
-          --env local
-          --disable-cookies
-          --reporter-junit service-scheduler-server/build/reports/bruno/results.xml
+        working-directory: service-scheduler-server/src/test/bruno
+        run: |
+          mkdir -p ../../../../service-scheduler-server/build/reports/bruno
+          npx --yes @usebruno/cli@2.14.1 run -r \
+            --env local \
+            --disable-cookies \
+            --reporter-junit ../../../../service-scheduler-server/build/reports/bruno/results.xml
         env:
           BRUNO_BASE_URL: http://localhost:8080
 
