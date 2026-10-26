@@ -6,6 +6,7 @@ import java.util.Map;
 import dev.hata.scheduler.common.AuthException;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -52,7 +53,11 @@ public class AuthController {
     @PostMapping("/otp/send")
     public ResponseEntity<Map<String, Object>> sendOtp(
             @RequestBody OtpSendRequest body,
-            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
+            @Parameter(
+                            description = "Unique idempotency key to prevent duplicate submissions",
+                            example = "11111111-1111-1111-1111-111111111111")
+                    @RequestHeader(value = "X-Idempotency-Key", required = false)
+                    String idempotencyKey,
             HttpServletRequest request,
             HttpServletResponse response) {
         requireKey(idempotencyKey);
@@ -82,7 +87,11 @@ public class AuthController {
     @PostMapping("/otp/verify")
     public ResponseEntity<Map<String, Object>> verifyOtp(
             @RequestBody OtpVerifyRequest body,
-            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
+            @Parameter(
+                            description = "Unique idempotency key to prevent duplicate submissions",
+                            example = "22222222-2222-2222-2222-222222222222")
+                    @RequestHeader(value = "X-Idempotency-Key", required = false)
+                    String idempotencyKey,
             HttpServletRequest request,
             HttpServletResponse response) {
         requireKey(idempotencyKey);
@@ -108,7 +117,11 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<Map<String, Object>> register(
             @RequestBody RegisterRequest body,
-            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
+            @Parameter(
+                            description = "Unique idempotency key to prevent duplicate submissions",
+                            example = "33333333-3333-3333-3333-333333333333")
+                    @RequestHeader(value = "X-Idempotency-Key", required = false)
+                    String idempotencyKey,
             HttpServletRequest request,
             HttpServletResponse response) {
         requireKey(idempotencyKey);
@@ -150,7 +163,11 @@ public class AuthController {
     @PatchMapping("/me")
     public ResponseEntity<Map<String, Object>> patchMe(
             @RequestBody ProfilePatchRequest body,
-            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
+            @Parameter(
+                            description = "Unique idempotency key to prevent duplicate submissions",
+                            example = "44444444-4444-4444-4444-444444444444")
+                    @RequestHeader(value = "X-Idempotency-Key", required = false)
+                    String idempotencyKey,
             jakarta.servlet.http.HttpServletRequest request) {
         requireKey(idempotencyKey);
         boolean phoneSupplied = body != null && body.phone() != null;

@@ -81,6 +81,29 @@ TASKS    39   done 39  open 0
 
 ---
 
+### Finding OCR-04: Swagger UI and Profile Verification for Docker Compose Integration
+
+- **Severity:** Medium
+- **Component:** [`OpenApiConfig.java`](file:///C:/Users/Hata/workspace/service-scheduler/service-scheduler-server/src/main/java/dev/hata/scheduler/common/OpenApiConfig.java), [`AuthController.java`](file:///C:/Users/Hata/workspace/service-scheduler/service-scheduler-server/src/main/java/dev/hata/scheduler/auth/AuthController.java), [`application.yml`](file:///C:/Users/Hata/workspace/service-scheduler/service-scheduler-server/src/main/resources/application.yml)
+- **Description:** Default and dev profiles required connection to Docker Compose ports. Swagger UI required parameter examples for the required `X-Idempotency-Key` header so developers can simulate requests directly.
+- **Reproducer Steps:**
+  1. Start the server with `dev` or `local` profile.
+  2. Open `http://localhost:8080/swagger-ui.html`.
+  3. Expand `POST /api/v1/auth/otp/send` and observe whether header examples exist.
+- **Fix:**
+  Added [`OpenApiConfig.java`](file:///C:/Users/Hata/workspace/service-scheduler/service-scheduler-server/src/main/java/dev/hata/scheduler/common/OpenApiConfig.java) with OpenAPI 3.1 metadata and cookie authentication scheme.
+  Added `@Parameter` example annotations to all write endpoints in [`AuthController.java`](file:///C:/Users/Hata/workspace/service-scheduler/service-scheduler-server/src/main/java/dev/hata/scheduler/auth/AuthController.java).
+  Added `application-dev.yml` and `application-local.yml` with compose connection settings.
+- **Verification Proof:**
+  Booted application with `dev` profile against Docker Compose PostgreSQL and Redis.
+  Tested `GET /v3/api-docs` and `GET /swagger-ui.html` returning HTTP 200.
+  Simulated `POST /api/v1/auth/otp/send` returning HTTP 202 with echoed OTP.
+  Simulated `POST /api/v1/auth/otp/verify` returning HTTP 200 with JWT cookie.
+  Simulated `GET /api/v1/auth/me` returning HTTP 200 with caller identity.
+- **Status:** RESOLVED
+
+---
+
 ## 3. Full Verification Commands and Proofs
 
 To verify all gates from a clean environment, execute these commands in order:
@@ -119,6 +142,6 @@ code → format → test → review → fix → code
 
 GitHub Copilot reviews code directly on files in the pull request diff:
 - **PR #1 URL:** https://github.com/hata83/service-scheduler/pull/1
-- **Inspection Status:** Checked pull request review threads and inline comments via GitHub API.
+- **Inspection Status:** Verified pull request review threads and inline comments via GitHub API.
 - **Unresolved Comments:** 0 comments.
 - **Review Policy:** All inline comments from GitHub Copilot or human reviewers must be fixed with passing regression tests before requesting approval to archive the change.

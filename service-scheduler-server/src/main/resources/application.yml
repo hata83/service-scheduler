@@ -7,9 +7,9 @@ spring:
   datasource:
     # Capacity 1: PostgreSQL 16 from Docker Compose for dev/local (HIL-1 round 4: no H2)
     # Compose maps host 5433 (host 5432 belongs to another local stack)
-    url: jdbc:postgresql://localhost:5433/service_scheduler
-    username: scheduler
-    password: scheduler
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/service_scheduler}
+    username: ${SPRING_DATASOURCE_USERNAME:scheduler}
+    password: ${SPRING_DATASOURCE_PASSWORD:scheduler}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -21,8 +21,8 @@ spring:
     baseline-on-migrate: false
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
       connect-timeout: 2s
 
 management:
@@ -70,8 +70,14 @@ app:
 springdoc:
   api-docs:
     path: /v3/api-docs
+    enabled: true
   swagger-ui:
     path: /swagger-ui.html
+    enabled: true
+    tags-sorter: alpha
+    operations-sorter: method
+    display-request-duration: true
+    try-it-out-enabled: true
 
 server:
   servlet:

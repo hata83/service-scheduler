@@ -153,6 +153,19 @@ SPRING_PROFILES_ACTIVE=prod             # prod requires the JWT secret and the P
 
 ## Quick Start (Local Development with Docker Compose)
 
+### Profiles and Backing Services
+
+The `default`, `local`, and `dev` profiles connect to Docker Compose services:
+- PostgreSQL 16 on `localhost:5433` (mapped from container port 5432)
+- Redis 7 on `localhost:6379`
+
+Start PostgreSQL and Redis before starting the application:
+
+```sh
+# Start PostgreSQL 16 and Redis 7
+docker compose up -d postgres redis
+```
+
 ### Run from Source
 
 ```sh
@@ -160,24 +173,43 @@ SPRING_PROFILES_ACTIVE=prod             # prod requires the JWT secret and the P
 git clone https://github.com/hata/service-scheduler.git
 cd service-scheduler
 
-# Start PostgreSQL 16 and Redis 7
-docker compose up -d postgres redis
-
 # Build the application
 ./gradlew build
 
-# Start the backend against the Compose services
+# Option 1: Start with the default profile
 ./gradlew bootRun
+
+# Option 2: Start with the dev profile
+SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
+
+# Option 3: Start with the local profile
+SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 ```
 
 The application starts on `http://localhost:8080`.
 
 | URL | Purpose |
 |---|---|
-| `http://localhost:8080/swagger-ui.html` | Interactive API documentation |
-| `http://localhost:8080/v3/api-docs` | OpenAPI 3.1 schema (YAML/JSON) |
+| `http://localhost:8080/swagger-ui.html` | Interactive Swagger UI API documentation |
+| `http://localhost:8080/v3/api-docs` | OpenAPI 3.1 schema (JSON) |
 | `http://localhost:8080/actuator/health` | Health endpoint |
 | `http://localhost:8080/actuator/prometheus` | Prometheus metrics |
+
+### Interactive API Testing with Swagger UI
+
+Swagger UI runs at `http://localhost:8080/swagger-ui.html`.
+It loads the OpenAPI 3.1 specification from `http://localhost:8080/v3/api-docs`.
+
+To simulate API requests in Swagger UI:
+1. Open `http://localhost:8080/swagger-ui.html` in your web browser.
+2. Expand an endpoint, such as `POST /api/v1/auth/otp/send`.
+3. Notice that `X-Idempotency-Key` and the request body contain prefilled values.
+4. Click **Execute** to send the request.
+5. Review the response status and the response body.
+6. Copy the issued `otpCode` from the 202 response body.
+7. Expand `POST /api/v1/auth/otp/verify`. Enter the phone number and code. Click **Execute**.
+8. The server responds with 200 OK and sets the `jwt` session cookie in your browser.
+9. Expand `GET /api/v1/auth/me`. Click **Execute** to view your authenticated identity.
 
 ### Run with Docker Compose (PostgreSQL + Redis)
 
