@@ -82,8 +82,9 @@ tasks.withType<Test> {
     useJUnitPlatform()
     environment("SPRING_PROFILES_ACTIVE", "test")
     // The Testcontainers suite and the Spring context need more than the
-    // default 512 MB worker heap.
-    maxHeapSize = "1g"
+    // default 512 MB worker heap. The value stays low so the worker and the
+    // Gradle daemon fit together on a small machine.
+    maxHeapSize = "768m"
     finalizedBy(tasks.jacocoTestReport)
 }
 
