@@ -33,7 +33,7 @@ class WorkshopSlotFixturePopulatorTest {
 
     @Test
     void populatesSlotGridKeysForUpcomingDays() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
         populator.populate(today);
 
         String day1Key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + today.plusDays(1);
@@ -48,5 +48,11 @@ class WorkshopSlotFixturePopulatorTest {
         assertThat(day1Json).contains("\"available\":false");
         assertThat(day1Json).contains("\"available\":true");
         assertThat(day1Json).contains("08:00:00");
+
+        String brakeKey = "slot:grid:" + DEALERSHIP_ID + ":22222222-0000-0000-0000-000000000003:" + today.plusDays(1);
+        assertThat(redis.hasKey(brakeKey)).isTrue();
+        String brakeJson = redis.opsForValue().get(brakeKey);
+        // 120-minute brake intervals: 08:00 to 10:00
+        assertThat(brakeJson).contains("10:00:00");
     }
 }

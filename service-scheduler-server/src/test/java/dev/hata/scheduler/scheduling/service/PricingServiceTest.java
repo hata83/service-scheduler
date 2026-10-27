@@ -6,10 +6,10 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import dev.hata.scheduler.common.provider.DealershipValidationProvider;
+import dev.hata.scheduler.common.provider.VehicleCategoryValidationProvider;
 import dev.hata.scheduler.scheduling.dto.PricingEstimateResponse;
 import dev.hata.scheduler.scheduling.model.ServiceType;
 import dev.hata.scheduler.scheduling.model.ServiceTypeCost;
@@ -39,11 +39,15 @@ class PricingServiceTest {
     @Mock
     private DealershipValidationProvider dealershipValidation;
 
+    @Mock
+    private VehicleCategoryValidationProvider categoryValidation;
+
     private PricingService pricingService;
 
     @BeforeEach
     void setUp() {
-        pricingService = new PricingService(serviceTypeRepository, costRepository, dealershipValidation);
+        pricingService =
+                new PricingService(serviceTypeRepository, costRepository, dealershipValidation, categoryValidation);
     }
 
     @Test
@@ -60,10 +64,12 @@ class PricingServiceTest {
         cost.setCost(new BigDecimal("150.00"));
 
         when(dealershipValidation.existsActiveDealership(DEALERSHIP_ID)).thenReturn(true);
+        when(categoryValidation.existsCategoryInDealership(DEALERSHIP_ID, CATEGORY_ID))
+                .thenReturn(true);
         when(serviceTypeRepository.findByIdInAndActiveTrue(List.of(SERVICE_TYPE_ID)))
                 .thenReturn(List.of(st));
-        when(costRepository.findByServiceTypeIdAndVehicleCategoryId(SERVICE_TYPE_ID, CATEGORY_ID))
-                .thenReturn(Optional.of(cost));
+        when(costRepository.findByVehicleCategoryIdAndServiceTypeIdIn(CATEGORY_ID, List.of(SERVICE_TYPE_ID)))
+                .thenReturn(List.of(cost));
 
         PricingEstimateResponse estimate =
                 pricingService.calculateEstimate(DEALERSHIP_ID, CATEGORY_ID, List.of(SERVICE_TYPE_ID));
@@ -78,6 +84,45 @@ class PricingServiceTest {
     }
 
     @Test
+    void calculateEstimateDeduplicatesServiceTypeIdsAndChargesOnce() {
+        ServiceType st = new ServiceType();
+        st.setId(SERVICE_TYPE_ID);
+        st.setDealershipId(DEALERSHIP_ID);
+        st.setCode("STANDARD_SERVICE");
+        st.setActive(true);
+
+        ServiceTypeCost cost = new ServiceTypeCost();
+        cost.setServiceTypeId(SERVICE_TYPE_ID);
+        cost.setVehicleCategoryId(CATEGORY_ID);
+        cost.setCost(new BigDecimal("150.00"));
+
+        when(dealershipValidation.existsActiveDealership(DEALERSHIP_ID)).thenReturn(true);
+        when(categoryValidation.existsCategoryInDealership(DEALERSHIP_ID, CATEGORY_ID))
+                .thenReturn(true);
+        when(serviceTypeRepository.findByIdInAndActiveTrue(List.of(SERVICE_TYPE_ID)))
+                .thenReturn(List.of(st));
+        when(costRepository.findByVehicleCategoryIdAndServiceTypeIdIn(CATEGORY_ID, List.of(SERVICE_TYPE_ID)))
+                .thenReturn(List.of(cost));
+
+        PricingEstimateResponse estimate =
+                pricingService.calculateEstimate(DEALERSHIP_ID, CATEGORY_ID, List.of(SERVICE_TYPE_ID, SERVICE_TYPE_ID));
+
+        assertThat(estimate.items()).hasSize(1);
+        assertThat(estimate.totalCost()).isEqualByComparingTo(new BigDecimal("150.00"));
+    }
+
+    @Test
+    void calculateEstimateThrowsBadRequestWhenCategoryNotInDealership() {
+        when(dealershipValidation.existsActiveDealership(DEALERSHIP_ID)).thenReturn(true);
+        when(categoryValidation.existsCategoryInDealership(DEALERSHIP_ID, CATEGORY_ID))
+                .thenReturn(false);
+
+        assertThatThrownBy(() -> pricingService.calculateEstimate(DEALERSHIP_ID, CATEGORY_ID, List.of(SERVICE_TYPE_ID)))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("400 BAD_REQUEST");
+    }
+
+    @Test
     void calculateEstimateThrowsBadRequestWhenCostMappingMissing() {
         ServiceType st = new ServiceType();
         st.setId(SERVICE_TYPE_ID);
@@ -86,10 +131,12 @@ class PricingServiceTest {
         st.setActive(true);
 
         when(dealershipValidation.existsActiveDealership(DEALERSHIP_ID)).thenReturn(true);
+        when(categoryValidation.existsCategoryInDealership(DEALERSHIP_ID, CATEGORY_ID))
+                .thenReturn(true);
         when(serviceTypeRepository.findByIdInAndActiveTrue(List.of(SERVICE_TYPE_ID)))
                 .thenReturn(List.of(st));
-        when(costRepository.findByServiceTypeIdAndVehicleCategoryId(SERVICE_TYPE_ID, CATEGORY_ID))
-                .thenReturn(Optional.empty());
+        when(costRepository.findByVehicleCategoryIdAndServiceTypeIdIn(CATEGORY_ID, List.of(SERVICE_TYPE_ID)))
+                .thenReturn(List.of());
 
         assertThatThrownBy(() -> pricingService.calculateEstimate(DEALERSHIP_ID, CATEGORY_ID, List.of(SERVICE_TYPE_ID)))
                 .isInstanceOf(ResponseStatusException.class)
@@ -109,6 +156,8 @@ class PricingServiceTest {
     @Test
     void calculateEstimateThrowsBadRequestWhenServiceTypeIdsEmptyOrNull() {
         when(dealershipValidation.existsActiveDealership(DEALERSHIP_ID)).thenReturn(true);
+        when(categoryValidation.existsCategoryInDealership(DEALERSHIP_ID, CATEGORY_ID))
+                .thenReturn(true);
 
         assertThatThrownBy(() -> pricingService.calculateEstimate(DEALERSHIP_ID, CATEGORY_ID, null))
                 .isInstanceOf(ResponseStatusException.class)
@@ -122,6 +171,8 @@ class PricingServiceTest {
     @Test
     void calculateEstimateThrowsBadRequestWhenServiceTypeNotFoundOrDifferentDealership() {
         when(dealershipValidation.existsActiveDealership(DEALERSHIP_ID)).thenReturn(true);
+        when(categoryValidation.existsCategoryInDealership(DEALERSHIP_ID, CATEGORY_ID))
+                .thenReturn(true);
         when(serviceTypeRepository.findByIdInAndActiveTrue(List.of(SERVICE_TYPE_ID)))
                 .thenReturn(List.of());
 

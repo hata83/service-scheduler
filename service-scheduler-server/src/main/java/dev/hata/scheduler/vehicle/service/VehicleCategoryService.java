@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import dev.hata.scheduler.common.provider.DealershipValidationProvider;
+import dev.hata.scheduler.common.provider.VehicleCategoryValidationProvider;
 import dev.hata.scheduler.vehicle.dto.VehicleCategoryResponse;
 import dev.hata.scheduler.vehicle.repository.VehicleCategoryRepository;
 
@@ -16,7 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
  * Domain service for managing supported vehicle categories.
  */
 @Service
-public class VehicleCategoryService {
+public class VehicleCategoryService implements VehicleCategoryValidationProvider {
 
     private final VehicleCategoryRepository repository;
     private final DealershipValidationProvider dealershipValidation;
@@ -35,5 +36,14 @@ public class VehicleCategoryService {
         return repository.findByDealershipId(dealershipId).stream()
                 .map(VehicleCategoryResponse::from)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsCategoryInDealership(UUID dealershipId, UUID categoryId) {
+        if (dealershipId == null || categoryId == null) {
+            return false;
+        }
+        return repository.existsByIdAndDealershipId(categoryId, dealershipId);
     }
 }

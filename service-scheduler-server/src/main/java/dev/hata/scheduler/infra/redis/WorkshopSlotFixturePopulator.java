@@ -44,7 +44,11 @@ public class WorkshopSlotFixturePopulator implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        populate(LocalDate.now(TIMEZONE));
+        try {
+            populate(LocalDate.now(TIMEZONE));
+        } catch (Exception ex) {
+            log.warn("Failed to populate demo slot availability grids in Redis: {}", ex.getMessage());
+        }
     }
 
     /**
@@ -61,9 +65,13 @@ public class WorkshopSlotFixturePopulator implements ApplicationRunner {
      * Clears all demo slot grid keys from Redis.
      */
     public void clearDemoKeys() {
-        Set<String> keys = redis.keys("slot:grid:*");
-        if (keys != null && !keys.isEmpty()) {
-            redis.delete(keys);
+        try {
+            Set<String> keys = redis.keys("slot:grid:*");
+            if (keys != null && !keys.isEmpty()) {
+                redis.delete(keys);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to clear demo slot keys from Redis: {}", ex.getMessage());
         }
     }
 
@@ -83,9 +91,9 @@ public class WorkshopSlotFixturePopulator implements ApplicationRunner {
     }
 
     private void populateBrakeSlots(LocalDate today) {
-        writeGrid(DEALERSHIP_ID, SERVICE_TYPE_BRAKES, today.plusDays(1), 90, List.of());
-        writeGrid(DEALERSHIP_ID, SERVICE_TYPE_BRAKES, today.plusDays(2), 90, List.of());
-        writeGrid(DEALERSHIP_ID, SERVICE_TYPE_BRAKES, today.plusDays(3), 90, List.of());
+        writeGrid(DEALERSHIP_ID, SERVICE_TYPE_BRAKES, today.plusDays(1), 120, List.of());
+        writeGrid(DEALERSHIP_ID, SERVICE_TYPE_BRAKES, today.plusDays(2), 120, List.of());
+        writeGrid(DEALERSHIP_ID, SERVICE_TYPE_BRAKES, today.plusDays(3), 120, List.of());
     }
 
     private void writeGrid(

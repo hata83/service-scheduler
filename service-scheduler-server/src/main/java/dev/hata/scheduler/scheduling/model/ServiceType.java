@@ -1,12 +1,16 @@
 package dev.hata.scheduler.scheduling.model;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Service type catalog entity scoped by dealership.
@@ -33,6 +37,10 @@ public class ServiceType {
 
     @Column(name = "estimated_minutes", nullable = false)
     private int estimatedMinutes;
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "allowed_bay_types", columnDefinition = "text[]")
+    private List<String> allowedBayTypes = new ArrayList<>();
 
     @Column(name = "is_active", nullable = false)
     private boolean active;
@@ -100,6 +108,14 @@ public class ServiceType {
 
     public void setEstimatedMinutes(int estimatedMinutes) {
         this.estimatedMinutes = estimatedMinutes;
+    }
+
+    public List<String> getAllowedBayTypes() {
+        return allowedBayTypes;
+    }
+
+    public void setAllowedBayTypes(List<String> allowedBayTypes) {
+        this.allowedBayTypes = allowedBayTypes;
     }
 
     public boolean isActive() {

@@ -47,6 +47,7 @@ class ServiceTypeServiceTest {
         st.setName("Express Oil Change");
         st.setDescription("Quick engine oil change");
         st.setEstimatedMinutes(30);
+        st.setAllowedBayTypes(List.of("STANDARD"));
         st.setActive(true);
 
         when(dealershipValidation.existsActiveDealership(DEALERSHIP_ID)).thenReturn(true);
@@ -62,6 +63,7 @@ class ServiceTypeServiceTest {
         assertThat(first.name()).isEqualTo("Express Oil Change");
         assertThat(first.description()).isEqualTo("Quick engine oil change");
         assertThat(first.estimatedMinutes()).isEqualTo(30);
+        assertThat(first.allowedBayTypes()).containsExactly("STANDARD");
     }
 
     @Test

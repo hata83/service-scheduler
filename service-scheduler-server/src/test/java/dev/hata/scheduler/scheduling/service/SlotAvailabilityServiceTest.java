@@ -84,4 +84,14 @@ class SlotAvailabilityServiceTest {
         assertThat(service.getCachedAvailableSlots(DEALERSHIP_ID, SERVICE_TYPE_ID, date))
                 .isEmpty();
     }
+
+    @Test
+    void getCachedAvailableSlotsReturnsEmptyListWhenRedisThrowsException() {
+        LocalDate date = LocalDate.of(2026, 10, 28);
+        String key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + date;
+
+        when(values.get(key)).thenThrow(new RuntimeException("Redis connection refused"));
+        assertThat(service.getCachedAvailableSlots(DEALERSHIP_ID, SERVICE_TYPE_ID, date))
+                .isEmpty();
+    }
 }

@@ -36,14 +36,14 @@ public class SlotAvailabilityService {
     public List<SlotAvailabilityResponse> getCachedAvailableSlots(
             UUID dealershipId, UUID serviceTypeId, LocalDate date) {
         String key = "slot:grid:" + dealershipId + ":" + serviceTypeId + ":" + date;
-        String json = redis.opsForValue().get(key);
-        if (json == null || json.isBlank()) {
-            return Collections.emptyList();
-        }
         try {
+            String json = redis.opsForValue().get(key);
+            if (json == null || json.isBlank()) {
+                return Collections.emptyList();
+            }
             return objectMapper.readValue(json, new TypeReference<List<SlotAvailabilityResponse>>() {});
         } catch (Exception ex) {
-            log.warn("Failed to deserialize slot grid for key {}: {}", key, ex.getMessage());
+            log.warn("Failed to read or deserialize slot grid for key {}: {}", key, ex.getMessage());
             return Collections.emptyList();
         }
     }

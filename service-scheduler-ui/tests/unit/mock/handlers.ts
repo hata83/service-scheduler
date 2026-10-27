@@ -144,9 +144,9 @@ export const handlers = [
     }
     const url = new URL(request.url);
     const serviceTypeIds = url.searchParams.getAll('serviceTypeIds');
-    const vehicleCategoryId = url.searchParams.get('vehicleCategoryId');
+    const categoryId = url.searchParams.get('categoryId') || url.searchParams.get('vehicleCategoryId');
 
-    if (!vehicleCategoryId || serviceTypeIds.length === 0) {
+    if (!categoryId || serviceTypeIds.length === 0) {
       return HttpResponse.json({ type: 'about:blank', title: 'Bad Request', status: 400 }, { status: 400 });
     }
 
@@ -158,7 +158,7 @@ export const handlers = [
 
     const estimate: PricingEstimateMock = {
       dealershipId: String(id),
-      vehicleCategoryId,
+      vehicleCategoryId: categoryId,
       items,
       totalCost
     };

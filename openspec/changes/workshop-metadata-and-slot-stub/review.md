@@ -128,6 +128,27 @@ Applied rules based on `ocr delegate rule --format json service-scheduler-server
     - Playwright test suites: Updated `formatIsoDate()` helper to format target dates against `Asia/Ho_Chi_Minh`.
   - *Status*: RESOLVED and verified across all test suites.
 
+### 3.7 PR Code Review Findings & Resolution (Kilo Code)
+- **Finding 1 — Category Dealership Validation**: `PricingService` permitted estimating costs using another dealer's vehicle category.
+  - *Fix*: Created `VehicleCategoryValidationProvider` cross-feature decoupling port in `common.provider`. Implemented by `VehicleCategoryService`. Injected into `PricingService` to reject non-existent or foreign dealership categories with HTTP 400.
+- **Finding 2 — Pricing Deduplication & Batch Query**: Duplicate service IDs charged multiple times; one DB query ran per service ID.
+  - *Fix*: Deduplicated `serviceTypeIds.stream().distinct().toList()` in `PricingService`. Batch queried costs via `costRepository.findByVehicleCategoryIdAndServiceTypeIdIn()`.
+- **Finding 3 — Redis Outage Handling**: `SlotAvailabilityService` threw uncontrolled exception when Redis was down.
+  - *Fix*: Wrapped Redis lookup in try/catch block. Gracefully logs a warning and returns empty list `Collections.emptyList()` on failure.
+- **Finding 4 — Development Startup Resilience**: Redis outages prevented application startup in `WorkshopSlotFixturePopulator`.
+  - *Fix*: Wrapped `populate()` in `run()` and `clearDemoKeys()` in try/catch blocks with warning logs so the server starts even during Redis connection issues.
+- **Finding 5 — Brake Demo Slot Duration**: Demo brake slots were 90 minutes instead of the 120-minute estimated duration in `service_types`.
+  - *Fix*: Updated `populateBrakeSlots()` duration from 90 to 120 minutes.
+- **Finding 6 — Missing Allowed Bay Types in API**: `ServiceTypeResponse` omitted `allowedBayTypes`.
+  - *Fix*: Added `@JdbcTypeCode(SqlTypes.ARRAY)` mapping for `allowed_bay_types` to `ServiceType` entity and exposed `List<String> allowedBayTypes` in `ServiceTypeResponse`.
+- **Finding 7 — Date Timezone Preservation**: Jackson serialized times in UTC rather than dealership offset.
+  - *Fix*: Configured `WRITE_DATES_AS_TIMESTAMPS = false` and `ADJUST_DATES_TO_CONTEXT_TIME_ZONE = false` on `ObjectMapper` in `JacksonConfig.java`.
+- **Finding 8 — Node 20 LTS Tooling Compatibility**: `msw@3.0.3` dropped support for Node 20 LTS.
+  - *Fix*: Downgraded MSW to `^2.7.0` in `service-scheduler-ui/package.json` for full Node 20 LTS compatibility.
+- **Finding 9 — Pricing Mock Query Param**: Mock handler looked for `vehicleCategoryId` instead of `categoryId`.
+  - *Fix*: Updated `service-scheduler-ui/tests/unit/mock/handlers.ts` to support both `categoryId` and `vehicleCategoryId`.
+- *Status*: All 9 findings RESOLVED and covered by unit and E2E tests.
+
 ---
 
 ## 4. Verification Proofs

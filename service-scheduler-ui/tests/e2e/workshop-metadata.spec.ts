@@ -80,6 +80,8 @@ test.describe('Workshop metadata and pricing', () => {
     expect(expressLane).toBeTruthy();
     expect(expressLane.estimatedMinutes).toBe(30);
     expect(expressLane.description).toBeTruthy();
+    expect(Array.isArray(expressLane.allowedBayTypes)).toBe(true);
+    expect(expressLane.allowedBayTypes).toContain('QUICK_LUBE');
   });
 
   test('service types returns 404 problem details for non-existent dealership', async ({ playwright, baseURL }) => {

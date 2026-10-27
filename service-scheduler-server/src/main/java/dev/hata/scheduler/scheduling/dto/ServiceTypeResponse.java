@@ -1,5 +1,6 @@
 package dev.hata.scheduler.scheduling.dto;
 
+import java.util.List;
 import java.util.UUID;
 
 import dev.hata.scheduler.scheduling.model.ServiceType;
@@ -15,7 +16,8 @@ public record ServiceTypeResponse(
         @Schema(example = "STANDARD_SERVICE") String code,
         @Schema(example = "Standard Scheduled Service") String name,
         @Schema(example = "Routine scheduled service inspection and fluid top-up") String description,
-        @Schema(example = "60") int estimatedMinutes) {
+        @Schema(example = "60") int estimatedMinutes,
+        @Schema(example = "[\"STANDARD\"]") List<String> allowedBayTypes) {
 
     public static ServiceTypeResponse from(ServiceType entity) {
         return new ServiceTypeResponse(
@@ -24,6 +26,7 @@ public record ServiceTypeResponse(
                 entity.getCode(),
                 entity.getName(),
                 entity.getDescription(),
-                entity.getEstimatedMinutes());
+                entity.getEstimatedMinutes(),
+                entity.getAllowedBayTypes() != null ? entity.getAllowedBayTypes() : List.of());
     }
 }

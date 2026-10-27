@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import dev.hata.scheduler.common.provider.DealershipValidationProvider;
+import dev.hata.scheduler.common.provider.VehicleCategoryValidationProvider;
 import dev.hata.scheduler.scheduling.dto.CostItemResponse;
 import dev.hata.scheduler.scheduling.dto.PricingEstimateResponse;
 import dev.hata.scheduler.scheduling.model.ServiceType;
@@ -29,14 +30,17 @@ public class PricingService {
     private final ServiceTypeRepository serviceTypeRepository;
     private final ServiceTypeCostRepository costRepository;
     private final DealershipValidationProvider dealershipValidation;
+    private final VehicleCategoryValidationProvider categoryValidation;
 
     public PricingService(
             ServiceTypeRepository serviceTypeRepository,
             ServiceTypeCostRepository costRepository,
-            DealershipValidationProvider dealershipValidation) {
+            DealershipValidationProvider dealershipValidation,
+            VehicleCategoryValidationProvider categoryValidation) {
         this.serviceTypeRepository = serviceTypeRepository;
         this.costRepository = costRepository;
         this.dealershipValidation = dealershipValidation;
+        this.categoryValidation = categoryValidation;
     }
 
     @Transactional(readOnly = true)
@@ -44,32 +48,43 @@ public class PricingService {
         if (!dealershipValidation.existsActiveDealership(dealershipId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Dealership not found: " + dealershipId);
         }
+        if (!categoryValidation.existsCategoryInDealership(dealershipId, categoryId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Vehicle category " + categoryId + " not found for dealership " + dealershipId);
+        }
         if (serviceTypeIds == null || serviceTypeIds.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one service type must be specified");
         }
 
-        List<ServiceType> serviceTypes = serviceTypeRepository.findByIdInAndActiveTrue(serviceTypeIds);
+        List<UUID> distinctServiceTypeIds = serviceTypeIds.stream().distinct().toList();
+        List<ServiceType> serviceTypes = serviceTypeRepository.findByIdInAndActiveTrue(distinctServiceTypeIds);
         Map<UUID, ServiceType> serviceTypeMap =
                 serviceTypes.stream().collect(Collectors.toMap(ServiceType::getId, st -> st));
+
+        Map<UUID, ServiceTypeCost> costMap =
+                costRepository.findByVehicleCategoryIdAndServiceTypeIdIn(categoryId, distinctServiceTypeIds).stream()
+                        .collect(Collectors.toMap(ServiceTypeCost::getServiceTypeId, cost -> cost));
 
         List<CostItemResponse> items = new ArrayList<>();
         BigDecimal totalCost = BigDecimal.ZERO;
 
-        for (UUID serviceTypeId : serviceTypeIds) {
+        for (UUID serviceTypeId : distinctServiceTypeIds) {
             ServiceType serviceType = serviceTypeMap.get(serviceTypeId);
             if (serviceType == null || !serviceType.getDealershipId().equals(dealershipId)) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST, "Service type not found or inactive: " + serviceTypeId);
             }
 
-            ServiceTypeCost costMapping = costRepository
-                    .findByServiceTypeIdAndVehicleCategoryId(serviceTypeId, categoryId)
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.BAD_REQUEST,
-                            "Missing pricing configuration for service "
-                                    + serviceType.getCode()
-                                    + " and vehicle category "
-                                    + categoryId));
+            ServiceTypeCost costMapping = costMap.get(serviceTypeId);
+            if (costMapping == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Missing pricing configuration for service "
+                                + serviceType.getCode()
+                                + " and vehicle category "
+                                + categoryId);
+            }
 
             items.add(new CostItemResponse(serviceTypeId, serviceType.getCode(), costMapping.getCost()));
             totalCost = totalCost.add(costMapping.getCost());

@@ -42,7 +42,13 @@ class ServiceTypeControllerTest {
         UUID dealershipId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         UUID serviceTypeId = UUID.fromString("22222222-0000-0000-0000-000000000001");
         ServiceTypeResponse response = new ServiceTypeResponse(
-                serviceTypeId, dealershipId, "OIL_CHANGE", "Express Oil Change", "Quick engine oil change", 30);
+                serviceTypeId,
+                dealershipId,
+                "OIL_CHANGE",
+                "Express Oil Change",
+                "Quick engine oil change",
+                30,
+                List.of("QUICK_LUBE"));
 
         when(service.findByDealershipId(dealershipId)).thenReturn(List.of(response));
 
@@ -50,7 +56,8 @@ class ServiceTypeControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(serviceTypeId.toString()))
                 .andExpect(jsonPath("$[0].code").value("OIL_CHANGE"))
-                .andExpect(jsonPath("$[0].estimatedMinutes").value(30));
+                .andExpect(jsonPath("$[0].estimatedMinutes").value(30))
+                .andExpect(jsonPath("$[0].allowedBayTypes[0]").value("QUICK_LUBE"));
     }
 
     @Test

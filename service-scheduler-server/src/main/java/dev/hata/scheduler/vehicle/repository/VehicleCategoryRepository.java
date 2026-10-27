@@ -13,4 +13,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface VehicleCategoryRepository extends JpaRepository<VehicleCategory, UUID> {
 
     List<VehicleCategory> findByDealershipId(UUID dealershipId);
+
+    boolean existsByIdAndDealershipId(UUID id, UUID dealershipId);
 }

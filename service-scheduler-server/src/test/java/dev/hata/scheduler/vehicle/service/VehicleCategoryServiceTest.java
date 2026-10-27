@@ -70,4 +70,22 @@ class VehicleCategoryServiceTest {
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("404 NOT_FOUND");
     }
+
+    @Test
+    void existsCategoryInDealershipReturnsTrueWhenCategoryExists() {
+        when(repository.existsByIdAndDealershipId(CATEGORY_ID, DEALERSHIP_ID)).thenReturn(true);
+
+        assertThat(service.existsCategoryInDealership(DEALERSHIP_ID, CATEGORY_ID))
+                .isTrue();
+    }
+
+    @Test
+    void existsCategoryInDealershipReturnsFalseWhenNullOrMissing() {
+        when(repository.existsByIdAndDealershipId(CATEGORY_ID, DEALERSHIP_ID)).thenReturn(false);
+
+        assertThat(service.existsCategoryInDealership(DEALERSHIP_ID, CATEGORY_ID))
+                .isFalse();
+        assertThat(service.existsCategoryInDealership(null, CATEGORY_ID)).isFalse();
+        assertThat(service.existsCategoryInDealership(DEALERSHIP_ID, null)).isFalse();
+    }
 }
