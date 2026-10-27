@@ -145,20 +145,20 @@ export const handlers = [
     const url = new URL(request.url);
     const serviceTypeIds = url.searchParams.getAll('serviceTypeIds');
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const categoryId = url.searchParams.get('categoryId');
+    const categoryId = url.searchParams.get('categoryId')?.trim();
 
     if (!categoryId || !UUID_REGEX.test(categoryId) || serviceTypeIds.length === 0) {
       return HttpResponse.json({ type: 'about:blank', title: 'Bad Request', status: 400 }, { status: 400 });
     }
 
     for (const stId of serviceTypeIds) {
-      if (!stId || !UUID_REGEX.test(stId)) {
+      if (!stId || !UUID_REGEX.test(stId.trim())) {
         return HttpResponse.json({ type: 'about:blank', title: 'Bad Request', status: 400 }, { status: 400 });
       }
     }
 
     const items = serviceTypeIds.map((stId) => ({
-      serviceTypeId: stId,
+      serviceTypeId: stId.trim(),
       cost: 50.0
     }));
     const totalCost = items.reduce((sum, item) => sum + item.cost, 0);

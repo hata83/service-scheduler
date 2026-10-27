@@ -43,7 +43,7 @@ public class SlotAvailabilityService {
             }
             return objectMapper.readValue(json, new TypeReference<List<SlotAvailabilityResponse>>() {});
         } catch (Exception ex) {
-            log.warn("Failed to read or deserialize slot grid for key {}: {}", key, ex.getMessage());
+            log.warn("Failed to read or deserialize slot grid for key {}: {}", key, ex.getMessage(), ex);
             return Collections.emptyList();
         }
     }

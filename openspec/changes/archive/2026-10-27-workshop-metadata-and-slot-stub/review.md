@@ -153,7 +153,11 @@ Applied rules based on `ocr delegate rule --format json service-scheduler-server
   - *Fix*: Wrapped all three upserts inside a single transaction via `TransactionTemplate.executeWithoutResult()` in `AppointmentFixturePopulator.populate()`.
 - **Finding 12 — Fixture Orchestrator Exception Logging**: `WorkshopFixtureOrchestrator` caught slot population exceptions and logged only `ex.getMessage()`, omitting the exception cause and stack trace.
   - *Fix*: Passed `ex` as the trailing argument to `log.warn()` in `WorkshopFixtureOrchestrator.java` to record the full trace.
-- *Status*: All 12 findings RESOLVED and covered by unit and E2E tests.
+- **Finding 13 — TypeMismatch Parameter Identification**: `handleTypeMismatch` identified failed parameters using `getPropertyName()`, which returned null for method arguments.
+  - *Fix*: Extracted `mismatch.getName()` from `MethodArgumentTypeMismatchException` in `GlobalExceptionHandler.java`.
+- **Finding 14 — Mock Whitespace-Padded UUID Normalization**: The pricing mock rejected whitespace-padded UUIDs accepted by Spring's parameter converters.
+  - *Fix*: Added `.trim()` normalization before validating UUID format and mapping items in `handlers.ts`.
+- *Status*: All 14 findings RESOLVED and covered by unit and E2E tests.
 
 ---
 

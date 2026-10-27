@@ -60,7 +60,7 @@ public class WorkshopSlotFixturePopulator {
                 redis.delete(keys);
             }
         } catch (Exception ex) {
-            log.warn("Failed to clear demo slot keys from Redis: {}", ex.getMessage());
+            log.warn("Failed to clear demo slot keys from Redis: {}", ex.getMessage(), ex);
         }
     }
 
@@ -92,8 +92,12 @@ public class WorkshopSlotFixturePopulator {
             int durationMinutes,
             List<LocalTime> bookedStartTimes) {
         String key = "slot:grid:" + dealershipId + ":" + serviceTypeId + ":" + date;
-        String json = buildGridJson(date, durationMinutes, bookedStartTimes);
-        redis.opsForValue().set(key, json, TTL);
+        try {
+            String json = buildGridJson(date, durationMinutes, bookedStartTimes);
+            redis.opsForValue().set(key, json, TTL);
+        } catch (Exception ex) {
+            log.warn("Failed to write slot grid for key {}: {}", key, ex.getMessage(), ex);
+        }
     }
 
     private String buildGridJson(LocalDate date, int durationMinutes, List<LocalTime> bookedStartTimes) {

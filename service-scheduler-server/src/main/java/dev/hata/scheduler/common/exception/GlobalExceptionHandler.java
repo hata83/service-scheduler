@@ -12,6 +12,7 @@ import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Converts every failure into an RFC 7807 problem+json body (ADR-006).
@@ -35,9 +36,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(TypeMismatchException.class)
     public ResponseEntity<ApiProblem> handleTypeMismatch(TypeMismatchException ex, HttpServletRequest request) {
-        String paramName = ex.getPropertyName() != null
-                ? ex.getPropertyName()
-                : (ex.getValue() != null ? ex.getValue().toString() : "unknown");
+        String paramName;
+        if (ex instanceof MethodArgumentTypeMismatchException mismatch) {
+            paramName = mismatch.getName();
+        } else if (ex.getPropertyName() != null) {
+            paramName = ex.getPropertyName();
+        } else {
+            paramName = "unknown";
+        }
         String detail = "Invalid request parameter '" + paramName + "': "
                 + (ex.getValue() != null ? ex.getValue().toString() : "invalid value");
         return build(HttpStatus.BAD_REQUEST, "Invalid request parameter", detail, request);
