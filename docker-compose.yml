@@ -13,7 +13,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U scheduler -d service_scheduler"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-scheduler} -d service_scheduler"]
       interval: 5s
       timeout: 3s
       retries: 10

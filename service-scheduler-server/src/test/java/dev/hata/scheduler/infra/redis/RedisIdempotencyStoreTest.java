@@ -44,21 +44,21 @@ class RedisIdempotencyStoreTest {
     @Test
     void buildsTheNamespacedSlot() {
         assertThat(storage.slot("register", "+84900000999", "register-84900000999"))
-                .isEqualTo("idempotency:register:+84900000999:register-84900000999");
+                .isEqualTo("resp:idempotency:register:+84900000999:register-84900000999");
     }
 
     @Test
     void loadReturnsNullForAFreeSlot() {
-        when(values.get("slot")).thenReturn(null);
+        when(values.get("resp:slot")).thenReturn(null);
 
-        assertThat(storage.load("slot")).isNull();
+        assertThat(storage.load("resp:slot")).isNull();
     }
 
     @Test
     void loadReadsTheCachedResponse() {
-        when(values.get("slot")).thenReturn("{\"status\":201,\"body\":\"{\\\"role\\\":\\\"CUSTOMER\\\"}\"}");
+        when(values.get("resp:slot")).thenReturn("{\"status\":201,\"body\":\"{\\\"role\\\":\\\"CUSTOMER\\\"}\"}");
 
-        IdempotencyStore.CachedResponse cached = storage.load("slot");
+        IdempotencyStore.CachedResponse cached = storage.load("resp:slot");
 
         assertThat(cached).isNotNull();
         assertThat(cached.status()).isEqualTo(201);
@@ -67,27 +67,34 @@ class RedisIdempotencyStoreTest {
 
     @Test
     void loadReturnsNullForABrokenRecord() {
-        when(values.get("slot")).thenReturn("not-json");
+        when(values.get("resp:slot")).thenReturn("not-json");
 
-        assertThat(storage.load("slot")).isNull();
+        assertThat(storage.load("resp:slot")).isNull();
     }
 
     @Test
     void storeWritesTheRecordWithTheTtlAndClaimsLocks() {
         IdempotencyStore.CachedResponse cached = new IdempotencyStore.CachedResponse(200, "{}");
 
-        storage.store("slot", cached);
-        verify(values).set(eq("slot"), any(String.class), any(Duration.class));
+        storage.store("resp:slot", cached);
+        verify(values).set(eq("resp:slot"), any(String.class), any(Duration.class));
 
-        when(values.setIfAbsent(eq("slot:lock"), eq("owner"), any(Duration.class)))
+        when(values.setIfAbsent(eq("lock:resp:slot"), eq("owner"), any(Duration.class)))
                 .thenReturn(true);
-        assertThat(storage.tryClaim("slot", "owner")).isTrue();
+        assertThat(storage.tryClaim("resp:slot", "owner")).isTrue();
 
-        when(values.setIfAbsent(eq("slot:lock"), eq("owner"), any(Duration.class)))
+        when(values.setIfAbsent(eq("lock:resp:slot"), eq("owner"), any(Duration.class)))
                 .thenReturn(false);
-        assertThat(storage.tryClaim("slot", "owner")).isFalse();
+        assertThat(storage.tryClaim("resp:slot", "owner")).isFalse();
 
-        storage.releaseClaim("slot", "owner");
+        storage.releaseClaim("resp:slot", "owner");
         verify(redis).execute(any(), any(), any());
+    }
+
+    @Test
+    void fooAndFooLockAreDisjoint() {
+        String keyFoo = storage.slot("e", "s", "foo");
+        String keyFooLock = "lock:" + storage.slot("e", "s", "foo");
+        assertThat(keyFoo).isNotEqualTo(keyFooLock);
     }
 }

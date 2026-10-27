@@ -37,18 +37,20 @@ public class RedisIdempotencyStore implements IdempotencyStore {
 
     @Override
     public String slot(String endpoint, String scope, String headerValue) {
-        return PREFIX + endpoint + ":" + scope + ":" + headerValue;
+        return "resp:" + PREFIX + endpoint + ":" + scope + ":" + headerValue;
     }
 
     @Override
     public boolean tryClaim(String slot, String ownerToken) {
-        Boolean acquired = redis.opsForValue().setIfAbsent(slot + ":lock", ownerToken, LOCK_TTL);
+        String lockSlot = "lock:" + slot;
+        Boolean acquired = redis.opsForValue().setIfAbsent(lockSlot, ownerToken, LOCK_TTL);
         return !Boolean.FALSE.equals(acquired);
     }
 
     @Override
     public void releaseClaim(String slot, String ownerToken) {
-        redis.execute(RELEASE_LOCK_SCRIPT, List.of(slot + ":lock"), ownerToken);
+        String lockSlot = "lock:" + slot;
+        redis.execute(RELEASE_LOCK_SCRIPT, List.of(lockSlot), ownerToken);
     }
 
     @Override

@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
@@ -24,11 +25,12 @@ public class ZaloWebhookNotificationChannel implements NotificationChannel {
     private final RestClient restClient;
     private final URI webhookUri;
 
+    @Autowired
     public ZaloWebhookNotificationChannel(@Value("${app.auth.otp.webhook-url}") String webhookUrl) {
         this(RestClient.create(), webhookUrl);
     }
 
-    public ZaloWebhookNotificationChannel(RestClient restClient, String webhookUrl) {
+    ZaloWebhookNotificationChannel(RestClient restClient, String webhookUrl) {
         if (webhookUrl == null || webhookUrl.isBlank()) {
             throw new IllegalStateException("app.auth.otp.webhook-url must be configured for zalo-webhook channel");
         }

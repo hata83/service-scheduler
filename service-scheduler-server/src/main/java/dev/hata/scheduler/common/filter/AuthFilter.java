@@ -51,7 +51,7 @@ public class AuthFilter extends OncePerRequestFilter {
                         .warn(
                                 "Redis auth check failed for request {} (correlation: {}) - cause: {}",
                                 request.getRequestURI(),
-                                request.getHeader("X-Correlation-Id"),
+                                request.getHeader("X-Request-Id"),
                                 ex.getMessage(),
                                 ex);
                 response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());

@@ -40,6 +40,15 @@ public class GlobalExceptionHandler {
         }
         // A server failure can carry a database or a network message. The
         // response stays generic and the cause goes to the log.
+        if (ex.getCause() != null
+                && ex.getCause().getMessage() != null
+                && ex.getCause().getMessage().contains("users_phone_key")) {
+            return build(
+                    HttpStatus.CONFLICT,
+                    "Phone already registered",
+                    "This phone already belongs to an account. Use the login flow instead.",
+                    request);
+        }
         log.error("Unhandled failure on {} {}", request.getMethod(), request.getRequestURI(), ex);
         String detail = "The request failed. Give the request id to the support team.";
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected server error", detail, request);

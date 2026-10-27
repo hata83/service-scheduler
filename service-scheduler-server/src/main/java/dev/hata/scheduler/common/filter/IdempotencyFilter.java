@@ -105,6 +105,13 @@ public class IdempotencyFilter extends OncePerRequestFilter {
                         request.getRequestURI());
                 return;
             }
+            // After claim, check if first request finished between load and claim.
+            IdempotencyStore.CachedResponse cachedAfterClaim = store.load(slot);
+            if (cachedAfterClaim != null) {
+                replayResponse(response, cachedAfterClaim);
+                store.releaseClaim(slot, claimOwner);
+                return;
+            }
             try {
                 ContentCachingResponseWrapper wrappedResponse = new ContentCachingResponseWrapper(response);
                 chain.doFilter(wrappedRequest, wrappedResponse);
