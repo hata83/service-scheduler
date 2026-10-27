@@ -5,8 +5,8 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: service_scheduler
-      POSTGRES_USER: scheduler
-      POSTGRES_PASSWORD: scheduler
+      POSTGRES_USER: ${POSTGRES_USER:-scheduler}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scheduler}
     # Host 5432 is taken by another local stack (nabinfarm); this project uses 5433.
     ports:
       - "5433:5432"

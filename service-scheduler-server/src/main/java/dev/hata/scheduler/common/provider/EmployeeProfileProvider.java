@@ -11,7 +11,6 @@ import java.util.UUID;
  * and {@code TECHNICIAN}), plus technician career {@code grade} and multi-skill
  * qualifications.
  */
-@FunctionalInterface
 public interface EmployeeProfileProvider {
 
     /**
@@ -32,7 +31,17 @@ public interface EmployeeProfileProvider {
             List<SkillView> skills) {}
 
     /**
+     * Minimal scope view for authorization and account-state validation.
+     */
+    record EmployeeScope(String role, UUID dealershipId) {}
+
+    /**
      * Finds the employee (and technician specialization when applicable) by user id.
      */
     Optional<EmployeeView> findByUserId(UUID userId);
+
+    /**
+     * Finds the employee scope (role and dealershipId) by user id.
+     */
+    Optional<EmployeeScope> findScopeByUserId(UUID userId);
 }

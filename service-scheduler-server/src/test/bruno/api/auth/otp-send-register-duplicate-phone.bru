@@ -1,0 +1,41 @@
+meta {
+  name: otp-send-register-duplicate-phone
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/otp/send
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Idempotency-Key: otp-send-REGISTER-84900000004
+  X-Forwarded-For: 203.0.113.44
+}
+
+body:json {
+  {
+    "phone": "+84900000004",
+    "type": "REGISTER"
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("REGISTER_CODE_DUPLICATE", res.getBody().otpCode);
+}
+
+tests {
+  test("send REGISTER code for duplicate phone responds 202", function() {
+    expect(res.getStatus()).to.equal(202);
+  });
+  
+
+  test("send REGISTER code targets the REGISTER purpose", function() {
+    expect(res.getBody().type).to.equal("REGISTER");
+    expect(res.getBody().otpCode).to.match(/^[0-9]{6}$/);
+  });
+  
+}

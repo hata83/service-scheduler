@@ -125,4 +125,25 @@ class TechnicianServiceTest {
         assertThat(techView.get().available()).isTrue();
         assertThat(techView.get().skills()).hasSize(2);
     }
+
+    @Test
+    void findScopeByUserIdMapsEmployeeRoleAndDealershipWithoutLoadingSkills() {
+        EmployeeRepository.EmployeeScopeProjection projection = new EmployeeRepository.EmployeeScopeProjection() {
+            @Override
+            public EmployeeRole getRole() {
+                return EmployeeRole.TECHNICIAN;
+            }
+
+            @Override
+            public UUID getDealershipId() {
+                return DEALERSHIP_ID;
+            }
+        };
+        when(employees.findScopeByUserId(TECH_ID)).thenReturn(Optional.of(projection));
+
+        Optional<EmployeeProfileProvider.EmployeeScope> scope = service.findScopeByUserId(TECH_ID);
+        assertThat(scope).isPresent();
+        assertThat(scope.get().role()).isEqualTo("TECHNICIAN");
+        assertThat(scope.get().dealershipId()).isEqualTo(DEALERSHIP_ID);
+    }
 }

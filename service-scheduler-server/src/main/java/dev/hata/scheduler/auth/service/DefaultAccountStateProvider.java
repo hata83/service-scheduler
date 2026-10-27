@@ -36,7 +36,7 @@ public class DefaultAccountStateProvider implements AccountStateProvider {
             }
             if (user.getType() == UserType.EMPLOYEE) {
                 return employees
-                        .findByUserId(userId)
+                        .findScopeByUserId(userId)
                         .map(emp -> new AccountState(true, emp.role(), emp.dealershipId()))
                         .orElse(new AccountState(false, null, null));
             }

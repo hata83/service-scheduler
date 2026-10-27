@@ -36,6 +36,14 @@ public class TechnicianService implements EmployeeProfileProvider {
         return employees.findByUserId(userId).map(this::toView);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<EmployeeScope> findScopeByUserId(UUID userId) {
+        return employees
+                .findScopeByUserId(userId)
+                .map(scope -> new EmployeeScope(scope.getRole().name(), scope.getDealershipId()));
+    }
+
     private EmployeeView toView(Employee employee) {
         if (employee instanceof Technician technician) {
             List<SkillView> skillViews = skills.findByTechnicianId(technician.getUserId()).stream()

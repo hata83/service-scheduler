@@ -232,6 +232,7 @@ class AuthServiceTest {
         assertThatThrownBy(() -> service.register(new RegisterRequest("+84900000999", "Tai", " ", "176482", null)))
                 .isInstanceOf(AuthException.class);
 
+        when(otp.verify(PHONE, OtpType.REGISTER, "176482")).thenReturn(true);
         when(users.existsByPhone(PHONE)).thenReturn(true);
         assertThatThrownBy(() -> service.register(new RegisterRequest(PHONE, "Tai", "Le", "176482", null)))
                 .isInstanceOf(AuthException.class)

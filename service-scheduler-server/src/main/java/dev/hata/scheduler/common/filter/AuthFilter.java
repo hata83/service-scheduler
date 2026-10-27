@@ -2,6 +2,7 @@ package dev.hata.scheduler.common.filter;
 
 import java.io.IOException;
 
+import dev.hata.scheduler.common.exception.ApiProblem;
 import dev.hata.scheduler.common.security.JwtService;
 import dev.hata.scheduler.common.security.RedisUnavailableException;
 
@@ -13,9 +14,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Reads the {@code jwt} session cookie and exposes the caller principal in request scope.
@@ -27,6 +28,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class AuthFilter extends OncePerRequestFilter {
 
     public static final String PRINCIPAL_ATTRIBUTE = "dev.hata.scheduler.principal";
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final JwtService jwtService;
 
@@ -44,11 +47,21 @@ public class AuthFilter extends OncePerRequestFilter {
                         .authenticate(token)
                         .ifPresent(principal -> request.setAttribute(PRINCIPAL_ATTRIBUTE, principal));
             } catch (RedisUnavailableException ex) {
+                org.slf4j.LoggerFactory.getLogger(AuthFilter.class)
+                        .warn(
+                                "Redis auth check failed for request {} (correlation: {}) - cause: {}",
+                                request.getRequestURI(),
+                                request.getHeader("X-Correlation-Id"),
+                                ex.getMessage(),
+                                ex);
                 response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
-                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                response.getWriter()
-                        .write("{\"status\":503,\"title\":\"Service Unavailable\","
-                                + "\"detail\":\"Authentication service temporarily unavailable\"}");
+                response.setContentType("application/problem+json;charset=UTF-8");
+                ApiProblem problem = ApiProblem.of(
+                        HttpStatus.SERVICE_UNAVAILABLE.value(),
+                        "Service Unavailable",
+                        "Authentication service temporarily unavailable",
+                        request.getRequestURI());
+                MAPPER.writeValue(response.getWriter(), problem);
                 return;
             }
         }

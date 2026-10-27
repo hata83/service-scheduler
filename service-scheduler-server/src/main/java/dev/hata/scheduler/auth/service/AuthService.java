@@ -126,19 +126,18 @@ public class AuthService {
             throw new AuthException(
                     HttpStatus.BAD_REQUEST, "Invalid request body", "The request needs a firstName and a lastName.");
         }
-        if (users.existsByPhone(req.phone())) {
-            throw new AuthException(
-                    HttpStatus.CONFLICT,
-                    "Phone already registered",
-                    "This phone already belongs to an account. Use the login flow instead.");
-        }
         if (!otp.verify(req.phone(), OtpType.REGISTER, req.code())) {
             throw new AuthException(
                     HttpStatus.UNAUTHORIZED,
                     "OTP verification failed",
                     "The code is wrong, expired, or was issued for another purpose.");
         }
-
+        if (users.existsByPhone(req.phone())) {
+            throw new AuthException(
+                    HttpStatus.CONFLICT,
+                    "Phone already registered",
+                    "This phone already belongs to an account. Use the login flow instead.");
+        }
         UUID userId = UUID.randomUUID();
         String firstName = req.firstName().trim();
         String lastName = req.lastName().trim();
