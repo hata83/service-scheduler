@@ -68,7 +68,8 @@ public class AuthController {
         @RateLimited.Rule(
                 policy = "otp-send-phone",
                 keyExpression = "#body != null && #body.type() != null && #body.phone() != null "
-                        + "? #body.type().trim().toLowerCase() + ':' + #body.phone().trim() : null",
+                        + "&& #body.phone().matches('^\\+[1-9]\\d{7,14}$') "
+                        + "? #body.type().trim().toLowerCase() + ':' + #body.phone() : null",
                 message = "Too many OTP requests for this phone. Wait before trying again."),
         @RateLimited.Rule(
                 policy = "otp-send-ip",
@@ -109,7 +110,9 @@ public class AuthController {
     @RateLimited({
         @RateLimited.Rule(
                 policy = "otp-verify-phone",
-                keyExpression = "#body != null && #body.phone() != null ? #body.phone().trim() : null",
+                keyExpression = "#body != null && #body.phone() != null "
+                        + "&& #body.phone().matches('^\\+[1-9]\\d{7,14}$') "
+                        + "? #body.phone() : null",
                 message = "Too many verification attempts for this phone. Wait before trying again."),
         @RateLimited.Rule(
                 policy = "otp-verify-ip",
@@ -147,7 +150,9 @@ public class AuthController {
     @RateLimited({
         @RateLimited.Rule(
                 policy = "register-phone",
-                keyExpression = "#body != null && #body.phone() != null ? #body.phone().trim() : null",
+                keyExpression = "#body != null && #body.phone() != null "
+                        + "&& #body.phone().matches('^\\+[1-9]\\d{7,14}$') "
+                        + "? #body.phone() : null",
                 message = "Too many registration attempts for this phone. Wait before trying again."),
         @RateLimited.Rule(
                 policy = "register-ip",

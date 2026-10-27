@@ -96,7 +96,7 @@ class RateLimitServiceTest {
     }
 
     @Test
-    void aspectNormalizesWhitespaceAndCaseInKeyExpression() throws Exception {
+    void aspectSkipsPhoneRuleForPaddedPhone() throws Exception {
         when(counter.tryAcquire(any(), anyLong(), any())).thenReturn(true);
         when(ipResolver.resolve(any())).thenReturn("10.0.0.1");
 
@@ -115,7 +115,9 @@ class RateLimitServiceTest {
 
             aspect.enforceRateLimits(joinPoint, annotation);
 
-            verify(counter).tryAcquire(eq("ratelimit:otp-send-phone:login:+84900000004"), eq(5L), any());
+            verify(counter).tryAcquire(eq("ratelimit:otp-send-ip:10.0.0.1"), eq(50L), any());
+            org.mockito.Mockito.verify(counter, org.mockito.Mockito.never())
+                    .tryAcquire(org.mockito.ArgumentMatchers.startsWith("ratelimit:otp-send-phone:"), anyLong(), any());
         } finally {
             RequestContextHolder.resetRequestAttributes();
         }
@@ -125,7 +127,9 @@ class RateLimitServiceTest {
         @RateLimited({
             @RateLimited.Rule(
                     policy = "otp-send-phone",
-                    keyExpression = "#body.type().trim().toLowerCase() + ':' + #body.phone().trim()"),
+                    keyExpression = "#body != null && #body.type() != null && #body.phone() != null "
+                            + "&& #body.phone().matches('^\\+[1-9]\\d{7,14}$') "
+                            + "? #body.type().trim().toLowerCase() + ':' + #body.phone() : null"),
             @RateLimited.Rule(policy = "otp-send-ip")
         })
         void handle(OtpSendRequest body, HttpServletRequest request) {}
