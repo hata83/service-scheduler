@@ -2,11 +2,15 @@
   "schema_version": 1,
   "diagram_type": "sequence",
   "meta": {
-    "title": "Slot Availability Check — Dual Resource Gate",
+    "title": "Slot Availability Check \u2014 Dual Resource Gate",
     "output": "availability-check.html",
     "column_fit": "spread",
     "animation": "trace",
-    "quality_profile": "showcase"
+    "quality_profile": "showcase",
+    "viewBox": [
+      1200,
+      850
+    ]
   },
   "participants": [
     {
@@ -48,18 +52,18 @@
   ],
   "segments": [
     {
-      "from": 110,
-      "to": 280,
+      "from": 140,
+      "to": 325,
       "label": "Auth and cache check"
     },
     {
-      "from": 300,
-      "to": 500,
+      "from": 340,
+      "to": 525,
       "label": "Dual-resource gate (on miss)"
     },
     {
-      "from": 520,
-      "to": 660,
+      "from": 540,
+      "to": 730,
       "label": "Cache write and response"
     }
   ],
@@ -68,15 +72,15 @@
       "id": "req",
       "from": "client",
       "to": "api",
-      "y": 130,
-      "label": "GET /api/v1/slots/available\n?dealershipId=&serviceTypeId=&date=",
+      "y": 170,
+      "label": "GET /slots/available",
       "variant": "emphasis"
     },
     {
       "id": "verify",
       "from": "api",
       "to": "auth",
-      "y": 170,
+      "y": 210,
       "label": "validate JWT cookie",
       "variant": "security"
     },
@@ -84,7 +88,7 @@
       "id": "auth-ok",
       "from": "auth",
       "to": "api",
-      "y": 205,
+      "y": 250,
       "label": "principal + role",
       "variant": "return"
     },
@@ -92,104 +96,88 @@
       "id": "cache-read",
       "from": "api",
       "to": "redis",
-      "y": 250,
-      "label": "GET slot:grid:{dealershipId}:{serviceTypeId}:{date}",
+      "y": 290,
+      "label": "GET slot:grid key",
       "variant": "default"
     },
     {
       "id": "cache-hit",
       "from": "redis",
       "to": "api",
-      "y": 282,
-      "label": "HIT → cached grid JSON",
+      "y": 330,
+      "label": "HIT \u2192 cached grid",
       "variant": "return"
     },
     {
       "id": "cache-miss-note",
       "from": "redis",
       "to": "api",
-      "y": 310,
-      "label": "MISS → compute from DB",
+      "y": 370,
+      "label": "MISS \u2192 compute from DB",
       "variant": "dashed"
     },
     {
       "id": "load-config",
       "from": "api",
       "to": "compute",
-      "y": 345,
-      "label": "compute(dealershipConfig,\nserviceType, date, now)",
+      "y": 410,
+      "label": "compute(config, service, date)",
       "variant": "default"
-    },
-    {
-      "id": "gen-grid",
-      "from": "compute",
-      "to": "compute",
-      "y": 375,
-      "label": "Step 1: generate candidate slots\nfrom open/close/lunch/interval",
-      "variant": "self"
     },
     {
       "id": "bay-query",
       "from": "compute",
       "to": "pg",
-      "y": 405,
-      "label": "Step 2 (bay gate): for each candidate slot\nSELECT bays WHERE bayType=ANY(allowed_bay_types)\nAND no overlapping active service_jobs\nORDER BY last_used_at ASC (LRU)",
+      "y": 450,
+      "label": "Bay gate: free bays query",
       "variant": "default"
     },
     {
       "id": "bay-result",
       "from": "pg",
       "to": "compute",
-      "y": 440,
-      "label": "free bay list (or empty → slot excluded)",
+      "y": 490,
+      "label": "free bay list",
       "variant": "return"
     },
     {
       "id": "tech-query",
       "from": "compute",
       "to": "pg",
-      "y": 465,
-      "label": "Step 3 (tech gate): for each required role slot\nSELECT technicians WHERE skill≥minLevel\nAND is_available=true\nAND no overlapping job_technician_assignments",
+      "y": 530,
+      "label": "Tech gate: technicians query",
       "variant": "default"
     },
     {
       "id": "tech-result",
       "from": "pg",
       "to": "compute",
-      "y": 500,
-      "label": "candidate tech IDs per role slot",
+      "y": 570,
+      "label": "candidate tech IDs",
       "variant": "return"
-    },
-    {
-      "id": "greedy",
-      "from": "compute",
-      "to": "compute",
-      "y": 525,
-      "label": "Step 4+5: scarcest-slot-first greedy match\nSort role slots by candidate count ASC\nAssign each a distinct technician\nExclude slot if any role slot unfillable",
-      "variant": "self"
     },
     {
       "id": "compute-done",
       "from": "compute",
       "to": "api",
-      "y": 555,
-      "label": "List<SlotAvailabilityResponse>\navailable=true|false per window",
+      "y": 610,
+      "label": "available=true|false",
       "variant": "return"
     },
     {
       "id": "cache-write",
       "from": "api",
       "to": "redis",
-      "y": 590,
-      "label": "SET slot:grid:… TTL={slotCacheTtlSeconds}",
+      "y": 650,
+      "label": "SET grid TTL",
       "variant": "dashed"
     },
     {
       "id": "reply",
       "from": "api",
       "to": "client",
-      "y": 640,
-      "label": "200 OK  [{startTime, endTime, available}, …]",
+      "y": 690,
+      "label": "200 OK slot windows",
       "variant": "return"
     }
   ],
@@ -234,7 +222,7 @@
   "cards": [
     {
       "dot": "emerald",
-      "title": "Dual Resource Gate — Both Must Pass",
+      "title": "Dual Resource Gate \u2014 Both Must Pass",
       "items": [
         "Bay gate: at least one active bay matching allowed_bay_types has no overlapping active service_job",
         "Technician gate: every required role slot in service_type_technician_requirements can be filled by a distinct, qualified, unassigned technician",
@@ -245,7 +233,7 @@
       "dot": "cyan",
       "title": "Greedy Scarcest-Slot Matching",
       "items": [
-        "Role slots are sorted by candidate count ascending — the rarest skill fills first",
+        "Role slots are sorted by candidate count ascending \u2014 the rarest skill fills first",
         "Each technician fills at most one role slot per job window",
         "If any role slot has zero unassigned candidates the entire time window is excluded"
       ]
@@ -254,14 +242,14 @@
       "dot": "amber",
       "title": "Cache Strategy",
       "items": [
-        "Key: slot:grid:{dealershipId}:{serviceTypeId}:{date} — per service type, per date",
+        "Key: slot:grid:{dealershipId}:{serviceTypeId}:{date} \u2014 per service type, per date",
         "TTL: dealership.slotCacheTtlSeconds (default 1 hour)",
         "Date-level eviction on: booking committed, cancelled, no-show, check-in slot adjustment",
         "Dealership-level eviction on: bay change, technician change, config update"
       ]
     },
     {
-      "dot": "red",
+      "dot": "rose",
       "title": "Validation Limits",
       "items": [
         "HTTP 400 when date > today + dealership.maxAdvanceBookingDays (default 7 days)",

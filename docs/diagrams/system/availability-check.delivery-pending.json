@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "command": "deliver",
+  "status": "pending",
+  "receiptId": "87623560-986a-4324-93f6-62096b58389f",
+  "input": "/Users/apple/workspace/service-scheduler/docs/diagrams/src/system/availability-check.sequence.json",
+  "output": "/Users/apple/workspace/service-scheduler/docs/diagrams/system/availability-check.html"
+}

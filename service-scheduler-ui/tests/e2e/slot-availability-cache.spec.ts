@@ -59,7 +59,7 @@ test.describe('Slot availability — full customer flow with booking exclusion',
 
     const registerResp = await request.post('/api/v1/auth/register', {
       headers: { 'X-Idempotency-Key': idempotencyKey('register', phone) },
-      data: { phone, otpCode: registerOtp, firstName: 'Slot', lastName: 'Test', locale: 'en_US' }
+      data: { phone, code: registerOtp, firstName: 'Slot', lastName: 'Test' }
     });
     expect(registerResp.status(), await registerResp.text()).toBe(201);
 
