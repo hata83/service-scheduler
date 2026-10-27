@@ -3,6 +3,7 @@ package dev.hata.scheduler.common.filter;
 import java.io.IOException;
 
 import dev.hata.scheduler.common.security.JwtService;
+import dev.hata.scheduler.common.security.RedisUnavailableException;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -11,12 +12,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * Reads the {@code jwt} session cookie and exposes the caller principal in request scope.
  * Uses the stateless JwtService for in-memory token verification.
+ * Returns a controlled service-unavailable response when Redis is unavailable.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
@@ -35,7 +39,18 @@ public class AuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String token = readCookie(request);
         if (token != null) {
-            jwtService.authenticate(token).ifPresent(principal -> request.setAttribute(PRINCIPAL_ATTRIBUTE, principal));
+            try {
+                jwtService
+                        .authenticate(token)
+                        .ifPresent(principal -> request.setAttribute(PRINCIPAL_ATTRIBUTE, principal));
+            } catch (RedisUnavailableException ex) {
+                response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.getWriter()
+                        .write("{\"status\":503,\"title\":\"Service Unavailable\","
+                                + "\"detail\":\"Authentication service temporarily unavailable\"}");
+                return;
+            }
         }
         chain.doFilter(request, response);
     }

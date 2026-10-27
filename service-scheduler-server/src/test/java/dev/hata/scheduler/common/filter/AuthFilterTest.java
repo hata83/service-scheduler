@@ -9,6 +9,7 @@ import java.util.UUID;
 
 import dev.hata.scheduler.common.security.AuthPrincipal;
 import dev.hata.scheduler.common.security.JwtService;
+import dev.hata.scheduler.common.security.RedisUnavailableException;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.Cookie;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
@@ -97,5 +99,22 @@ class AuthFilterTest {
         filter.doFilter(request, new MockHttpServletResponse(), chain);
 
         assertThat(request.getAttribute(AuthFilter.PRINCIPAL_ATTRIBUTE)).isNull();
+    }
+
+    @Test
+    void returnsServiceUnavailableWhenRedisIsDown() throws Exception {
+        String token = "valid.jwt.token";
+        when(jwtService.authenticate(token)).thenThrow(new RedisUnavailableException("Redis unavailable"));
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        request.setCookies(new Cookie("jwt", token));
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE.value());
+        assertThat(response.getContentAsString())
+                .contains("Service Unavailable")
+                .contains("Authentication service temporarily unavailable");
     }
 }

@@ -3,6 +3,11 @@ package dev.hata.scheduler.infra.redis;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import dev.hata.scheduler.common.otp.OtpStorage;
 import dev.hata.scheduler.common.otp.OtpType;
@@ -36,8 +41,11 @@ class RedisOtpStorageTest {
                 "otp:global:register:" + PHONE,
                 "otp:attempts:global:login:" + PHONE,
                 "otp:attempts:global:register:" + PHONE,
+                "otp:lock:global:login:" + PHONE,
+                "otp:lock:global:register:" + PHONE,
                 "otp:dealer-1:login:" + PHONE,
-                "otp:attempts:dealer-1:login:" + PHONE));
+                "otp:attempts:dealer-1:login:" + PHONE,
+                "otp:lock:dealer-1:login:" + PHONE));
     }
 
     @Test
@@ -117,5 +125,48 @@ class RedisOtpStorageTest {
     @Test
     void consumeNullCodeReturnsFalse() {
         assertThat(otpStorage.consume(PHONE, OtpType.LOGIN, null)).isFalse();
+    }
+
+    @Test
+    @SuppressWarnings("PMD.CloseResource")
+    void lockCoordinatesConcurrentSendsForSamePhoneAndType() throws InterruptedException {
+        int threadCount = 4;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(threadCount);
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger failureCount = new AtomicInteger(0);
+
+        for (int i = 0; i < threadCount; i++) {
+            final int threadId = i;
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    String ownerToken = "thread-" + threadId;
+                    if (otpStorage.tryAcquireLock(PHONE, OtpType.LOGIN, ownerToken)) {
+                        successCount.incrementAndGet();
+                        Thread.sleep(50);
+                        otpStorage.save(PHONE, OtpType.LOGIN, "CODE" + threadId, TTL);
+                        otpStorage.releaseLock(PHONE, OtpType.LOGIN, ownerToken);
+                    } else {
+                        failureCount.incrementAndGet();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        startLatch.countDown();
+        assertThat(doneLatch.await(5, TimeUnit.SECONDS)).isTrue();
+        executor.shutdown();
+
+        assertThat(successCount.get()).isEqualTo(1);
+        assertThat(failureCount.get()).isEqualTo(threadCount - 1);
+
+        String finalCode = redisTemplate.opsForValue().get("otp:global:login:" + PHONE);
+        assertThat(finalCode).matches("CODE\\d+");
     }
 }
