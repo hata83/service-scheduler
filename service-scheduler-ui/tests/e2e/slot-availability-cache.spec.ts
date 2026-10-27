@@ -90,13 +90,20 @@ test.describe('Slot availability — full customer flow with booking exclusion',
     const serviceTypes = await serviceTypesResp.json();
     expect(Array.isArray(serviceTypes)).toBe(true);
 
-    // Select STANDARD_SERVICE — seeded bay 2 (STANDARD), tech skill ENGINE ≥ JUNIOR
+    // Select STANDARD_SERVICE — seeded bay 2 (STANDARD), tech skill ENGINE >= JUNIOR
     const standardService = serviceTypes.find((s: { code: string }) => s.code === 'STANDARD_SERVICE');
     expect(standardService, 'STANDARD_SERVICE must exist').toBeTruthy();
     expect(standardService.estimatedMinutes).toBe(60);
 
-    // --- Step 5: Choose Day+1 (has seeded 08:00–09:00 booking on the only STANDARD bay) ---
+    // --- Step 5: Choose Day+1 (has seeded 08:00-09:00 booking on the only STANDARD bay) ---
     const tomorrow = hcmDate(1);
+
+    // Clear any preloaded fixture grid so this query exercises the DB-backed gate,
+    // not a cached fixture grid.
+    const clearResp = await request.delete(
+      `/api/v1/slots/cache?dealershipId=${DEMO_DEALERSHIP_ID}`
+    );
+    expect(clearResp.status(), await clearResp.text()).toBe(204);
 
     // --- Step 6: Query available slots ---
     const slotsResp = await request.get(
@@ -148,6 +155,7 @@ test.describe('Slot availability — full customer flow with booking exclusion',
     expect(standardService).toBeTruthy();
 
     const day2 = hcmDate(2);
+    await request.delete(`/api/v1/slots/cache?dealershipId=${DEMO_DEALERSHIP_ID}`);
     const slotsResp = await request.get(
       `/api/v1/slots/available?dealershipId=${DEMO_DEALERSHIP_ID}&serviceTypeId=${standardService.id}&date=${day2}`
     );

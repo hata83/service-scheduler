@@ -51,9 +51,11 @@ public class TechnicianAvailabilityProvider implements TechnicianAvailabilityPor
               )
               AND NOT EXISTS (
                 SELECT 1 FROM job_technician_assignments a
+                JOIN service_jobs sj ON sj.id = a.job_id
                 WHERE a.technician_id = t.user_id
                   AND a.assigned_start_time < ?
                   AND a.assigned_end_time > ?
+                  AND sj.status NOT IN ('CANCELLED', 'DONE')
               )
             """;
 
@@ -67,7 +69,11 @@ public class TechnicianAvailabilityProvider implements TechnicianAvailabilityPor
     @Transactional(readOnly = true)
     public List<UUID> findAvailableTechnicianIds(
             UUID dealershipId, String requiredSkill, String minSkillLevel, Instant slotStart, Instant slotEnd) {
+        // pgjdbc cannot infer a SQL type for java.time.Instant. Convert to
+        // OffsetDateTime so the driver binds a TIMESTAMPTZ parameter (SYSTEM_DESIGN §4.3.2).
+        java.time.OffsetDateTime start = slotStart.atOffset(java.time.ZoneOffset.UTC);
+        java.time.OffsetDateTime end = slotEnd.atOffset(java.time.ZoneOffset.UTC);
         return jdbc.queryForList(
-                FIND_AVAILABLE_SQL, UUID.class, dealershipId, requiredSkill, minSkillLevel, slotEnd, slotStart);
+                FIND_AVAILABLE_SQL, UUID.class, dealershipId, requiredSkill, minSkillLevel, end, start);
     }
 }

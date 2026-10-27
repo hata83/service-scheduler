@@ -87,7 +87,7 @@ public class SlotCacheEvictionService {
             redis.delete(keys);
             log.info("Evicted {} slot grid key(s) for {}", keys.size(), context);
         } catch (Exception ex) {
-            log.warn("Failed to evict slot grid keys for {}: {}", context, ex.getMessage());
+            log.warn("Failed to evict slot grid keys for {}: {}", context, ex);
         }
     }
 }

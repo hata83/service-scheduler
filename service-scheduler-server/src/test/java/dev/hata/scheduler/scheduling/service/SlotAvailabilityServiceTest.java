@@ -318,6 +318,8 @@ class SlotAvailabilityServiceTest {
         try {
             ServiceType st = new ServiceType();
             set(st, "id", SERVICE_TYPE_ID);
+            set(st, "dealershipId", DEALERSHIP_ID);
+            set(st, "active", true);
             set(st, "estimatedMinutes", 60);
             set(st, "allowedBayTypes", new java.util.ArrayList<>(List.of("STANDARD")));
             return st;

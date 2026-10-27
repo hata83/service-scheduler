@@ -344,6 +344,30 @@ class SlotGridComputeServiceTest {
         assertThat(result).isEmpty();
     }
 
+    // --- Regression: augmenting-path matching fills slots the greedy approach rejects ---
+
+    @Test
+    void canFillAllRoleSlotsWithOverlappingCandidateSetsFindsADistinctAssignment() {
+        // role slot 0 = {T1, T2}, slot 1 = {T2, T3}, slot 2 = {T1, T2}.
+        // Greedy (fill in order, first free) can exhaust the shared technicians and
+        // reject the slot, but a complete matching exists: T1->slot0, T3->slot1, T2->slot2.
+        UUID tech1 = UUID.fromString("11111111-0000-0000-0000-000000000001");
+        UUID tech2 = UUID.fromString("22222222-0000-0000-0000-000000000001");
+        UUID tech3 = UUID.fromString("33333333-0000-0000-0000-000000000001");
+        List<List<UUID>> candidates = List.of(List.of(tech1, tech2), List.of(tech2, tech3), List.of(tech1, tech2));
+
+        assertThat(service.canFillAllRoleSlots(candidates)).isTrue();
+    }
+
+    @Test
+    void canFillAllRoleSlotsRejectsWhenNoDistinctAssignmentExists() {
+        // Two role slots, single shared technician — cannot assign distinct techs.
+        UUID tech1 = UUID.fromString("11111111-0000-0000-0000-000000000001");
+        List<List<UUID>> candidates = List.of(List.of(tech1), List.of(tech1));
+
+        assertThat(service.canFillAllRoleSlots(candidates)).isFalse();
+    }
+
     // --- Builders ---
 
     private ServiceType buildServiceType(int durationMinutes, List<String> allowedBayTypes) {

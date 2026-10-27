@@ -101,7 +101,9 @@ public class SlotAvailabilityService {
         // Step 1: cache read.
         Optional<List<SlotAvailabilityResponse>> cached = readFromCache(key);
         if (cached.isPresent()) {
-            return cached.get();
+            // Finding #1: purge slots whose start time has already elapsed (the grid
+            // was computed before the slot started) so they are not resold.
+            return filterElapsed(cached.get());
         }
 
         // Step 2: load dealership config and validate date range.
@@ -114,25 +116,61 @@ public class SlotAvailabilityService {
         Instant now = Instant.now();
         LocalDate today = now.atZone(java.time.ZoneId.of(config.timezone())).toLocalDate();
 
+        if (date.isBefore(today)) {
+            return Collections.emptyList();
+        }
+
         if (date.isAfter(today.plusDays(config.maxAdvanceBookingDays()))) {
             throw new SlotDateOutOfRangeException("Date " + date + " exceeds the maximum advance booking window of "
                     + config.maxAdvanceBookingDays() + " days from today.");
         }
 
-        // Step 3: load service type.
-        ServiceType serviceType = serviceTypeRepository.findById(serviceTypeId).orElse(null);
+        // Validate the service type belongs to the dealership and is active before
+        // computing. A service type from another dealership or a deactivated one
+        // must never produce or cache a grid (Finding #10).
+        ServiceType serviceType = loadActiveServiceType(dealershipId, serviceTypeId);
         if (serviceType == null) {
-            log.warn("ServiceType not found for slot grid: {}", serviceTypeId);
             return Collections.emptyList();
         }
 
-        // Step 4: compute the grid.
+        // Step 3: compute the grid.
         List<SlotAvailabilityResponse> slots = gridCompute.compute(config, serviceType, date, now);
 
-        // Step 5: write to cache.
+        // Step 4: write to cache.
         writeToCache(key, slots, config.slotCacheTtlSeconds());
 
         return slots;
+    }
+
+    /**
+     * Loads a service type only when it belongs to the requested dealership and is
+     * active. Returns {@code null} for unknown, cross-dealership, or inactive types.
+     */
+    private ServiceType loadActiveServiceType(UUID dealershipId, UUID serviceTypeId) {
+        ServiceType serviceType = serviceTypeRepository.findById(serviceTypeId).orElse(null);
+        if (serviceType == null) {
+            log.warn("ServiceType not found for slot grid: {}", serviceTypeId);
+            return null;
+        }
+        if (!dealershipId.equals(serviceType.getDealershipId())) {
+            log.warn("ServiceType {} does not belong to dealership {} — refusing grid", serviceTypeId, dealershipId);
+            return null;
+        }
+        if (!serviceType.isActive()) {
+            log.warn("ServiceType {} is inactive — refusing grid", serviceTypeId);
+            return null;
+        }
+        return serviceType;
+    }
+
+    /**
+     * Removes slots whose start time has already elapsed. A grid cached before a
+     * slot started must not keep offering that slot, and a grid retained past
+     * midnight must not return slots for a date that is now in the past.
+     */
+    private List<SlotAvailabilityResponse> filterElapsed(List<SlotAvailabilityResponse> slots) {
+        java.time.OffsetDateTime now = java.time.Instant.now().atOffset(java.time.ZoneOffset.UTC);
+        return slots.stream().filter(s -> s.startTime().isAfter(now)).toList();
     }
 
     // -------------------------------------------------------------------------
@@ -189,7 +227,7 @@ public class SlotAvailabilityService {
                     objectMapper.readValue(json, new TypeReference<List<SlotAvailabilityResponse>>() {});
             return Optional.of(slots);
         } catch (Exception ex) {
-            log.warn("Failed to read slot grid from cache key {}: {}", key, ex.getMessage());
+            log.warn("Failed to read slot grid from cache key {}: {}", key, ex);
             return Optional.empty();
         }
     }
@@ -199,7 +237,7 @@ public class SlotAvailabilityService {
             String json = objectMapper.writeValueAsString(slots);
             redis.opsForValue().set(key, json, Duration.ofSeconds(ttlSeconds));
         } catch (Exception ex) {
-            log.warn("Failed to write slot grid to cache key {}: {}", key, ex.getMessage());
+            log.warn("Failed to write slot grid to cache key {}: {}", key, ex);
         }
     }
 }

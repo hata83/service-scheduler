@@ -7,10 +7,9 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 
 import dev.hata.scheduler.common.provider.DealershipConfigPort.DealershipConfig;
@@ -34,8 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>Generate candidate time slots from dealership operating hours.</li>
  *   <li>Filter bays by {@code allowed_bay_types} with no overlapping active service jobs.</li>
  *   <li>Find qualified technicians with no overlapping assignments.</li>
- *   <li>Apply greedy scarcest-slot technician matching.</li>
- *   <li>Exclude slots where any role slot cannot be filled.</li>
+ *   <li>Apply augmenting-path bipartite matching so each role slot gets a distinct technician.</li>
+ *   <li>Exclude slots where any role slot cannot be filled or the bay gate fails.</li>
  * </ol>
  *
  * <p>Accepts {@link DealershipConfig} from {@code common/provider} instead of the
@@ -74,13 +73,14 @@ public class SlotGridComputeService {
 
         ZoneId zone = ZoneId.of(config.timezone());
         LocalDate today = now.atZone(zone).toLocalDate();
+        UUID dealershipId = config.id();
 
         // Past dates return no slots.
         if (date.isBefore(today)) {
             return List.of();
         }
 
-        // Step 1: Generate candidate slots from dealership operating hours.
+        // Step 1: Generate candidate time slots from dealership operating hours.
         List<CandidateSlot> candidates = generateCandidates(config, serviceType, date, zone, now);
         if (candidates.isEmpty()) {
             return List.of();
@@ -90,11 +90,37 @@ public class SlotGridComputeService {
                 requirementRepository.findByServiceTypeIdOrderBySlotNumber(serviceType.getId());
 
         List<SlotAvailabilityResponse> result = new ArrayList<>();
+
         for (CandidateSlot slot : candidates) {
-            boolean available = evaluateSlot(config.id(), serviceType, slot, requirements);
+            Instant slotStart = slot.startZdt().toInstant();
+            Instant slotEnd = slot.endZdt().toInstant();
+
+            // Step 2: Bay gate — at least one compatible active bay must be free.
+            if (!isBayAvailable(dealershipId, serviceType, slotStart, slotEnd)) {
+                result.add(new SlotAvailabilityResponse(
+                        slot.startZdt().toOffsetDateTime(), slot.endZdt().toOffsetDateTime(), false));
+                continue;
+            }
+
+            // If no technician requirements, slot is available (bay gate passed).
+            if (requirements.isEmpty()) {
+                result.add(new SlotAvailabilityResponse(
+                        slot.startZdt().toOffsetDateTime(), slot.endZdt().toOffsetDateTime(), true));
+                continue;
+            }
+
+            // Steps 3–5: Technician gate using augmenting-path bipartite matching.
+            List<List<UUID>> roleCandidates = new ArrayList<>();
+            for (ServiceTypeTechnicianRequirement req : requirements) {
+                List<UUID> techList = technicianAvailability.findAvailableTechnicianIds(
+                        dealershipId, req.getRequiredSkill(), req.getMinSkillLevel(), slotStart, slotEnd);
+                roleCandidates.add(techList);
+            }
+            boolean available = canFillAllRoleSlots(roleCandidates);
             result.add(new SlotAvailabilityResponse(
                     slot.startZdt().toOffsetDateTime(), slot.endZdt().toOffsetDateTime(), available));
         }
+
         return result;
     }
 
@@ -129,6 +155,10 @@ public class SlotGridComputeService {
             if (!isInLunch(cursor, slotEnd, lunchStart, lunchEnd)) {
                 // Skip past slots on today.
                 if (!isToday || cursor.isAfter(nowLocal)) {
+                    // Skip slots that wrap past midnight (e.g. 23:00 + 120 min -> 01:00).
+                    if (slotEnd.isBefore(cursor)) {
+                        continue;
+                    }
                     ZonedDateTime startZdt = ZonedDateTime.of(LocalDateTime.of(date, cursor), zone);
                     ZonedDateTime endZdt = ZonedDateTime.of(LocalDateTime.of(date, slotEnd), zone);
                     slots.add(new CandidateSlot(startZdt, endZdt));
@@ -152,31 +182,6 @@ public class SlotGridComputeService {
         return start.isBefore(lunchEnd) && end.isAfter(lunchStart);
     }
 
-    // --- Steps 2–5: evaluate a single candidate slot ---
-
-    private boolean evaluateSlot(
-            UUID dealershipId,
-            ServiceType serviceType,
-            CandidateSlot slot,
-            List<ServiceTypeTechnicianRequirement> requirements) {
-
-        Instant slotStart = slot.startZdt().toInstant();
-        Instant slotEnd = slot.endZdt().toInstant();
-
-        // Step 2: Bay gate — at least one compatible bay must be free.
-        if (!isBayAvailable(dealershipId, serviceType, slotStart, slotEnd)) {
-            return false;
-        }
-
-        // If no technician requirements, slot is available (bay gate passed).
-        if (requirements.isEmpty()) {
-            return true;
-        }
-
-        // Steps 3–5: Technician gate using scarcest-slot-first greedy matching.
-        return canFillAllRoleSlots(dealershipId, requirements, slotStart, slotEnd);
-    }
-
     /**
      * Step 2: Bay gate. At least one active bay with any of the allowed bay types
      * must have no overlapping active service job.
@@ -192,56 +197,86 @@ public class SlotGridComputeService {
         return false;
     }
 
-    /**
-     * Steps 3–5: Technician gate using scarcest-slot-first greedy matching.
-     *
-     * <p>Sorts role slots by candidate count ascending (scarcest first).
-     * For each slot in that order, assigns the first unassigned candidate.
-     * Returns false if any slot cannot be filled.
-     */
-    private boolean canFillAllRoleSlots(
-            UUID dealershipId,
-            List<ServiceTypeTechnicianRequirement> requirements,
-            Instant slotStart,
-            Instant slotEnd) {
+    // --- Steps 3–5: technician gate with augmenting-path matching ---
 
-        // Step 3: Build candidates per role slot.
-        List<RoleSlotCandidates> roleSlots = new ArrayList<>();
-        for (ServiceTypeTechnicianRequirement req : requirements) {
-            List<UUID> candidates = technicianAvailability.findAvailableTechnicianIds(
-                    dealershipId, req.getRequiredSkill(), req.getMinSkillLevel(), slotStart, slotEnd);
-            roleSlots.add(new RoleSlotCandidates(req.getSlotNumber(), candidates));
+    /**
+     * Steps 3–5: Technician gate using augmenting-path bipartite matching.
+     *
+     * <p>Each role slot is a node on the left, each technician is a node on the
+     * right. An edge exists from a role slot to each of its candidates. We search
+     * for a matching that assigns every role slot a distinct technician, using
+     * Kuhn's augmenting-path algorithm.
+     *
+     * <p>This replaces the naive greedy (first-available) approach, which could
+     * reject a fillable slot when equally-scarce roles share candidate technicians.
+     *
+     * @param roleCandidates list of candidate technician lists, one per role slot
+     * @return true if every role slot can be assigned a distinct technician
+     */
+    boolean canFillAllRoleSlots(List<List<UUID>> roleCandidates) {
+        int roleCount = roleCandidates.size();
+        if (roleCount == 0) {
+            return true;
         }
 
-        // Step 4: Sort by candidate count ascending (scarcest slot first).
-        roleSlots.sort(Comparator.comparingInt(rs -> rs.candidates().size()));
-
-        // Step 5: Greedy assignment — each technician fills at most one role slot.
-        Set<UUID> assigned = new HashSet<>();
-        for (RoleSlotCandidates roleSlot : roleSlots) {
-            UUID chosen = null;
-            for (UUID techId : roleSlot.candidates()) {
-                if (!assigned.contains(techId)) {
-                    chosen = techId;
-                    break;
+        // Build a deterministic index per technician across all candidate lists.
+        List<UUID> techIndex = new ArrayList<>();
+        Map<UUID, Integer> techToIndex = new HashMap<>();
+        for (List<UUID> list : roleCandidates) {
+            for (UUID techId : list) {
+                if (!techToIndex.containsKey(techId)) {
+                    techToIndex.put(techId, techIndex.size());
+                    techIndex.add(techId);
                 }
             }
-            if (chosen == null) {
+        }
+
+        // Build adjacency: role -> list of tech indices.
+        List<List<Integer>> adj = new ArrayList<>(roleCount);
+        for (int r = 0; r < roleCount; r++) {
+            List<Integer> neighbors = new ArrayList<>();
+            for (UUID techId : roleCandidates.get(r)) {
+                Integer idx = techToIndex.get(techId);
+                if (idx != null) {
+                    neighbors.add(idx);
+                }
+            }
+            adj.add(neighbors);
+        }
+
+        // -1 means no role assigned to that tech index.
+        int[] matchForTech = new int[techIndex.size()];
+        java.util.Arrays.fill(matchForTech, -1);
+
+        for (int role = 0; role < roleCount; role++) {
+            boolean[] visited = new boolean[techIndex.size()];
+            if (!tryAugment(role, adj, matchForTech, visited)) {
                 log.debug(
-                        "Slot excluded: no technician available for role slot {} in window [{}, {}]",
-                        roleSlot.slotNumber(),
-                        slotStart,
-                        slotEnd);
+                        "Slot excluded: no valid technician assignment for {} role slot(s) " + "in the candidate set",
+                        roleCount);
                 return false;
             }
-            assigned.add(chosen);
         }
         return true;
+    }
+
+    /** Kuhn's algorithm: tries to find an augmenting path for the given role. */
+    @SuppressWarnings("PMD.UseVarargs")
+    private boolean tryAugment(int role, List<List<Integer>> adj, int[] matchForTech, boolean[] visited) {
+        for (int techIdx : adj.get(role)) {
+            if (visited[techIdx]) {
+                continue;
+            }
+            visited[techIdx] = true;
+            if (matchForTech[techIdx] == -1 || tryAugment(matchForTech[techIdx], adj, matchForTech, visited)) {
+                matchForTech[techIdx] = role;
+                return true;
+            }
+        }
+        return false;
     }
 
     // --- Internal value types ---
 
     private record CandidateSlot(ZonedDateTime startZdt, ZonedDateTime endZdt) {}
-
-    private record RoleSlotCandidates(int slotNumber, List<UUID> candidates) {}
 }

@@ -39,7 +39,7 @@ public interface WorkshopBayRepository extends JpaRepository<WorkshopBay, UUID> 
               AND NOT EXISTS (
                 SELECT 1 FROM service_jobs j
                 WHERE j.bay_id = b.id
-                  AND j.status <> 'CANCELLED'
+                  AND j.status NOT IN ('CANCELLED', 'DONE')
                   AND j.start_time < :slotEnd
                   AND j.end_time > :slotStart
               )
