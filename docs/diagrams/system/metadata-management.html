@@ -5285,27 +5285,27 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </g>
         </g>
 
-        <g data-edge-from="manager" data-edge-to="api" data-edge-label="POST /dealerships/{id}/vehicles {brand, model, category}" data-edge-key="4" data-edge-id="veh-req">
+        <g data-edge-from="manager" data-edge-to="api" data-edge-label="POST /dealerships/{id}/vehicle-categories {brand, model, type}" data-edge-key="4" data-edge-id="veh-req">
           <path data-composition-edge-from="manager" data-composition-edge-to="api" data-composition-edge-id="veh-req" data-composition-points="156.5,330;356.83333333333337,330" d="M 156.5 330 L 356.83333333333337 330" class="a-emphasis" data-animate="edge" style="--step:4" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <g data-detail="context">
-          <rect x="65.8666666666667" y="310" width="381.59999999999997" height="18" rx="3" class="c-mask"/>
-          <text x="256.6666666666667" y="320" class="t-edge-emphasis" font-size="11" text-anchor="middle">POST /dealerships/{id}/vehicles {brand, model, category}</text>
+          <rect x="46.06666666666669" y="310" width="421.2" height="18" rx="3" class="c-mask"/>
+          <text x="256.6666666666667" y="320" class="t-edge-emphasis" font-size="11" text-anchor="middle">POST /dealerships/{id}/vehicle-categories {brand, model, type}</text>
         </g>
         </g>
 
-        <g data-edge-from="api" data-edge-to="db" data-edge-label="INSERT vehicles &amp; dealership_vehicles" data-edge-key="5" data-edge-id="db-veh-ins">
+        <g data-edge-from="api" data-edge-to="db" data-edge-label="INSERT vehicle_categories" data-edge-key="5" data-edge-id="db-veh-ins">
           <path data-composition-edge-from="api" data-composition-edge-to="db" data-composition-edge-id="db-veh-ins" data-composition-points="370.83333333333337,365;571.1666666666667,365" d="M 370.83333333333337 365 L 571.1666666666667 365" class="a-default" data-animate="edge" style="--step:5" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="342.9000000000001" y="345" width="256.2" height="18" rx="3" class="c-mask"/>
-          <text x="471.0000000000001" y="355" class="t-muted" font-size="11" text-anchor="middle">INSERT vehicles &amp; dealership_vehicles</text>
+          <rect x="382.50000000000006" y="345" width="177" height="18" rx="3" class="c-mask"/>
+          <text x="471.00000000000006" y="355" class="t-muted" font-size="11" text-anchor="middle">INSERT vehicle_categories</text>
         </g>
         </g>
 
-        <g data-edge-from="api" data-edge-to="manager" data-edge-label="201 Created vehicle model" data-edge-key="6" data-edge-id="veh-resp">
+        <g data-edge-from="api" data-edge-to="manager" data-edge-label="201 Created vehicle category" data-edge-key="6" data-edge-id="veh-resp">
           <path data-composition-edge-from="api" data-composition-edge-to="manager" data-composition-edge-id="veh-resp" data-composition-points="356.83333333333337,400;156.5,400" d="M 356.83333333333337 400 L 156.5 400" class="a-default" data-animate="edge" style="--step:6" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
         <g data-detail="context">
-          <rect x="168.16666666666669" y="380" width="177" height="18" rx="3" class="c-mask"/>
-          <text x="256.6666666666667" y="390" class="t-muted" font-size="11" text-anchor="middle">201 Created vehicle model</text>
+          <rect x="158.2666666666667" y="380" width="196.79999999999998" height="18" rx="3" class="c-mask"/>
+          <text x="256.6666666666667" y="390" class="t-muted" font-size="11" text-anchor="middle">201 Created vehicle category</text>
         </g>
         </g>
 
@@ -5411,8 +5411,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <text x="62" y="179" class="t-muted" font-size="9" font-weight="600">1. Dealership configuration flow</text>
         </g>
         <g data-graph-role="segment-label" data-segment-id="1">
-          <rect x="56" y="288" width="211.6" height="18" rx="3" class="c-mask"/>
-          <text x="62" y="301" class="t-muted" font-size="9" font-weight="600">2. Vehicle catalogue registration flow</text>
+          <rect x="56" y="288" width="206.4" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="301" class="t-muted" font-size="9" font-weight="600">2. Vehicle category registration flow</text>
         </g>
         <g data-graph-role="segment-label" data-segment-id="2">
           <rect x="56" y="428" width="185.6" height="18" rx="3" class="c-mask"/>
@@ -5679,7 +5679,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </div>
         <ul>
           <li>Dealership configures 7-day lookahead and operating schedule</li>
-          <li>Vehicle catalogue registers supported brands, models, and types</li>
+          <li>Vehicle categories register supported brands, models, and types</li>
           <li>Multi-bay types and multi-skill technician profiles define capacity</li>
           <li>Pure Java ServiceConstraintEvaluator evaluates relational metadata</li>
         </ul>

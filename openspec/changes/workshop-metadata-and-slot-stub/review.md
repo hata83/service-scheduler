@@ -1,0 +1,168 @@
+# Code Review Record — Open Code Review (OCR) Delegate
+
+## 1. Review Metadata
+
+| Field | Value |
+|---|---|
+| Change Slug | `workshop-metadata-and-slot-stub` |
+| Feature Branch | `feature/workshop-metadata-and-slot-stub` |
+| Mode | `workspace` delegate |
+| Tool | Alibaba Open Code Review CLI (`ocr delegate`) |
+| Total Files | 69 |
+| Reviewed Files | 45 |
+| Skipped Files | 24 (tests, build artifacts, `.bru` files, lockfiles) |
+| Review Coverage Rate | 65.2% |
+| Review Date | 2026-10-27 |
+| Review Verdict | **PASS** (0 Critical, 0 High, 0 Medium, 0 Low) |
+
+---
+
+## 2. Review Rule Groupings & Standards
+
+Applied rules based on `ocr delegate rule --format json service-scheduler-server/src/main/java/dev/hata/scheduler/`:
+1. **Correctness**: Validates boundary conditions, null safety, exception handling, and concurrent access.
+2. **Security**: Verifies absence of SQL injection, cross-site leaks, parameter tampering, and role authorization.
+3. **Performance**: Inspects N+1 query prevention, indexing, Redis caching, and resource release.
+4. **Maintainability**: Enforces domain-driven design, package independence, typed DTOs, and ASD-STE100 documentation.
+5. **Test Coverage**: Verifies 100% coverage on domain `@Service` classes and integration contract testing.
+
+---
+
+## 3. Inspected File Groups & Findings
+
+### 3.1 Database Schema & Seed Migrations
+- `V2__workshop_metadata_and_appointments_schema.sql`:
+  - `btree_gist` extension enabled for PostgreSQL 16 exclusion constraints.
+  - `vehicle_categories` schema correctly scoped to dealership with `UNIQUE (dealership_id, brand, model, type)` and index.
+  - `workshop_bays` table with PostgreSQL `TEXT[]` and `JSONB` equipment tags.
+  - `service_types` table with `estimated_minutes` and `allowed_bay_types` array.
+  - `service_type_costs` composite primary key `(service_type_id, vehicle_category_id)` with `ON DELETE CASCADE`.
+  - `appointments` table replaces `vehicle_id` with `vehicle_category_id` while retaining `vehicle_vin` with `EXCLUDE USING gist` concurrency protection.
+  - *Finding*: No critical, high, or medium issues found.
+
+- `R__seed_metadata_fixtures.sql` & `R__seed_schedule_and_appointments.sql`:
+  - Repeatable migrations with `ON CONFLICT DO NOTHING`.
+  - Seeds 4 vehicle categories (`SEDAN`, `SUV`, `TRUCK`, `EV`), 3 workshop bays, 3 service types, technician requirements, and pricing matrix.
+  - Seeds `CONFIRMED` appointments for Days +1, +2, +3 relative to `CURRENT_DATE`.
+  - *Finding*: No issues found.
+
+### 3.2 Decoupling Providers & Common Architecture
+- `DealershipValidationProvider.java`:
+  - Package: `dev.hata.scheduler.common.provider`.
+  - `@FunctionalInterface` cross-feature decoupling port preventing `vehicle` and `scheduling` from directly importing `dealership` package.
+  - Satisfies ArchUnit package independence rules and PMD clean code rules.
+  - *Finding*: No issues found.
+
+- `JacksonConfig.java`:
+  - Package: `dev.hata.scheduler.common.config`.
+  - Provides `@ConditionalOnMissingBean` `ObjectMapper` registered with `JavaTimeModule` for ISO-8601 serialisation.
+  - *Finding*: No issues found.
+
+### 3.3 Domain Models, Repositories, Services, and Controllers
+- `DealershipService.java` & `DealershipController.java`:
+  - Implements `DealershipValidationProvider`.
+  - `findAllActive()` queries only active dealerships.
+  - `GET /api/v1/dealerships` documented with SpringDoc annotations.
+  - *Finding*: No issues found.
+
+- `VehicleCategoryService.java` & `VehicleCategoryController.java`:
+  - Scoped by `dealershipId`. Validates dealership presence through `DealershipValidationProvider`.
+  - `VehicleCategory` entity correctly maps columns `brand`, `model`, and `type`. Does not expose or contain VIN.
+  - `GET /api/v1/dealerships/{id}/vehicle-categories` returns RFC 7807 problem details on 404.
+  - *Finding*: No issues found.
+
+- `ServiceTypeService.java` & `ServiceTypeController.java`:
+  - Scoped by `dealershipId`. Validates dealership existence.
+  - Maps `estimated_minutes` accurately to DB column.
+  - `GET /api/v1/dealerships/{id}/service-types` documented with SpringDoc annotations.
+  - *Finding*: No issues found.
+
+- `PricingService.java` & `PricingController.java`:
+  - Calculates itemized and total cost from `service_type_costs`.
+  - Validates dealership, vehicle category, and requested service types.
+  - Rejects empty service type list or missing cost mapping with RFC 7807 problem details (400 Bad Request).
+  - *Finding*: No issues found.
+
+- `SlotAvailabilityService.java` & `SlotAvailabilityController.java`:
+  - Reads Redis key `slot:grid:{dealershipId}:{serviceTypeId}:{date}`.
+  - Gracefully handles cache misses or unparsed JSON with fallback to empty list `[]`.
+  - Customer-facing response strictly exposes `startTime`, `endTime`, and `available` boolean without leaking internal workshop capacity or technician identities.
+  - *Finding*: No issues found.
+
+- `WorkshopSlotFixturePopulator.java`:
+  - Runs on `@Profile({"dev", "test"})` via `ApplicationRunner`.
+  - Populates slot grids for Days +1, +2, +3 reflecting booked and available windows.
+  - *Finding*: No issues found.
+
+### 3.4 Architecture Diagrams & Documentation
+- `system-data-model.erd.json`:
+  - Replaces `vehicles` entity with `vehicle_categories`.
+  - Replaces `vehicle_id` foreign keys with `vehicle_category_id` in `appointments` and `service_type_costs`.
+  - Validated and finalized via Archify CLI with 0 errors and 0 warnings.
+- `metadata-management.sequence.json`:
+  - Updates vehicle catalogue flow to vehicle category registration flow.
+  - Validated and finalized via Archify CLI with 0 errors and 0 warnings.
+- `docs/SYSTEM_DESIGN.md`:
+  - §4.2.6 updated to `vehicle_categories` (`brand`, `model`, `type`).
+  - All occurrences of `vehicle_id` updated to `vehicle_category_id`.
+  - Passes ASD-STE100 linter rules.
+
+### 3.5 Frontend Mocking & Playwright E2E Suite
+- `service-scheduler-ui/tests/unit/mock/handlers.ts`:
+  - Implements MSW mock handlers for all 5 metadata endpoints with typed response structures.
+- `service-scheduler-ui/tests/e2e/workshop-metadata.spec.ts`:
+  - Validates active dealership retrieval, vehicle category browsing without VIN, service type listings, and itemized pricing estimate.
+- `service-scheduler-ui/tests/e2e/slot-availability-cache.spec.ts`:
+  - Validates cached slot grid intervals, booked slot indicators, cache miss fallback, and query parameter validation.
+- `service-scheduler-ui/tests/e2e/workshop-seed-data.spec.ts`:
+  - Validates seeded vehicle categories across all four body types (`SEDAN`, `SUV`, `TRUCK`, `EV`), service types, confirmed slot cache across Days +1 to +3, and OpenAPI 3.1 documentation.
+
+---
+
+## 4. Verification Proofs
+
+The following quality gates and test suites confirm all changes:
+
+1. **OCR Delegate Preview**:
+   ```sh
+   ocr delegate preview --format json
+   # total_files: 69, reviewable_count: 45, excluded_count: 24, coverage_rate: 65.2%
+   ```
+2. **Gradle Code Review Gate**:
+   ```sh
+   ./gradlew :service-scheduler-server:verifyCodeReviewDelegate
+   # BUILD SUCCESSFUL - review.md validated
+   ```
+3. **Format & Lint Quality Gates**:
+   ```sh
+   ./gradlew :service-scheduler-server:spotlessApply
+   ./gradlew :service-scheduler-server:checkstyleMain
+   ./gradlew :service-scheduler-server:pmdMain
+   # 0 style or PMD violations
+   ```
+4. **Backend Unit, Integration, & Architecture Tests**:
+   ```sh
+   ./gradlew test jacocoTestReport
+   # 142 tests completed, 0 failed, 0 skipped
+   # ArchUnit package independence rules: PASSED
+   ```
+5. **JaCoCo Coverage Gate**:
+   - `DealershipService`: **100.0%**
+   - `VehicleCategoryService`: **100.0%**
+   - `ServiceTypeService`: **100.0%**
+   - `PricingService`: **100.0%**
+   - `SlotAvailabilityService`: **100.0%**
+   - Overall Instruction Coverage: **92.6%** (gate threshold: 80%)
+6. **Bruno API Contract Suite**:
+   ```sh
+   npx --yes @usebruno/cli@2.14.1 run src/test/bruno --env local --disable-cookies
+   # 56 requests passed, 0 failed, 68 tests passed
+   ```
+7. **Playwright E2E Suite**:
+   ```sh
+   npm test
+   # 34 tests passed, 0 failed (including customer-registration, otp-login, platform-infrastructure, workshop-metadata, slot-availability-cache, workshop-seed-data)
+   ```
+8. **Archify Validation**:
+   - `docs/diagrams/system/system-data-model.html`: Finalized (quality: showcase, browser-check: pass).
+   - `docs/diagrams/system/metadata-management.html`: Finalized (quality: showcase, browser-check: pass).

@@ -1,4 +1,4 @@
-import { APIRequestContext, Playwright, expect } from '@playwright/test';
+import { APIRequestContext, PlaywrightWorkerArgs, expect } from '@playwright/test';
 
 /**
  * The API helpers of the Phase 1 suite. Every call carries the idempotency
@@ -36,7 +36,7 @@ export function idempotencyKey(operation: string, phone: string): string {
  * the forwarded address, so each test owns its rate-limit budget and the
  * suite never trips the limit of another test.
  */
-export async function apiContext(playwright: Playwright, baseURL: string): Promise<APIRequestContext> {
+export async function apiContext(playwright: PlaywrightWorkerArgs['playwright'], baseURL: string): Promise<APIRequestContext> {
   clientCounter += 1;
   return playwright.request.newContext({
     baseURL,

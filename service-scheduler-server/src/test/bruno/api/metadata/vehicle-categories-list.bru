@@ -1,0 +1,26 @@
+meta {
+  name: vehicle-categories-list
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/dealerships/00000000-0000-0000-0000-000000000001/vehicle-categories
+  body: none
+  auth: none
+}
+
+tests {
+  test("vehicle categories responds 200 with supported categories", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.be.an('array');
+    expect(res.getBody().length).to.be.at.least(1);
+    const first = res.getBody()[0];
+    expect(first.dealershipId).to.equal("00000000-0000-0000-0000-000000000001");
+    expect(first.brand).to.be.a('string');
+    expect(first.model).to.be.a('string');
+    expect(first.type).to.be.a('string');
+    expect(first.vin).to.be.undefined;
+    expect(first.vehicleVin).to.be.undefined;
+  });
+}

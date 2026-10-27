@@ -1,0 +1,32 @@
+meta {
+  name: slots-available-cached
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/slots/available?dealershipId=00000000-0000-0000-0000-000000000001&serviceTypeId=22222222-0000-0000-0000-000000000002&date={{TARGET_DATE}}
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const yyyy = tomorrow.getFullYear();
+  const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const dd = String(tomorrow.getDate()).padStart(2, '0');
+  bru.setVar('TARGET_DATE', `${yyyy}-${mm}-${dd}`);
+}
+
+tests {
+  test("cached slots responds 200 with time grid", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.be.an('array');
+    expect(res.getBody().length).to.be.at.least(1);
+    const booked = res.getBody().find(s => s.available === false);
+    expect(booked).to.not.be.undefined;
+    const open = res.getBody().find(s => s.available === true);
+    expect(open).to.not.be.undefined;
+  });
+}

@@ -36,9 +36,9 @@
         "focus": [
           "service_types",
           "service_type_costs",
-          "vehicles"
+          "vehicle_categories"
         ],
-        "note": "Cost is derived from service type and vehicle."
+        "note": "Cost is derived from service type and vehicle category."
       },
       {
         "id": "delivery",
@@ -226,10 +226,10 @@
           "references": "profiles.user_id"
         },
         {
-          "name": "vehicle_id",
+          "name": "vehicle_category_id",
           "type": "UUID",
           "key": "fk",
-          "references": "vehicles.id"
+          "references": "vehicle_categories.id"
         },
         {
           "name": "vehicle_vin",
@@ -451,10 +451,10 @@
           "references": "service_types.id"
         },
         {
-          "name": "vehicle_id",
+          "name": "vehicle_category_id",
           "type": "UUID",
           "key": "fk",
-          "references": "vehicles.id"
+          "references": "vehicle_categories.id"
         },
         {
           "name": "cost",
@@ -463,8 +463,8 @@
       ]
     },
     {
-      "id": "vehicles",
-      "label": "vehicles",
+      "id": "vehicle_categories",
+      "label": "vehicle_categories",
       "row": 4,
       "col": 3,
       "width": 212,
@@ -489,11 +489,7 @@
           "type": "varchar(50)"
         },
         {
-          "name": "year",
-          "type": "int"
-        },
-        {
-          "name": "vehicle_type",
+          "name": "type",
           "type": "varchar(50)"
         }
       ]
@@ -666,7 +662,7 @@
     {
       "id": "dealership_vehicles",
       "from": "dealerships",
-      "to": "vehicles",
+      "to": "vehicle_categories",
       "label": "catalog",
       "fromCardinality": "one",
       "toCardinality": "many",
@@ -676,7 +672,7 @@
     {
       "id": "appointment_vehicle",
       "from": "appointments",
-      "to": "vehicles",
+      "to": "vehicle_categories",
       "label": "for vehicle",
       "fromCardinality": "many",
       "toCardinality": "one",
@@ -686,7 +682,7 @@
     {
       "id": "service_type_cost_vehicle",
       "from": "service_type_costs",
-      "to": "vehicles",
+      "to": "vehicle_categories",
       "label": "for vehicle",
       "fromCardinality": "many",
       "toCardinality": "one"
@@ -714,8 +710,8 @@
       "dot": "amber",
       "title": "Vehicle catalog & pricing matrix",
       "items": [
-        "vehicles table stores VIN, brand, model, year per dealership",
-        "service_type_costs maps (service_type_id, vehicle_id) to catalog price",
+        "vehicle_categories table stores brand, model, type per dealership",
+        "service_type_costs maps (service_type_id, vehicle_category_id) to catalog price",
         "estimate_cost rolls up to appointments and is negotiated before check-in"
       ]
     },

@@ -64,7 +64,7 @@ A dealership workshop operates a constant set of workshop bays. Each bay holds o
 ```
 DEALERSHIP
   |-- Inlined operating hours, slot interval, and auto-confirm config
-  |-- (N) VEHICLES (catalog of brands, models, and types)
+  |-- (N) VEHICLE_CATEGORIES (catalog of brands, models, and types)
   \-- (N) WORKSHOP_BAYS
            \-- Each bay: 1 job at a time, N concurrent jobs across all bays
 ```
@@ -117,8 +117,10 @@ Internal background schedulers and outbox relays execute in-process or authentic
 
 ```
 CUSTOMER can:
-  GET    /api/v1/dealerships/{id}/vehicles            Select vehicle from catalog (brand, model, year)
-  GET    /api/v1/service-types                        View service catalogue with instant pricing per vehicle
+  GET    /api/v1/dealerships                          List active dealerships
+  GET    /api/v1/dealerships/{id}/vehicle-categories   Select vehicle category from catalog (brand, model, type)
+  GET    /api/v1/dealerships/{id}/service-types        View service catalogue
+  GET    /api/v1/dealerships/{id}/pricing/estimate     View instant pricing estimate per vehicle category
   GET    /api/v1/slots/available?serviceType=...      Query open time windows for a service type (rate-limited)
   POST   /api/v1/appointments                        Book a new appointment (requires X-Idempotency-Key)
   GET    /api/v1/appointments/{id}                   View own appointment details
@@ -160,7 +162,7 @@ MANAGER can:
   PATCH  /api/v1/appointments/{id}/status       Transition appointment lifecycle status
   PATCH  /api/v1/appointments/{id}/checkin      Perform check-in: adjust cost, adjust slot per service job, move to CHECKED_IN
   PATCH  /api/v1/dealerships/{id}/config        Update dealership schedule configuration
-  POST   /api/v1/dealerships/{id}/vehicles     Add supported vehicle model to catalogue
+  POST   /api/v1/dealerships/{id}/vehicle-categories   Add supported vehicle category to catalogue
   POST   /api/v1/resources/bays                Create or update workshop bays
   POST   /api/v1/resources/technicians         Create or update technician profiles and skills
   PATCH  /api/v1/resources/bays/{id}/status    Set bay maintenance status
@@ -176,7 +178,7 @@ MANAGER can:
 | Drive appointment status | `PATCH /api/v1/appointments/{id}/status` | [Status Transition](diagrams/system/appointment-status-transition.html) |
 | Vehicle check-in and negotiation | `PATCH /api/v1/appointments/{id}/checkin` | [Appointment Check-In](diagrams/system/appointment-checkin.html) |
 | Manage dealership configuration | `PATCH /api/v1/dealerships/{id}/config` | [Metadata Management](diagrams/system/metadata-management.html) |
-| Manage vehicle catalogue | `POST /api/v1/dealerships/{id}/vehicles` | [Metadata Management](diagrams/system/metadata-management.html) |
+| Manage vehicle categories | `POST /api/v1/dealerships/{id}/vehicle-categories` | [Metadata Management](diagrams/system/metadata-management.html) |
 | Manage workshop bays | `POST /api/v1/resources/bays` | [Metadata Management](diagrams/system/metadata-management.html) |
 | Manage technicians and skills | `POST /api/v1/resources/technicians` | [Metadata Management](diagrams/system/metadata-management.html) |
 | Manage service types and constraints | `POST /api/v1/service-types` | [Metadata Management](diagrams/system/metadata-management.html) |
@@ -189,7 +191,7 @@ MANAGER can:
 **Metadata Management Flow ([Diagram](diagrams/system/metadata-management.html)):**
 Managers and administrators configure workshop operational parameters through dedicated metadata endpoints:
 - **Dealership Configuration (`PATCH /api/v1/dealerships/{id}/config`):** Set operating hours (08:00 to 17:30), lunch break (12:00 to 13:00), and base interval (30 minutes). Configure lookahead horizon (`max_advance_booking_days`, default 7 days) and auto-confirm toggle. Updating configuration invalidates `dealership:config:{id}` and evicts dealership slot grids.
-- **Vehicle Catalogue (`POST /api/v1/dealerships/{id}/vehicles`):** Register supported vehicle models specifying brand, model name, model year, and vehicle category (`SEDAN`, `SUV`, `TRUCK`, `EV`).
+- **Vehicle Categories (`POST /api/v1/dealerships/{id}/vehicle-categories`):** Register supported vehicle categories specifying brand, model name, and type (`SEDAN`, `SUV`, `TRUCK`, `EV`).
 - **Workshop Bays (`POST /api/v1/resources/bays`):** Configure workshop bays with multi-bay capabilities (`bay_types: TEXT[]`), equipment tags (`equipment_tags: JSONB`), and active status.
 - **Technicians & Skills (`POST /api/v1/resources/technicians`):** Manage staff profiles, active employment status, shift working hours, and multiple qualification skills with proficiency levels (`skill_code`, `skill_level: APPRENTICE | STANDARD | MASTER | SPECIALIST`).
 - **Service Types & Constraint Matrix (`POST /api/v1/service-types`):** Define service codes, base durations, allowed bay types in preference order (`allowed_bay_types: TEXT[]`), required technician qualification roles (`service_type_technician_requirements`), and vehicle cost matrices (`service_type_costs`).
@@ -239,19 +241,19 @@ EMPLOYEES (1) ---- (0..1) TECHNICIANS [role=TECHNICIAN, career grade (grade), is
 TECHNICIANS (1) ---- (N) TECHNICIAN_SKILLS [skill code + skill proficiency level]
 
 DEALERSHIPS (1) ---- (N) EMPLOYEES [local MANAGER and TECHNICIAN; global ADMIN has dealership_id=NULL]
-DEALERSHIPS (1) ---- (N) VEHICLES [brand, model, year, vehicle_type metadata - no VIN]
+DEALERSHIPS (1) ---- (N) VEHICLE_CATEGORIES [brand, model, type metadata - no VIN]
 DEALERSHIPS (1) ---- (N) WORKSHOP_BAYS [bay_name, bay_types[]]
 DEALERSHIPS (1) ---- (N) SERVICE_TYPES
 
 WORKSHOP_BAYS (1) ---- (N) SERVICE_JOBS [bay reservation protected by EXCLUDE]
 
 SERVICE_TYPES (1) ---- (N) SERVICE_TYPE_TECHNICIAN_REQUIREMENTS [role slots]
-SERVICE_TYPES (1) ---- (N) SERVICE_TYPE_COSTS [pricing by vehicle catalog entry]
+SERVICE_TYPES (1) ---- (N) SERVICE_TYPE_COSTS [pricing by vehicle category entry]
 
 APPOINTMENTS (1) ---- (N) SERVICE_JOBS
 APPOINTMENTS (1) ---- (N) OUTBOX_EVENTS
 
-APPOINTMENTS holds: customer_id, vehicle_id, vehicle_vin [protected by EXCLUDE on vehicle_vin]
+APPOINTMENTS holds: customer_id, vehicle_category_id, vehicle_vin [protected by EXCLUDE on vehicle_vin]
 SERVICE_JOBS (N) ---- (N) TECHNICIANS [via JOB_TECHNICIAN_ASSIGNMENTS with EXCLUDE]
 ```
 
@@ -512,42 +514,40 @@ CREATE TABLE dealerships (
 
 ---
 
-#### 4.2.6 `vehicles` Table
+#### 4.2.6 `vehicle_categories` Table
 
-Supported vehicle catalogue metadata per dealership:
+Supported vehicle category metadata per dealership:
 
 ```sql
-CREATE TABLE vehicles (
+CREATE TABLE vehicle_categories (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   dealership_id  UUID NOT NULL REFERENCES dealerships(id),
   brand          VARCHAR(50) NOT NULL,
   model          VARCHAR(50) NOT NULL,
-  year           INT NOT NULL,
-  vehicle_type   VARCHAR(50) NOT NULL,
+  type           VARCHAR(50) NOT NULL,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by     UUID REFERENCES users(id),
   updated_by     UUID REFERENCES users(id),
-  UNIQUE (dealership_id, brand, model, year)
+  UNIQUE (dealership_id, brand, model, type)
 );
-CREATE INDEX idx_vehicles_dealership ON vehicles (dealership_id);
+CREATE INDEX idx_vehicle_categories_dealership ON vehicle_categories (dealership_id);
 ```
 
 | Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| `id` | UUID | No | `gen_random_uuid()` | Primary key. Vehicle catalogue entry identifier. |
-| `dealership_id` | UUID | No | None | Dealership FK. Scopes supported vehicle catalogue. |
+| `id` | UUID | No | `gen_random_uuid()` | Primary key. Vehicle category entry identifier. |
+| `dealership_id` | UUID | No | None | Dealership FK. Scopes supported vehicle category. |
 | `brand` | VARCHAR(50) | No | None | Vehicle manufacturer make (e.g., Toyota, Honda, Ford). |
 | `model` | VARCHAR(50) | No | None | Vehicle model name (e.g., Camry, Civic, F-150). |
-| `year` | INT | No | None | Manufacturing model year. |
-| `vehicle_type` | VARCHAR(50) | No | None | Body and powertrain category (e.g., `SEDAN`, `SUV`, `TRUCK`, `EV`). |
+| `type` | VARCHAR(50) | No | None | Body and powertrain category (e.g., `SEDAN`, `SUV`, `TRUCK`, `EV`). |
 | `created_at` | TIMESTAMPTZ | No | `NOW()` | Record creation timestamp. |
 | `updated_at` | TIMESTAMPTZ | No | `NOW()` | Record last modification timestamp. |
 | `created_by` | UUID | Yes | None | Creator user reference. |
 | `updated_by` | UUID | Yes | None | Updater user reference. |
 
 > [!IMPORTANT]
-> The `vehicles` table holds supported vehicle models only. It does not store individual VINs. The client records the individual vehicle VIN in `appointments.vehicle_vin` for each appointment.
+> The `vehicle_categories` table holds supported vehicle models only. It does not store individual VINs. The client records the individual vehicle VIN in `appointments.vehicle_vin` for each appointment.
 
 **Taxonomy — Vehicle Categories:**
 
@@ -704,26 +704,26 @@ CREATE TABLE service_type_technician_requirements (
 
 #### 4.2.10 `service_type_costs` Table
 
-Pre-configured pricing matrix mapping service types to supported vehicle models:
+Pre-configured pricing matrix mapping service types to supported vehicle categories:
 
 ```sql
 CREATE TABLE service_type_costs (
-  service_type_id   UUID NOT NULL REFERENCES service_types(id),
-  vehicle_id        UUID NOT NULL REFERENCES vehicles(id),
-  cost              NUMERIC(12,2) NOT NULL,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by        UUID REFERENCES users(id),
-  updated_by        UUID REFERENCES users(id),
-  PRIMARY KEY (service_type_id, vehicle_id)
+  service_type_id      UUID NOT NULL REFERENCES service_types(id) ON DELETE CASCADE,
+  vehicle_category_id  UUID NOT NULL REFERENCES vehicle_categories(id) ON DELETE CASCADE,
+  cost                 NUMERIC(12,2) NOT NULL,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by           UUID REFERENCES users(id),
+  updated_by           UUID REFERENCES users(id),
+  PRIMARY KEY (service_type_id, vehicle_category_id)
 );
 ```
 
 | Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
 | `service_type_id` | UUID | No | None | Composite PK referencing `service_types(id)`. |
-| `vehicle_id` | UUID | No | None | Composite PK referencing `vehicles(id)` catalogue model entry. |
-| `cost` | NUMERIC(12,2) | No | None | Pre-configured catalog cost for this service and vehicle model combination. |
+| `vehicle_category_id` | UUID | No | None | Composite PK referencing `vehicle_categories(id)` category entry. |
+| `cost` | NUMERIC(12,2) | No | None | Pre-configured catalog cost for this service and vehicle category combination. |
 | `created_at` | TIMESTAMPTZ | No | `NOW()` | Record creation timestamp. |
 | `updated_at` | TIMESTAMPTZ | No | `NOW()` | Record last modification timestamp. |
 | `created_by` | UUID | Yes | None | Creator user reference. |
@@ -737,26 +737,26 @@ Customer booking requests, cost tracking, and vehicle concurrency exclusion:
 
 ```sql
 CREATE TABLE appointments (
-  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  dealership_id     UUID NOT NULL REFERENCES dealerships(id),
-  customer_id       UUID NOT NULL REFERENCES profiles(user_id),
-  vehicle_id        UUID NOT NULL REFERENCES vehicles(id),
-  vehicle_vin       VARCHAR(17) NOT NULL,
-  start_time        TIMESTAMPTZ NOT NULL,
-  end_time          TIMESTAMPTZ NOT NULL,
-  status            VARCHAR(20) NOT NULL DEFAULT 'REQUESTED'
-                      CHECK (status IN (
-                        'REQUESTED','CONFIRMED','CHECKED_IN','IN_PROGRESS',
-                        'ON_HOLD','COMPLETED','INVOICED','CANCELLED','REJECTED','NO_SHOW'
-                      )),
-  estimate_cost     NUMERIC(12,2) NOT NULL DEFAULT 0.00,
-  total_cost        NUMERIC(12,2),
-  idempotency_key   UUID UNIQUE NOT NULL,
-  version           INT NOT NULL DEFAULT 0,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by        UUID REFERENCES users(id),
-  updated_by        UUID REFERENCES users(id),
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  dealership_id        UUID NOT NULL REFERENCES dealerships(id),
+  customer_id          UUID NOT NULL REFERENCES profiles(user_id),
+  vehicle_category_id  UUID NOT NULL REFERENCES vehicle_categories(id),
+  vehicle_vin          VARCHAR(17) NOT NULL,
+  start_time           TIMESTAMPTZ NOT NULL,
+  end_time             TIMESTAMPTZ NOT NULL,
+  status               VARCHAR(20) NOT NULL DEFAULT 'REQUESTED'
+                         CHECK (status IN (
+                           'REQUESTED','CONFIRMED','CHECKED_IN','IN_PROGRESS',
+                           'ON_HOLD','COMPLETED','INVOICED','CANCELLED','REJECTED','NO_SHOW'
+                         )),
+  estimate_cost        NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+  total_cost           NUMERIC(12,2),
+  idempotency_key      UUID UNIQUE NOT NULL,
+  version              INT NOT NULL DEFAULT 0,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by           UUID REFERENCES users(id),
+  updated_by           UUID REFERENCES users(id),
   CONSTRAINT valid_appointment_time CHECK (end_time > start_time),
   CONSTRAINT no_vehicle_overlap EXCLUDE USING gist (
     dealership_id WITH =,
@@ -774,7 +774,7 @@ CREATE INDEX idx_appointments_vin ON appointments (vehicle_vin);
 | `id` | UUID | No | `gen_random_uuid()` | Primary key. Unique appointment identifier. |
 | `dealership_id` | UUID | No | None | Dealership FK. Scopes appointment to workshop. |
 | `customer_id` | UUID | No | None | Customer FK referencing `profiles(user_id)`. |
-| `vehicle_id` | UUID | No | None | Vehicle FK referencing `vehicles(id)` catalogue model entry. |
+| `vehicle_category_id` | UUID | No | None | Vehicle category FK referencing `vehicle_categories(id)` category entry. |
 | `vehicle_vin` | VARCHAR(17) | No | None | 17-character VIN. Protected against concurrency overlap by database exclusion. |
 | `start_time` | TIMESTAMPTZ | No | None | Overall start time (earliest service job start time). |
 | `end_time` | TIMESTAMPTZ | No | None | Overall end time (latest service job end time). |
@@ -1057,7 +1057,7 @@ The scheduler eliminates race conditions through a 5-tier concurrency architectu
 +-----------------------------------T------------------------------------+
                                     |
 +------------------------------------------------------------------------+
-| 2. Vehicle Layer: PostgreSQL EXCLUDE constraint on vehicle_id         |
+| 2. Vehicle Layer: PostgreSQL EXCLUDE constraint on vehicle_vin         |
 |    Guarantees one vehicle cannot have overlapping active appointments. |
 +-----------------------------------T------------------------------------+
                                     |
@@ -1204,7 +1204,7 @@ Key characteristics:
 The database stores resource constraints in relational tables:
 - `service_types.allowed_bay_types TEXT[]` stores compatible bay types in preference order.
 - `service_type_technician_requirements` stores required skill codes and minimum qualification levels.
-- `service_type_costs` stores pricing per vehicle (referenced by `vehicle_id`).
+- `service_type_costs` stores pricing per vehicle category (referenced by `vehicle_category_id`).
 
 ### 6.3 Java Evaluator Implementation
 
@@ -1700,11 +1700,12 @@ WORKSHOP RESOURCES
   GET    /api/v1/resources/technicians         List technicians and skills
   POST   /api/v1/resources/technicians         Create technician profile
 
-SERVICE CATALOGUE & VEHICLES
-  GET    /api/v1/service-types                 List service types and resource constraints
-  POST   /api/v1/service-types                 Create service type (Manager/Admin)
-  GET    /api/v1/dealerships/{id}/vehicles     List vehicles in catalog
-  POST   /api/v1/dealerships/{id}/vehicles     Add supported vehicle model to catalogue (brand, model, year, vehicle_type)
+SERVICE CATALOGUE & VEHICLE CATEGORIES
+  GET    /api/v1/dealerships/{id}/service-types        List service types and resource constraints
+  POST   /api/v1/service-types                         Create service type (Manager/Admin)
+  GET    /api/v1/dealerships/{id}/vehicle-categories   List vehicle categories in catalog
+  POST   /api/v1/dealerships/{id}/vehicle-categories   Add supported vehicle category to catalog (brand, model, type)
+  GET    /api/v1/dealerships/{id}/pricing/estimate     Calculate instant pricing estimate
 
 REAL-TIME STREAMING
   GET    /api/v1/notifications/stream          Open SSE event stream (authenticated via JWT cookie)

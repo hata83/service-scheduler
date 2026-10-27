@@ -3,7 +3,10 @@ package dev.hata.scheduler.platform;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
+import java.time.LocalDate;
 import java.util.Set;
+
+import dev.hata.scheduler.infra.redis.WorkshopSlotFixturePopulator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,12 +75,13 @@ public final class AuthFixtureReset {
         factory.afterPropertiesSet();
         StringRedisTemplate template = new StringRedisTemplate(factory);
         template.afterPropertiesSet();
-        for (String pattern : Set.of("idempotency:*", "ratelimit:*", "otp:*")) {
+        for (String pattern : Set.of("idempotency:*", "ratelimit:*", "otp:*", "slot:grid:*")) {
             Set<String> keys = template.keys(pattern);
             if (keys != null && !keys.isEmpty()) {
                 template.delete(keys);
             }
         }
+        new WorkshopSlotFixturePopulator(template).populate(LocalDate.now());
         factory.destroy();
     }
 

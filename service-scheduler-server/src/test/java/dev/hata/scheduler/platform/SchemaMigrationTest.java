@@ -67,10 +67,38 @@ class SchemaMigrationTest {
                 (rs, n) -> new BeginSchemaHistoryRow(
                         rs.getString("version"), rs.getString("description"), rs.getBoolean("success")));
 
-        assertThat(history).extracting("success").containsExactly(true, true);
+        assertThat(history).extracting("success").containsOnly(true);
         assertThat(history)
                 .extracting("description")
-                .containsExactly("platform and auth schema", "seed dealer and auth");
+                .contains(
+                        "platform and auth schema",
+                        "workshop metadata and appointments schema",
+                        "seed dealer and auth",
+                        "seed metadata fixtures",
+                        "seed schedule and appointments");
+    }
+
+    @Test
+    void workshopMetadataAndAppointmentsSeedCountsResolve() {
+        Integer vehicleCategories = jdbc.queryForObject("SELECT count(*) FROM vehicle_categories", Integer.class);
+        Integer bays = jdbc.queryForObject("SELECT count(*) FROM workshop_bays", Integer.class);
+        Integer serviceTypes = jdbc.queryForObject("SELECT count(*) FROM service_types", Integer.class);
+        Integer techReqs =
+                jdbc.queryForObject("SELECT count(*) FROM service_type_technician_requirements", Integer.class);
+        Integer costs = jdbc.queryForObject("SELECT count(*) FROM service_type_costs", Integer.class);
+        Integer appointments =
+                jdbc.queryForObject("SELECT count(*) FROM appointments WHERE status = 'CONFIRMED'", Integer.class);
+        Integer jobs = jdbc.queryForObject("SELECT count(*) FROM service_jobs", Integer.class);
+        Integer assignments = jdbc.queryForObject("SELECT count(*) FROM job_technician_assignments", Integer.class);
+
+        assertThat(vehicleCategories).isEqualTo(4);
+        assertThat(bays).isEqualTo(3);
+        assertThat(serviceTypes).isEqualTo(3);
+        assertThat(techReqs).isEqualTo(3);
+        assertThat(costs).isEqualTo(12);
+        assertThat(appointments).isEqualTo(3);
+        assertThat(jobs).isEqualTo(3);
+        assertThat(assignments).isEqualTo(3);
     }
 
     @Test

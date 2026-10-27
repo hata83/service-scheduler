@@ -16,7 +16,7 @@
   ],
   "segments": [
     { "from": 140, "to": 290, "label": "1. Dealership configuration flow" },
-    { "from": 310, "to": 430, "label": "2. Vehicle catalogue registration flow" },
+    { "from": 310, "to": 430, "label": "2. Vehicle category registration flow" },
     { "from": 450, "to": 590, "label": "3. Workshop bay capabilities flow" },
     { "from": 610, "to": 740, "label": "4. Technician multi-skills flow" },
     { "from": 760, "to": 900, "label": "5. Service type rules & cost matrices flow" }
@@ -27,9 +27,9 @@
     { "id": "evict-cfg", "from": "api", "to": "redis", "y": 230, "label": "evict dealership:config & slot grids", "variant": "dashed" },
     { "id": "cfg-resp", "from": "api", "to": "manager", "y": 265, "label": "200 OK config updated", "variant": "return" },
 
-    { "id": "veh-req", "from": "manager", "to": "api", "y": 330, "label": "POST /dealerships/{id}/vehicles {brand, model, category}", "variant": "emphasis" },
-    { "id": "db-veh-ins", "from": "api", "to": "db", "y": 365, "label": "INSERT vehicles & dealership_vehicles", "variant": "default" },
-    { "id": "veh-resp", "from": "api", "to": "manager", "y": 400, "label": "201 Created vehicle model", "variant": "return" },
+    { "id": "veh-req", "from": "manager", "to": "api", "y": 330, "label": "POST /dealerships/{id}/vehicle-categories {brand, model, type}", "variant": "emphasis" },
+    { "id": "db-veh-ins", "from": "api", "to": "db", "y": 365, "label": "INSERT vehicle_categories", "variant": "default" },
+    { "id": "veh-resp", "from": "api", "to": "manager", "y": 400, "label": "201 Created vehicle category", "variant": "return" },
 
     { "id": "bay-req", "from": "manager", "to": "api", "y": 470, "label": "POST /resources/bays {bay_name, bay_types[], equipment[]}", "variant": "emphasis" },
     { "id": "db-bay-ins", "from": "api", "to": "db", "y": 505, "label": "INSERT workshop_bays", "variant": "default" },
@@ -57,7 +57,7 @@
       "title": "Metadata control planes",
       "items": [
         "Dealership configures 7-day lookahead and operating schedule",
-        "Vehicle catalogue registers supported brands, models, and types",
+        "Vehicle categories register supported brands, models, and types",
         "Multi-bay types and multi-skill technician profiles define capacity",
         "Pure Java ServiceConstraintEvaluator evaluates relational metadata"
       ]
