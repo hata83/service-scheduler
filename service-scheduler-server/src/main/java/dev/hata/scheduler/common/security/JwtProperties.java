@@ -10,7 +10,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.auth.jwt")
 public record JwtProperties(String secret, String issuer, Duration ttl, String cookieName, boolean cookieSecure) {
 
+    private static final int MIN_SECRET_LENGTH = 32;
+
     public JwtProperties {
+        if (secret == null || secret.isBlank() || secret.length() < MIN_SECRET_LENGTH) {
+            throw new IllegalArgumentException("app.auth.jwt.secret must be configured with at least 32 characters");
+        }
         if (ttl == null) {
             ttl = Duration.ofHours(8);
         }

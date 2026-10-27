@@ -289,4 +289,17 @@ class JwtServiceTest {
         service.deactivateUser(null);
         service.invalidateUserState(null);
     }
+
+    @Test
+    void jwtPropertiesValidatesSecretLength() {
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> new JwtProperties(null, "issuer", Duration.ofHours(8), "jwt", true));
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> new JwtProperties("   ", "issuer", Duration.ofHours(8), "jwt", true));
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> new JwtProperties("too-short-secret", "issuer", Duration.ofHours(8), "jwt", true));
+    }
 }
