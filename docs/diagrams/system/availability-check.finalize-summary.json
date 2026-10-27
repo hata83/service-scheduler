@@ -7,13 +7,13 @@
   "quality": "showcase",
   "specification": {
     "path": "/Users/apple/workspace/service-scheduler/docs/diagrams/src/system/availability-check.sequence.json",
-    "sha256": "d8a06c789abc554e17bec8caa5dc079c576c8e76f614ea51126034486153ab4c",
-    "bytes": 5571
+    "sha256": "d15b14ad227c2e1facf4c122cb778fb43111273b10ef50c1e29fc7270d3c5786",
+    "bytes": 5525
   },
   "artifact": {
     "path": "/Users/apple/workspace/service-scheduler/docs/diagrams/system/availability-check.html",
-    "sha256": "db4b8b4bd8b6fe0c5673a3d643b716b8c36fb940fd7d90be6cc9509d4e3d0104",
-    "bytes": 761396
+    "sha256": "936c592b27c13ef0b7ba550109b5aeea7cb5eaf84c23487f73d29bd342a4cf28",
+    "bytes": 761368
   },
   "gates": {
     "validate": "pass",
@@ -45,5 +45,5 @@
     "eventKey": "archify@sha256:70e210265c59f24dcbdf2a502ff671104b5454e7ee7d3554aecd86bad32384f5"
   },
   "visualReview": "not-requested",
-  "durationMs": 1967
+  "durationMs": 2530
 }

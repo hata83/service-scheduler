@@ -6,11 +6,11 @@
   "status": "pass",
   "visualReview": "not-requested",
   "provenance": "current",
-  "deliveryReceiptId": "5b378057-2874-4656-a74b-d50691b340eb",
+  "deliveryReceiptId": "6d85709e-3710-431a-8ca1-885ca3b9cb9d",
   "artifact": {
     "path": "/Users/apple/workspace/service-scheduler/docs/diagrams/system/availability-check.html",
-    "sha256": "db4b8b4bd8b6fe0c5673a3d643b716b8c36fb940fd7d90be6cc9509d4e3d0104",
-    "bytes": 761396
+    "sha256": "936c592b27c13ef0b7ba550109b5aeea7cb5eaf84c23487f73d29bd342a4cf28",
+    "bytes": 761368
   },
   "state": {
     "detail": "read",

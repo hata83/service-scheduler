@@ -5439,12 +5439,12 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       <div class="card">
         <div class="card-header">
           <div class="card-dot cyan"></div>
-          <h3>Greedy Scarcest-Slot Matching</h3>
+          <h3>Augmenting-Path Matching</h3>
         </div>
         <ul>
-          <li>Role slots are sorted by candidate count ascending — the rarest skill fills first</li>
-          <li>Each technician fills at most one role slot per job window</li>
-          <li>If any role slot has zero unassigned candidates the entire time window is excluded</li>
+          <li>Build bipartite graph: role slots and available technicians</li>
+          <li>Find augmenting paths; assign technicians without sorting by candidate count</li>
+          <li>Excluded when no augmenting path connects all required role slots</li>
         </ul>
       </div>
 

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "sequence",
   "meta": {
-    "title": "Slot Availability Check \u2014 Dual Resource Gate",
+    "title": "Slot Availability Check — Dual Resource Gate",
     "output": "availability-check.html",
     "column_fit": "spread",
     "animation": "trace",
@@ -84,7 +84,7 @@
       "from": "redis",
       "to": "api",
       "y": 295,
-      "label": "HIT \u2192 cached grid",
+      "label": "HIT → cached grid",
       "variant": "return"
     },
     {
@@ -92,7 +92,7 @@
       "from": "redis",
       "to": "api",
       "y": 325,
-      "label": "MISS \u2192 compute from DB",
+      "label": "MISS → compute from DB",
       "variant": "dashed"
     },
     {
@@ -201,7 +201,7 @@
   "cards": [
     {
       "dot": "emerald",
-      "title": "Dual Resource Gate \u2014 Both Must Pass",
+      "title": "Dual Resource Gate — Both Must Pass",
       "items": [
         "Bay gate: at least one active bay matching allowed_bay_types has no overlapping active service_job",
         "Technician gate: every required role slot in service_type_technician_requirements can be filled by a distinct, qualified, unassigned technician",
@@ -210,18 +210,18 @@
     },
     {
       "dot": "cyan",
-      "title": "Greedy Scarcest-Slot Matching",
+      "title": "Augmenting-Path Matching",
       "items": [
-        "Role slots are sorted by candidate count ascending \u2014 the rarest skill fills first",
-        "Each technician fills at most one role slot per job window",
-        "If any role slot has zero unassigned candidates the entire time window is excluded"
+        "Build bipartite graph: role slots and available technicians",
+        "Find augmenting paths; assign technicians without sorting by candidate count",
+        "Excluded when no augmenting path connects all required role slots"
       ]
     },
     {
       "dot": "amber",
       "title": "Cache Strategy",
       "items": [
-        "Key: slot:grid:{dealershipId}:{serviceTypeId}:{date} \u2014 per service type, per date",
+        "Key: slot:grid:{dealershipId}:{serviceTypeId}:{date} — per service type, per date",
         "TTL: dealership.slotCacheTtlSeconds (default 1 hour)",
         "Date-level eviction on: booking committed, cancelled, no-show, check-in slot adjustment",
         "Dealership-level eviction on: bay change, technician change, config update"

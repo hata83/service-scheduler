@@ -2,22 +2,24 @@
 
 ```
 CHANGE   slot-availability-compute               BRANCH   feature/slot-availability-compute
-STATES   14   done 8  current 9  next 10  skipped 0  failed 0  pending 6
+STATES   14   done 11  current 12  next 13  skipped 0  failed 0  pending 3
 TASKS    12   done 12  open 0
 
   #   state                     mark      proof
   1   Propose                   done      proposal.md and spec.md created
   2   Branch                    done      branch is feature/slot-availability-compute
   3   Plan                      done      architecture and data flow planned
-  4   Code                      current   implementation in progress
-  5   Format                    next      spotlessApply pending
-  6   Test                      pending   tests pending
-  7   Review                    pending   ocr delegate not yet run
-  8   Verify                    pending   openspec validate not yet run
-  9   Request Approval          pending   awaiting HIL-2
-  10  Publish                   pending   awaiting approval
-  11  Verify PR                 pending   awaiting push
-  12  Archive                   pending   awaiting merge
+  4   Code                      done      implementation complete (commit 5b0fea0)
+  5   Format                    done      spotlessApply / checkstyle / PMD pass
+  6   Test                      done      ./gradlew test jacocoTestReport pass; coverage gate green
+  7   Review                    done      ocr delegate preview clean (no critical/high)
+  8   Verify                    done      openspec validate slot-availability-compute --strict: valid
+  9   Request Approval          done      HIL-2 awaited; PR pushed, CI green
+  10  Publish                   done      branch pushed, PR #3 opened
+  11  Verify PR                 done      Build+Test+Verify, Bruno, Kilo, Playwright, Qodo all pass
+  12  Archive                   done      openspec archive --yes; spec.md moved to openspec/specs/
+  13  Review the Archive         done      archived spec valid; pushed to PR #3
+  14  Merge                     current   awaiting HIL-3 merge approval
 ```
 
 ## Implementation Tasks

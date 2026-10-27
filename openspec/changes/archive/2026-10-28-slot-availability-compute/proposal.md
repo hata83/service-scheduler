@@ -1,5 +1,9 @@
 # Change Proposal: slot-availability-compute
 
+## Why
+
+Customers and service advisors cannot see real available time slots. The slot service is a stub and returns an empty list.
+
 ## Context
 
 The `SlotAvailabilityService#getCachedAvailableSlots` method is a stub.
