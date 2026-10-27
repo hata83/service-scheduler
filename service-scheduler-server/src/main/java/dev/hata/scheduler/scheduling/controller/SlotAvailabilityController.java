@@ -21,7 +21,6 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -89,25 +88,5 @@ public class SlotAvailabilityController {
                     .contentType(MediaType.APPLICATION_PROBLEM_JSON)
                     .body(problem);
         }
-    }
-
-    /**
-     * Dev/test only. Clears every cached slot grid for a dealership so the next
-     * availability request recomputes from live database state.
-     *
-     * <p>Production must not expose this endpoint. It is unauthenticated by
-     * design and exists only to make the E2E suite exercise the DB-backed gate
-     * instead of preloaded fixture grids.
-     */
-    @Operation(
-            summary = "Clear cached slot grids",
-            description = "Dev/test only. Evicts all cached slot grids for a dealership.",
-            security = {})
-    @DeleteMapping("/cache")
-    public ResponseEntity<Void> clearCachedSlots(
-            @Parameter(description = "Dealership ID", required = true) @RequestParam("dealershipId")
-                    UUID dealershipId) {
-        slotService.evictSlotsByDealership(dealershipId);
-        return ResponseEntity.noContent().build();
     }
 }

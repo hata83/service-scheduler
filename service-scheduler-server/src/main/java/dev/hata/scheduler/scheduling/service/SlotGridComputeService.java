@@ -155,9 +155,11 @@ public class SlotGridComputeService {
             if (!isInLunch(cursor, slotEnd, lunchStart, lunchEnd)) {
                 // Skip past slots on today.
                 if (!isToday || cursor.isAfter(nowLocal)) {
-                    // Skip slots that wrap past midnight (e.g. 23:00 + 120 min -> 01:00).
+                    // When a service duration wraps past midnight (e.g. 22:00 + 120 min ->
+                    // 00:00), the candidate is invalid. Break out of the generation loop
+                    // instead of re-evaluating the same cursor indefinitely.
                     if (slotEnd.isBefore(cursor)) {
-                        continue;
+                        break;
                     }
                     ZonedDateTime startZdt = ZonedDateTime.of(LocalDateTime.of(date, cursor), zone);
                     ZonedDateTime endZdt = ZonedDateTime.of(LocalDateTime.of(date, slotEnd), zone);

@@ -6,12 +6,17 @@
 -- statuses are PENDING, IN_PROGRESS, and ON_HOLD. CANCELLED and DONE jobs release
 -- their bay and their technicians so the next booking can reuse that capacity.
 --
--- The PostgreSQL EXCLUDE constraints in V2 used `status <> 'CANCELLED'`, so a DONE
--- job still blocked a new overlapping reservation. This migration widens both
--- predicates to the active-job set.
+-- The PostgreSQL EXCLUDE constraints in V2 used `status <> 'CANCELLED'` for bays
+-- and an unconditional predicate for technicians, so DONE jobs still blocked new
+-- reservations. This migration widens the bay predicate to the active set and
+-- removes the technician overlap EXCLUDE constraint (which cannot reference the
+-- job status via a cross-table subquery in a partial index predicate).
+--
+-- Technician availability is enforced at query time by
+-- TechnicianAvailabilityProvider.FIND_AVAILABLE_SQL, which joins assignments to
+-- their service_jobs and filters to active statuses (SYSTEM_DESIGN §5.3).
 
 -- service_jobs: widening the partial index predicate for the bay overlap constraint.
-DROP INDEX IF EXISTS no_bay_overlap_idx;
 ALTER TABLE service_jobs DROP CONSTRAINT IF EXISTS no_bay_overlap;
 ALTER TABLE service_jobs
     ADD CONSTRAINT no_bay_overlap EXCLUDE USING gist (
@@ -19,11 +24,7 @@ ALTER TABLE service_jobs
         tstzrange(start_time, end_time) WITH &&
     ) WHERE (status NOT IN ('CANCELLED', 'DONE'));
 
--- job_technician_assignments: the technician overlap constraint must also exclude
--- DONE jobs so completed work releases technicians for new assignments. Because a
--- direct status subquery in a partial index predicate is not supported, we join via
--- a generated always check-free approach: the technician gate SQL already applies
--- the same filter, and the bay gate in V2 already uses the active set. The
--- technician exclusion constraint keeps its CANCELLED-only predicate (DONE
--- assignments are cleaned up on job completion in the booking service); the
--- TechnicianAvailabilityProvider SQL filters to active jobs at query time.
+-- job_technician_assignments: drop the unconditional tech-overlap constraint.
+-- It cannot express a cross-table job-status filter. The TechnicianAvailabilityProvider
+-- SQL enforces the active-job rule in application logic instead.
+ALTER TABLE job_technician_assignments DROP CONSTRAINT IF EXISTS no_technician_overlap;
