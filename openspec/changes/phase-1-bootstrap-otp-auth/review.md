@@ -101,6 +101,20 @@
   - Command: `openspec validate phase-1-bootstrap-otp-auth --strict`
   - Result: `Change 'phase-1-bootstrap-otp-auth' is valid`.
 
+## 6. PR #1 Follow-up Review Findings (Kilo Code & Qodo PR Inline Reviews)
+
+- **Findings Resolved:**
+  1. **Kilo Code Critical (`docker-compose.yml`):** Deleted the fallback string for `JWT_SECRET` in `docker-compose.yml`. Restored `${JWT_SECRET:?JWT_SECRET must be set}` to prevent authentication bypass.
+  2. **Qodo High (`JwtService.java`):** Deleted the 5-minute positive cache in `validateAccountState`. The system queries `AccountStateProvider` on each request. Privilege changes take effect immediately.
+  3. **Qodo Medium (`JwtService.java`):** Deleted caching of negative provider results. Added `activateUser` and deleted `user:active` on `invalidateUserState`. Reactivated accounts log in without delay.
+- **Verification Gates Passed:**
+  - Spotless and Checkstyle: clean pass.
+  - PMD: clean pass.
+  - Unit tests: `./gradlew :service-scheduler-server:test` passed.
+  - JaCoCo coverage: 100% on `@Service` classes.
+  - Delegate review: `verifyCodeReviewDelegate` passed.
+
+
 ## 5. PR #1 Security and Reliability Review Findings (Kilo Code & Qodo Review Round)
 
 - **OCR Review Summary:**

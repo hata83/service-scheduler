@@ -30,10 +30,7 @@ public class JwtService {
 
     private static final String SESSION_PREFIX = "session:";
     private static final String USER_ACTIVE_PREFIX = "user:active:";
-    private static final String USER_STATE_PREFIX = "user:state:";
     private static final String DEACTIVATED_FLAG = "false";
-    private static final int MIN_STATE_PARTS = 2;
-    private static final int STATE_DEALERSHIP_INDEX = 2;
 
     private final SecretKey key;
     private final Duration tokenTtl;
@@ -150,8 +147,14 @@ public class JwtService {
         }
         if (redis != null) {
             redis.opsForValue().set(USER_ACTIVE_PREFIX + userId, DEACTIVATED_FLAG, tokenTtl);
-            redis.delete(USER_STATE_PREFIX + userId);
         }
+    }
+
+    /**
+     * Reactivates an account or clears cached user flags when state changes.
+     */
+    public void activateUser(UUID userId) {
+        invalidateUserState(userId);
     }
 
     /**
@@ -159,7 +162,7 @@ public class JwtService {
      */
     public void invalidateUserState(UUID userId) {
         if (userId != null && redis != null) {
-            redis.delete(USER_STATE_PREFIX + userId);
+            redis.delete(USER_ACTIVE_PREFIX + userId);
         }
     }
 
@@ -196,49 +199,17 @@ public class JwtService {
             return true;
         }
 
-        String cached = redis != null ? redis.opsForValue().get(USER_STATE_PREFIX + userId) : null;
-        if (cached != null) {
-            String[] parts = cached.split("\\|", -1);
-            if (parts.length >= MIN_STATE_PARTS) {
-                boolean active = Boolean.parseBoolean(parts[0]);
-                if (!active) {
-                    return false;
-                }
-                String role = parts[1];
-                String didStr = parts.length > STATE_DEALERSHIP_INDEX && !parts[STATE_DEALERSHIP_INDEX].isBlank()
-                        ? parts[STATE_DEALERSHIP_INDEX]
-                        : null;
-                UUID dealershipId = didStr != null ? UUID.fromString(didStr) : null;
-                return role.equals(claimedRole) && Objects.equals(dealershipId, claimedDealershipId);
-            }
-        }
-
         Optional<AccountStateProvider.AccountState> stateOpt = accountStateProvider.getAccountState(userId);
         if (stateOpt.isEmpty()) {
-            if (redis != null) {
-                redis.opsForValue().set(USER_ACTIVE_PREFIX + userId, DEACTIVATED_FLAG, tokenTtl);
-            }
             return false;
         }
         AccountStateProvider.AccountState state = stateOpt.get();
         if (!state.active()) {
-            if (redis != null) {
-                redis.opsForValue().set(USER_ACTIVE_PREFIX + userId, DEACTIVATED_FLAG, tokenTtl);
-            }
             return false;
         }
         boolean roleMatches = state.role() != null && state.role().equals(claimedRole);
         boolean dealerMatches = Objects.equals(state.dealershipId(), claimedDealershipId);
-        if (!roleMatches || !dealerMatches) {
-            return false;
-        }
-
-        if (redis != null) {
-            String didStr = state.dealershipId() != null ? state.dealershipId().toString() : "";
-            redis.opsForValue()
-                    .set(USER_STATE_PREFIX + userId, "true|" + state.role() + "|" + didStr, Duration.ofMinutes(5));
-        }
-        return true;
+        return roleMatches && dealerMatches;
     }
 
     private void storeSession(String jti, Instant expiresAt) {

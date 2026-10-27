@@ -1,7 +1,6 @@
 package dev.hata.scheduler.common.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -236,31 +235,39 @@ class JwtServiceTest {
         service.revoke(issued.jti());
         verify(redis).delete("session:" + issued.jti());
 
-        // Deactivate user sets user:active in Redis and deletes user:state
+        // Deactivate user sets user:active in Redis
         service.deactivateUser(userId);
         verify(ops).set("user:active:" + userId, "false", Duration.ofHours(8));
-        verify(redis).delete("user:state:" + userId);
+
+        // Activate and invalidateUserState delete user:active key
+        service.activateUser(userId);
+        verify(redis).delete("user:active:" + userId);
 
         service.invalidateUserState(userId);
-        verify(redis, org.mockito.Mockito.times(2)).delete("user:state:" + userId);
+        verify(redis, org.mockito.Mockito.times(2)).delete("user:active:" + userId);
 
-        // Authenticate with active Redis session and cache hit
+        // Authenticate with active Redis session and valid provider state
         when(redis.hasKey("session:" + issued.jti())).thenReturn(true);
         when(ops.get("user:active:" + userId)).thenReturn(null);
-        when(ops.get("user:state:" + userId)).thenReturn("true|MANAGER|" + dealerId);
+        when(provider.getAccountState(userId))
+                .thenReturn(Optional.of(new AccountStateProvider.AccountState(true, "MANAGER", dealerId)));
         Optional<AuthPrincipal> authenticated = service.authenticate(issued.token());
         assertThat(authenticated).isPresent();
 
-        // Authenticate with cached deactivated state
-        when(ops.get("user:state:" + userId)).thenReturn("false|MANAGER|" + dealerId);
+        // Authenticate when provider returns deactivated state
+        when(provider.getAccountState(userId))
+                .thenReturn(Optional.of(new AccountStateProvider.AccountState(false, "MANAGER", dealerId)));
         assertThat(service.authenticate(issued.token())).isEmpty();
 
-        // Authenticate with cached role mismatch
-        when(ops.get("user:state:" + userId)).thenReturn("true|ADMIN|" + dealerId);
+        // Authenticate when provider returns role mismatch
+        when(provider.getAccountState(userId))
+                .thenReturn(Optional.of(new AccountStateProvider.AccountState(true, "ADMIN", dealerId)));
         assertThat(service.authenticate(issued.token())).isEmpty();
 
-        // Authenticate with cached dealership mismatch
-        when(ops.get("user:state:" + userId)).thenReturn("true|MANAGER|00000000-0000-0000-0000-000000000099");
+        // Authenticate when provider returns dealership mismatch
+        when(provider.getAccountState(userId))
+                .thenReturn(Optional.of(new AccountStateProvider.AccountState(
+                        true, "MANAGER", UUID.fromString("00000000-0000-0000-0000-000000000099"))));
         assertThat(service.authenticate(issued.token())).isEmpty();
 
         // Authenticate with user:active: = false in Redis
@@ -271,14 +278,6 @@ class JwtServiceTest {
         when(ops.get("user:active:" + userId)).thenReturn(null);
         when(redis.hasKey("session:" + issued.jti())).thenReturn(false);
         assertThat(service.authenticate(issued.token())).isEmpty();
-
-        // Cache miss querying provider and caching result
-        when(redis.hasKey("session:" + issued.jti())).thenReturn(true);
-        when(ops.get("user:state:" + userId)).thenReturn(null);
-        when(provider.getAccountState(userId))
-                .thenReturn(Optional.of(new AccountStateProvider.AccountState(true, "MANAGER", dealerId)));
-        assertThat(service.authenticate(issued.token())).isPresent();
-        verify(ops).set(eq("user:state:" + userId), eq("true|MANAGER|" + dealerId), any(Duration.class));
     }
 
     @Test
