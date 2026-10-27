@@ -1,14 +1,17 @@
 {
   "schemaVersion": 1,
-  "receiptId": "87623560-986a-4324-93f6-62096b58389f",
-  "status": "failed",
+  "receiptId": "5b378057-2874-4656-a74b-d50691b340eb",
+  "status": "current",
   "command": "deliver",
-  "stage": "render",
+  "type": "sequence",
   "input": "/Users/apple/workspace/service-scheduler/docs/diagrams/src/system/availability-check.sequence.json",
   "output": "/Users/apple/workspace/service-scheduler/docs/diagrams/system/availability-check.html",
-  "artifact": {
-    "sha256": "66906e3b21ae72153739f74bb79a3f04038310ded19b7df52503dd8a6352a9f0",
-    "bytes": 762645
+  "specification": {
+    "sha256": "d8a06c789abc554e17bec8caa5dc079c576c8e76f614ea51126034486153ab4c",
+    "bytes": 5571
   },
-  "error": "Sequence layout validation failed:\n- [composition/container-border-run] sequence messages[4] id \"cache-hit\" \"redis\" -> \"api\" follows segment \"Auth and cache check\" bottom border for 377.2px on segment 0 [328.1, 330] -> [705.3, 330] — move the message y so it crosses a segment boundary perpendicularly or stays clearly inside the segment.\n- [composition/container-border-run] sequence messages[9] id \"tech-query\" \"compute\" -> \"pg\" follows segment \"Dual-resource gate (on miss)\" bottom border for 188.6px on segment 0 [893.9, 530] -> [1082.5, 530] — move the message y so it crosses a segment boundary perpendicularly or stays clearly inside the segment."
+  "artifact": {
+    "sha256": "db4b8b4bd8b6fe0c5673a3d643b716b8c36fb940fd7d90be6cc9509d4e3d0104",
+    "bytes": 761396
+  }
 }

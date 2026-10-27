@@ -6,11 +6,7 @@
     "output": "availability-check.html",
     "column_fit": "spread",
     "animation": "trace",
-    "quality_profile": "showcase",
-    "viewBox": [
-      1200,
-      850
-    ]
+    "quality_profile": "showcase"
   },
   "participants": [
     {
@@ -50,29 +46,12 @@
       "sublabel": "bays + assignments"
     }
   ],
-  "segments": [
-    {
-      "from": 140,
-      "to": 325,
-      "label": "Auth and cache check"
-    },
-    {
-      "from": 340,
-      "to": 525,
-      "label": "Dual-resource gate (on miss)"
-    },
-    {
-      "from": 540,
-      "to": 730,
-      "label": "Cache write and response"
-    }
-  ],
   "messages": [
     {
       "id": "req",
       "from": "client",
       "to": "api",
-      "y": 170,
+      "y": 175,
       "label": "GET /slots/available",
       "variant": "emphasis"
     },
@@ -80,7 +59,7 @@
       "id": "verify",
       "from": "api",
       "to": "auth",
-      "y": 210,
+      "y": 205,
       "label": "validate JWT cookie",
       "variant": "security"
     },
@@ -88,7 +67,7 @@
       "id": "auth-ok",
       "from": "auth",
       "to": "api",
-      "y": 250,
+      "y": 235,
       "label": "principal + role",
       "variant": "return"
     },
@@ -96,7 +75,7 @@
       "id": "cache-read",
       "from": "api",
       "to": "redis",
-      "y": 290,
+      "y": 265,
       "label": "GET slot:grid key",
       "variant": "default"
     },
@@ -104,7 +83,7 @@
       "id": "cache-hit",
       "from": "redis",
       "to": "api",
-      "y": 330,
+      "y": 295,
       "label": "HIT \u2192 cached grid",
       "variant": "return"
     },
@@ -112,7 +91,7 @@
       "id": "cache-miss-note",
       "from": "redis",
       "to": "api",
-      "y": 370,
+      "y": 325,
       "label": "MISS \u2192 compute from DB",
       "variant": "dashed"
     },
@@ -120,7 +99,7 @@
       "id": "load-config",
       "from": "api",
       "to": "compute",
-      "y": 410,
+      "y": 355,
       "label": "compute(config, service, date)",
       "variant": "default"
     },
@@ -128,7 +107,7 @@
       "id": "bay-query",
       "from": "compute",
       "to": "pg",
-      "y": 450,
+      "y": 385,
       "label": "Bay gate: free bays query",
       "variant": "default"
     },
@@ -136,7 +115,7 @@
       "id": "bay-result",
       "from": "pg",
       "to": "compute",
-      "y": 490,
+      "y": 415,
       "label": "free bay list",
       "variant": "return"
     },
@@ -144,7 +123,7 @@
       "id": "tech-query",
       "from": "compute",
       "to": "pg",
-      "y": 530,
+      "y": 445,
       "label": "Tech gate: technicians query",
       "variant": "default"
     },
@@ -152,7 +131,7 @@
       "id": "tech-result",
       "from": "pg",
       "to": "compute",
-      "y": 570,
+      "y": 475,
       "label": "candidate tech IDs",
       "variant": "return"
     },
@@ -160,7 +139,7 @@
       "id": "compute-done",
       "from": "compute",
       "to": "api",
-      "y": 610,
+      "y": 505,
       "label": "available=true|false",
       "variant": "return"
     },
@@ -168,7 +147,7 @@
       "id": "cache-write",
       "from": "api",
       "to": "redis",
-      "y": 650,
+      "y": 535,
       "label": "SET grid TTL",
       "variant": "dashed"
     },
@@ -176,7 +155,7 @@
       "id": "reply",
       "from": "api",
       "to": "client",
-      "y": 690,
+      "y": 565,
       "label": "200 OK slot windows",
       "variant": "return"
     }

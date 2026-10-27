@@ -1,101 +1,36 @@
 {
   "schemaVersion": 1,
-  "ok": false,
+  "ok": true,
   "command": "finalize",
-  "status": "fail",
+  "status": "pass",
   "type": "sequence",
   "quality": "showcase",
   "specification": {
     "path": "/Users/apple/workspace/service-scheduler/docs/diagrams/src/system/availability-check.sequence.json",
-    "sha256": "edf701722725ff79c80430c483e2f359b0f9177d8757720ae24846d6963be6ec",
-    "bytes": 5910
+    "sha256": "d8a06c789abc554e17bec8caa5dc079c576c8e76f614ea51126034486153ab4c",
+    "bytes": 5571
   },
   "artifact": {
     "path": "/Users/apple/workspace/service-scheduler/docs/diagrams/system/availability-check.html",
-    "sha256": "66906e3b21ae72153739f74bb79a3f04038310ded19b7df52503dd8a6352a9f0",
-    "bytes": 762645
+    "sha256": "db4b8b4bd8b6fe0c5673a3d643b716b8c36fb940fd7d90be6cc9509d4e3d0104",
+    "bytes": 761396
   },
   "gates": {
-    "validate": "fail",
-    "deliver": "not-run",
-    "check": "not-run",
-    "browser-check": "not-run"
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
   },
-  "failedStage": "validate",
-  "diagnostics": [
-    {
-      "code": "composition/container-border-run",
-      "severity": "error",
-      "message": "[composition/container-border-run] sequence messages[4] id \"cache-hit\" \"redis\" -> \"api\" follows segment \"Auth and cache check\" bottom border for 377.2px on segment 0 [328.1, 330] -> [705.3, 330] — move the message y so it crosses a segment boundary perpendicularly or stays clearly inside the segment.",
-      "subject": {
-        "diagramType": "sequence",
-        "collection": "messages",
-        "index": 4,
-        "id": "cache-hit",
-        "from": "redis",
-        "to": "api"
-      },
-      "evidence": {
-        "frameKind": "segment",
-        "frameId": 0,
-        "frameLabel": "Auth and cache check",
-        "side": "bottom",
-        "segmentIndex": 0,
-        "overlapLengthPx": 377.2,
-        "from": [
-          328.1,
-          330
-        ],
-        "to": [
-          705.3,
-          330
-        ]
-      },
-      "supportedFixes": [
-        "move the message y so it crosses a segment boundary perpendicularly or stays clearly inside the segment"
-      ]
-    },
-    {
-      "code": "composition/container-border-run",
-      "severity": "error",
-      "message": "[composition/container-border-run] sequence messages[9] id \"tech-query\" \"compute\" -> \"pg\" follows segment \"Dual-resource gate (on miss)\" bottom border for 188.6px on segment 0 [893.9, 530] -> [1082.5, 530] — move the message y so it crosses a segment boundary perpendicularly or stays clearly inside the segment.",
-      "subject": {
-        "diagramType": "sequence",
-        "collection": "messages",
-        "index": 9,
-        "id": "tech-query",
-        "from": "compute",
-        "to": "pg"
-      },
-      "evidence": {
-        "frameKind": "segment",
-        "frameId": 1,
-        "frameLabel": "Dual-resource gate (on miss)",
-        "side": "bottom",
-        "segmentIndex": 0,
-        "overlapLengthPx": 188.6,
-        "from": [
-          893.9,
-          530
-        ],
-        "to": [
-          1082.5,
-          530
-        ]
-      },
-      "supportedFixes": [
-        "move the message y so it crosses a segment boundary perpendicularly or stays clearly inside the segment"
-      ]
-    }
-  ],
+  "diagnostics": [],
   "diagnosticSummary": {
-    "total": 2,
-    "shown": 2,
+    "total": 0,
+    "shown": 0,
     "truncated": false
   },
   "evidence": {
     "receipt": "/Users/apple/workspace/service-scheduler/docs/diagrams/system/availability-check.finalize.json",
-    "summaryReceipt": "/Users/apple/workspace/service-scheduler/docs/diagrams/system/availability-check.finalize-summary.json"
+    "summaryReceipt": "/Users/apple/workspace/service-scheduler/docs/diagrams/system/availability-check.finalize-summary.json",
+    "browserCheckReceipt": "/Users/apple/workspace/service-scheduler/docs/diagrams/system/availability-check.browser-check.json"
   },
   "update": {
     "status": "update_available",
@@ -110,11 +45,5 @@
     "eventKey": "archify@sha256:70e210265c59f24dcbdf2a502ff671104b5454e7ee7d3554aecd86bad32384f5"
   },
   "visualReview": "not-requested",
-  "durationMs": 415,
-  "nextAction": {
-    "action": "edit-in-place",
-    "candidate": "/Users/apple/workspace/service-scheduler/docs/diagrams/src/system/availability-check.sequence.json",
-    "constraint": "Preserve unaffected semantics and geometry; do not replace the whole candidate.",
-    "then": "finalize-once"
-  }
+  "durationMs": 1967
 }
