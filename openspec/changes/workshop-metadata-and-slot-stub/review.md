@@ -145,8 +145,8 @@ Applied rules based on `ocr delegate rule --format json service-scheduler-server
   - *Fix*: Configured `WRITE_DATES_AS_TIMESTAMPS = false` and `ADJUST_DATES_TO_CONTEXT_TIME_ZONE = false` on `ObjectMapper` in `JacksonConfig.java`.
 - **Finding 8 — Node 20 LTS Tooling Compatibility**: `msw@3.0.3` dropped support for Node 20 LTS.
   - *Fix*: Downgraded MSW to `^2.7.0` in `service-scheduler-ui/package.json` for full Node 20 LTS compatibility.
-- **Finding 9 — Pricing Mock Query Param**: Mock handler looked for `vehicleCategoryId` instead of `categoryId`.
-  - *Fix*: Updated `service-scheduler-ui/tests/unit/mock/handlers.ts` to support both `categoryId` and `vehicleCategoryId`.
+- **Finding 9 — Pricing Mock Query Param**: Mock handler accepted `vehicleCategoryId` query parameter unsupported by the real pricing endpoint.
+  - *Fix*: Updated `service-scheduler-ui/tests/unit/mock/handlers.ts` to read only `categoryId` and return 400 Bad Request when absent.
 - *Status*: All 9 findings RESOLVED and covered by unit and E2E tests.
 
 ---

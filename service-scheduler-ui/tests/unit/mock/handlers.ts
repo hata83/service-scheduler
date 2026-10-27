@@ -144,7 +144,7 @@ export const handlers = [
     }
     const url = new URL(request.url);
     const serviceTypeIds = url.searchParams.getAll('serviceTypeIds');
-    const categoryId = url.searchParams.get('categoryId') || url.searchParams.get('vehicleCategoryId');
+    const categoryId = url.searchParams.get('categoryId');
 
     if (!categoryId || serviceTypeIds.length === 0) {
       return HttpResponse.json({ type: 'about:blank', title: 'Bad Request', status: 400 }, { status: 400 });
