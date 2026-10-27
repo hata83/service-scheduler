@@ -130,7 +130,7 @@ The system formats all log entries as structured JSON with trace ID, span ID, ap
 | Migrations | Flyway 10+ | Versioned, reproducible schema management |
 | Cache | Redis 7 | Distributed slot cache and idempotency response cache |
 | Real-time Push | Spring MVC SseEmitter | Direct cookie-authenticated Server-Sent Events |
-| Rate Limiting | @RateLimited AOP + Redis | Sliding window rate limiting per IP and per entity across pods |
+| Rate Limiting | @RateLimited AOP + Redis | Fixed window rate limiting per IP and per entity across pods |
 | Resilience | Resilience4j | Circuit breaker and retries for webhook dispatch |
 | API Documentation | SpringDoc OpenAPI 3.1 | Auto-generated Swagger UI and schema export |
 | Build | Gradle 9.x | Multi-module build |

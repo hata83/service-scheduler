@@ -1580,10 +1580,10 @@ The scheduler implements multi-tier Redis caching to support high query concurre
 | `idempotency:{method}:{uri}:{key}` | Redis | 24 hours | Caches 2xx API responses (`status`, `body`, `Set-Cookie`) for idempotent write retries in `IdempotencyFilter`. | Natural TTL expiration. |
 | `otp:login:{phone}` | Redis | 5 minutes (default) | Stores 6-digit one-time password for the LOGIN purpose. | Atomic compare-and-delete on successful verification, or natural TTL expiration. |
 | `otp:register:{phone}` | Redis | 5 minutes (default) | Stores 6-digit one-time password for the REGISTER purpose. | Atomic compare-and-delete on successful registration, or natural TTL expiration. |
-| `ratelimit:otp-send-phone:{purpose}:{phone}` | Redis | 10 minutes (default) | Sliding window counter for OTP send requests per phone and purpose. | Natural TTL expiration. |
-| `ratelimit:otp-send-ip:{ip}` | Redis | 60 seconds (default) | Sliding window counter for OTP send requests per IP address. | Natural TTL expiration. |
-| `ratelimit:otp-verify-ip:{ip}` | Redis | 60 seconds (default) | Sliding window counter for OTP verification requests per IP address. | Natural TTL expiration. |
-| `ratelimit:register-ip:{ip}` | Redis | 60 seconds (default) | Sliding window counter for customer registration requests per IP address. | Natural TTL expiration. |
+| `ratelimit:otp-send-phone:{purpose}:{phone}` | Redis | 10 minutes (default) | Fixed window counter for OTP send requests per phone and purpose. | Natural TTL expiration. |
+| `ratelimit:otp-send-ip:{ip}` | Redis | 60 seconds (default) | Fixed window counter for OTP send requests per IP address. | Natural TTL expiration. |
+| `ratelimit:otp-verify-ip:{ip}` | Redis | 60 seconds (default) | Fixed window counter for OTP verification requests per IP address. | Natural TTL expiration. |
+| `ratelimit:register-ip:{ip}` | Redis | 60 seconds (default) | Fixed window counter for customer registration requests per IP address. | Natural TTL expiration. |
 
 ### 12.1 Slot Grid Cache: Init, Read, and Evict
 
