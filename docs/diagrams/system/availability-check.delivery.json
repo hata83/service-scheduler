@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "receiptId": "d5341abb-b4a6-4ac5-808e-cebb365b6e06",
+  "receiptId": "6d85709e-3710-431a-8ca1-885ca3b9cb9d",
   "status": "current",
   "command": "deliver",
   "type": "sequence",
-  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\availability-check.sequence.json",
-  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\availability-check.html",
+  "input": "/Users/apple/workspace/service-scheduler/docs/diagrams/src/system/availability-check.sequence.json",
+  "output": "/Users/apple/workspace/service-scheduler/docs/diagrams/system/availability-check.html",
   "specification": {
-    "sha256": "fdc2e8d94ce345fbc50b067204769fbf286db43544bdd2908f3c0340d413007c",
-    "bytes": 4530
+    "sha256": "d15b14ad227c2e1facf4c122cb778fb43111273b10ef50c1e29fc7270d3c5786",
+    "bytes": 5525
   },
   "artifact": {
-    "sha256": "0d5b1aab6309b8ea685e4a043c452b6c46b5a67048a7b85fa89778a1edfb1562",
-    "bytes": 816919
+    "sha256": "936c592b27c13ef0b7ba550109b5aeea7cb5eaf84c23487f73d29bd342a4cf28",
+    "bytes": 761368
   }
 }

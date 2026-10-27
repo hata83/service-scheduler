@@ -7,7 +7,7 @@ Slot availability cache provides fast lookups of workshop time windows from Redi
 
 ### Requirement: Cached slot availability query
 
-The system SHALL read candidate available time slots from Redis cache key `slot:grid:{dealershipId}:{serviceTypeId}:{date}` via `GET /api/v1/slots/available`.
+The system SHALL read candidate available time slots from Redis cache key `slot:grid:{dealershipId}:{date}:{serviceTypeId}` via `GET /api/v1/slots/available`.
 
 #### Scenario: Cache hit for slot availability
 - **WHEN** client requests available slots for an existing cached grid

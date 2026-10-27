@@ -5,12 +5,15 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -35,9 +38,13 @@ public class WorkshopSlotFixturePopulator {
     private static final Duration TTL = Duration.ofDays(7);
 
     private final StringRedisTemplate redis;
+    private final ObjectMapper objectMapper;
 
     public WorkshopSlotFixturePopulator(StringRedisTemplate redis) {
         this.redis = redis;
+        this.objectMapper = new ObjectMapper()
+                .registerModule(new JavaTimeModule())
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
     /**
@@ -91,39 +98,42 @@ public class WorkshopSlotFixturePopulator {
             LocalDate date,
             int durationMinutes,
             List<LocalTime> bookedStartTimes) {
-        String key = "slot:grid:" + dealershipId + ":" + serviceTypeId + ":" + date;
+        // Key order matches SlotAvailabilityService: slot:grid:{dealershipId}:{date}:{serviceTypeId}
+        String key = "slot:grid:" + dealershipId + ":" + date + ":" + serviceTypeId;
         try {
-            String json = buildGridJson(date, durationMinutes, bookedStartTimes);
+            // Bump the date generation counter so freshly written fixture grids
+            // carry a stamp that the read-time guard accepts (R14).
+            String genKey = "slot:gen:" + dealershipId + ":" + date;
+            Long dayGen = redis.opsForValue().increment(genKey);
+            String stamp = "0:" + (dayGen == null ? 0 : dayGen);
+            String json = buildGridJson(date, durationMinutes, bookedStartTimes, stamp);
             redis.opsForValue().set(key, json, TTL);
         } catch (Exception ex) {
             log.warn("Failed to write slot grid for key {}: {}", key, ex.getMessage(), ex);
         }
     }
 
-    private String buildGridJson(LocalDate date, int durationMinutes, List<LocalTime> bookedStartTimes) {
+    private String buildGridJson(
+            LocalDate date, int durationMinutes, List<LocalTime> bookedStartTimes, String generation) {
         List<LocalTime> startTimes = generateDailyIntervals(durationMinutes);
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < startTimes.size(); i++) {
-            LocalTime start = startTimes.get(i);
+        List<Slot> slots = new ArrayList<>();
+        for (LocalTime start : startTimes) {
             LocalTime end = start.plusMinutes(durationMinutes);
             ZonedDateTime startZdt = ZonedDateTime.of(date, start, TIMEZONE);
             ZonedDateTime endZdt = ZonedDateTime.of(date, end, TIMEZONE);
             boolean available = !bookedStartTimes.contains(start);
-
-            if (i > 0) {
-                sb.append(",");
-            }
-            sb.append("{\"startTime\":\"")
-                    .append(startZdt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
-                    .append("\",\"endTime\":\"")
-                    .append(endZdt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
-                    .append("\",\"available\":")
-                    .append(available)
-                    .append("}");
+            slots.add(new Slot(startZdt.toOffsetDateTime(), endZdt.toOffsetDateTime(), available));
         }
-        sb.append("]");
-        return sb.toString();
+        try {
+            return objectMapper.writeValueAsString(new StampedGrid(generation, slots));
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize slot grid", ex);
+        }
     }
+
+    private record Slot(java.time.OffsetDateTime startTime, java.time.OffsetDateTime endTime, boolean available) {}
+
+    private record StampedGrid(String generation, List<Slot> slots) {}
 
     private List<LocalTime> generateDailyIntervals(int durationMinutes) {
         List<LocalTime> slots = new ArrayList<>();
