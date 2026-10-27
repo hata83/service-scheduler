@@ -138,4 +138,12 @@ class ArchitectureTest {
                 .allowEmptyShould(true);
         rule.check(classes);
     }
+
+    @Test
+    void noMethodsUseSynchronizedModifierToPreventVirtualThreadPinning() {
+        ArchRule rule = com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods()
+                .should()
+                .haveModifier(com.tngtech.archunit.core.domain.JavaModifier.SYNCHRONIZED);
+        rule.check(classes);
+    }
 }

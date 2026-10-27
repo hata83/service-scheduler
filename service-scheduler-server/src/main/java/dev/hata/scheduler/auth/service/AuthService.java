@@ -62,6 +62,13 @@ public class AuthService {
     @Transactional
     public AuthPrincipal verifyOtp(String phone, String code) {
         requirePhone(phone);
+        if (!otp.verify(phone, OtpType.LOGIN, code)) {
+            throw new AuthException(
+                    HttpStatus.UNAUTHORIZED,
+                    "OTP verification failed",
+                    "The code is wrong, expired, or was issued for another purpose.");
+        }
+
         Optional<User> found = users.findByPhone(phone);
         if (found.isEmpty()) {
             throw new AuthException(
@@ -71,13 +78,6 @@ public class AuthService {
         }
         User user = found.get();
         requireActive(user);
-
-        if (!otp.verify(phone, OtpType.LOGIN, code)) {
-            throw new AuthException(
-                    HttpStatus.UNAUTHORIZED,
-                    "OTP verification failed",
-                    "The code is wrong, expired, or was issued for another purpose.");
-        }
 
         ResolvedScope scope = resolveScope(user);
         UserProfileProvider.ProfileView profile =

@@ -5,10 +5,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.crypto.SecretKey;
+
+import dev.hata.scheduler.common.provider.AccountStateProvider;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -20,12 +23,17 @@ import org.springframework.stereotype.Service;
  * Issues, reads, and revokes HS256 JWT tokens with embedded caller identity claims.
  * Session revocation is stored in Redis (distributed, survives restarts) when
  * available; falls back to an in-memory map for unit tests.
+ * Account state and privileges are verified server-side via {@link AccountStateProvider}.
  */
 @Service
 public class JwtService {
 
     private static final String SESSION_PREFIX = "session:";
     private static final String USER_ACTIVE_PREFIX = "user:active:";
+    private static final String USER_STATE_PREFIX = "user:state:";
+    private static final String DEACTIVATED_FLAG = "false";
+    private static final int MIN_STATE_PARTS = 2;
+    private static final int STATE_DEALERSHIP_INDEX = 2;
 
     private final SecretKey key;
     private final Duration tokenTtl;
@@ -33,22 +41,31 @@ public class JwtService {
     private final String jwtCookieName;
     private final boolean secureCookie;
     private final StringRedisTemplate redis; // nullable in tests
+    private final AccountStateProvider accountStateProvider; // nullable in unit tests
 
     // In-memory fallback when Redis is unavailable (unit tests only)
     private final Map<String, Instant> inMemorySessions = new ConcurrentHashMap<>();
 
     public JwtService(JwtProperties properties) {
-        this(properties, null);
+        this(properties, null, null);
+    }
+
+    public JwtService(JwtProperties properties, StringRedisTemplate redis) {
+        this(properties, redis, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
-    public JwtService(JwtProperties properties, StringRedisTemplate redis) {
+    public JwtService(
+            JwtProperties properties,
+            StringRedisTemplate redis,
+            @org.springframework.context.annotation.Lazy AccountStateProvider accountStateProvider) {
         this.tokenTtl = properties.ttl();
         this.issuer = properties.issuer();
         this.jwtCookieName = properties.cookieName();
         this.secureCookie = properties.cookieSecure();
         this.key = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
         this.redis = redis;
+        this.accountStateProvider = accountStateProvider;
     }
 
     public String cookieName() {
@@ -132,7 +149,17 @@ public class JwtService {
             return;
         }
         if (redis != null) {
-            redis.opsForValue().set(USER_ACTIVE_PREFIX + userId, "false", tokenTtl);
+            redis.opsForValue().set(USER_ACTIVE_PREFIX + userId, DEACTIVATED_FLAG, tokenTtl);
+            redis.delete(USER_STATE_PREFIX + userId);
+        }
+    }
+
+    /**
+     * Invalidates cached user state in Redis when privileges or roles change.
+     */
+    public void invalidateUserState(UUID userId) {
+        if (userId != null && redis != null) {
+            redis.delete(USER_STATE_PREFIX + userId);
         }
     }
 
@@ -155,15 +182,63 @@ public class JwtService {
         return false;
     }
 
-    private boolean isUserActive(UUID userId) {
-        if (userId == null || redis == null) {
-            return true; // no Redis → skip check (unit tests)
+    private boolean validateAccountState(UUID userId, String claimedRole, UUID claimedDealershipId) {
+        if (userId == null) {
+            return false;
         }
-        String value = redis.opsForValue().get(USER_ACTIVE_PREFIX + userId);
-        if (value == null) {
-            return true; // not set → assume active
+        if (redis != null) {
+            String activeFlag = redis.opsForValue().get(USER_ACTIVE_PREFIX + userId);
+            if (DEACTIVATED_FLAG.equals(activeFlag)) {
+                return false;
+            }
         }
-        return !"false".equals(value);
+        if (accountStateProvider == null) {
+            return true;
+        }
+
+        String cached = redis != null ? redis.opsForValue().get(USER_STATE_PREFIX + userId) : null;
+        if (cached != null) {
+            String[] parts = cached.split("\\|", -1);
+            if (parts.length >= MIN_STATE_PARTS) {
+                boolean active = Boolean.parseBoolean(parts[0]);
+                if (!active) {
+                    return false;
+                }
+                String role = parts[1];
+                String didStr = parts.length > STATE_DEALERSHIP_INDEX && !parts[STATE_DEALERSHIP_INDEX].isBlank()
+                        ? parts[STATE_DEALERSHIP_INDEX]
+                        : null;
+                UUID dealershipId = didStr != null ? UUID.fromString(didStr) : null;
+                return role.equals(claimedRole) && Objects.equals(dealershipId, claimedDealershipId);
+            }
+        }
+
+        Optional<AccountStateProvider.AccountState> stateOpt = accountStateProvider.getAccountState(userId);
+        if (stateOpt.isEmpty()) {
+            if (redis != null) {
+                redis.opsForValue().set(USER_ACTIVE_PREFIX + userId, DEACTIVATED_FLAG, tokenTtl);
+            }
+            return false;
+        }
+        AccountStateProvider.AccountState state = stateOpt.get();
+        if (!state.active()) {
+            if (redis != null) {
+                redis.opsForValue().set(USER_ACTIVE_PREFIX + userId, DEACTIVATED_FLAG, tokenTtl);
+            }
+            return false;
+        }
+        boolean roleMatches = state.role() != null && state.role().equals(claimedRole);
+        boolean dealerMatches = Objects.equals(state.dealershipId(), claimedDealershipId);
+        if (!roleMatches || !dealerMatches) {
+            return false;
+        }
+
+        if (redis != null) {
+            String didStr = state.dealershipId() != null ? state.dealershipId().toString() : "";
+            redis.opsForValue()
+                    .set(USER_STATE_PREFIX + userId, "true|" + state.role() + "|" + didStr, Duration.ofMinutes(5));
+        }
+        return true;
     }
 
     private void storeSession(String jti, Instant expiresAt) {
@@ -198,9 +273,6 @@ public class JwtService {
                     return Optional.empty();
                 }
                 UUID userId = UUID.fromString(claims.getSubject());
-                if (!isUserActive(userId)) {
-                    return Optional.empty();
-                }
                 String role = claims.get("role", String.class);
                 String phone = claims.get("ph", String.class);
                 if (role == null || role.isBlank() || phone == null || phone.isBlank()) {
@@ -208,6 +280,11 @@ public class JwtService {
                 }
                 String did = claims.get("did", String.class);
                 UUID dealershipId = (did != null && !did.isBlank()) ? UUID.fromString(did) : null;
+
+                if (!validateAccountState(userId, role, dealershipId)) {
+                    return Optional.empty();
+                }
+
                 String email = claims.get("email", String.class);
                 String firstName = claims.get("fn", String.class);
                 String lastName = claims.get("ln", String.class);

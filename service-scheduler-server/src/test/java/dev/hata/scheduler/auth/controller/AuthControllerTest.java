@@ -63,6 +63,9 @@ class AuthControllerTest {
     @Mock
     private dev.hata.scheduler.common.idempotency.IdempotencyStore idempotencyStore;
 
+    @Mock
+    private dev.hata.scheduler.common.filter.ClientIpResolver clientIpResolver;
+
     private MockMvc mvc;
 
     @BeforeEach

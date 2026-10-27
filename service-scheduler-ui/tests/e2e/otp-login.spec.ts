@@ -100,10 +100,11 @@ test.describe('OTP login', () => {
   test('an unregistered phone names the registration step', async ({ playwright, baseURL }) => {
     const request = await apiContext(playwright, baseURL!);
     const phone = freshPhone();
+    const code = await sendOtp(request, phone, 'LOGIN');
 
     const verify = await request.post('/api/v1/auth/otp/verify', {
-      headers: { 'X-Idempotency-Key': idempotencyKey('otp-verify', phone) },
-      data: { phone, code: '123456' }
+      headers: { 'X-Idempotency-Key': idempotencyKey('otp-verify-unregistered', phone) },
+      data: { phone, code }
     });
 
     expect(verify.status()).toBe(401);

@@ -47,11 +47,9 @@ public class IdempotencyFilter extends OncePerRequestFilter {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final IdempotencyStore store;
-    private final ClientIpResolver ipResolver;
 
-    public IdempotencyFilter(IdempotencyStore store, ClientIpResolver ipResolver) {
+    public IdempotencyFilter(IdempotencyStore store) {
         this.store = store;
-        this.ipResolver = ipResolver;
     }
 
     @Override
@@ -136,15 +134,16 @@ public class IdempotencyFilter extends OncePerRequestFilter {
     private String resolveCallerScope(HttpServletRequest request) {
         String uri = request.getRequestURI();
         // Bootstrap auth endpoints are unauthenticated or pre-session:
-        // scope to client IP to prevent cross-client collision or anonymous brute force.
+        // keep the caller scope as "anon" so client proxy rotation or post-login session cookies
+        // do not change the idempotency slot on replay.
         if (uri.startsWith("/api/v1/auth/register") || uri.startsWith("/api/v1/auth/otp/")) {
-            return "ip:" + ipResolver.resolve(request);
+            return "anon";
         }
         Object attr = request.getAttribute(AuthFilter.PRINCIPAL_ATTRIBUTE);
         if (attr instanceof AuthPrincipal principal && principal.userId() != null) {
             return principal.userId().toString();
         }
-        return "ip:" + ipResolver.resolve(request);
+        return "anon";
     }
 
     private static void replayResponse(HttpServletResponse response, IdempotencyStore.CachedResponse cached)

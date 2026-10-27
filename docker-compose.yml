@@ -44,7 +44,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-scheduler}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: "6379"
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me-in-prod-0123456789}
       ZALO_WEBHOOK_URL: ${ZALO_WEBHOOK_URL:-http://localhost:8080/actuator/health}
       APP_AUTH_OTP_ECHO: "false"
     depends_on:

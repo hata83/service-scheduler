@@ -7,6 +7,7 @@ import java.util.UUID;
  * Port for server-side revalidation of caller account state (active status,
  * role, and dealership scope) on every request without coupling to the auth entity model.
  */
+@FunctionalInterface
 public interface AccountStateProvider {
 
     /**

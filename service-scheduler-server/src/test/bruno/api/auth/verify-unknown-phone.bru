@@ -19,7 +19,7 @@ headers {
 body:json {
   {
     "phone": "+84900000777",
-    "code": "123456"
+    "code": "{{UNKNOWN_PHONE_CODE}}"
   }
 }
 
@@ -28,10 +28,8 @@ tests {
     expect(res.getStatus()).to.equal(401);
     expect(res.getHeader('content-type')).to.include("application/problem+json");
   });
-  
 
   test("unregistered phone detail names registration", function() {
     expect(res.getBody().detail.toLowerCase()).to.include("register");
   });
-  
 }

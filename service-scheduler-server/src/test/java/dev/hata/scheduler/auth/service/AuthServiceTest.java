@@ -178,16 +178,16 @@ class AuthServiceTest {
         assertThatThrownBy(() -> service.verifyOtp(null, "483920")).isInstanceOf(AuthException.class);
         assertThatThrownBy(() -> service.verifyOtp("8490000000", "483920")).isInstanceOf(AuthException.class);
 
-        when(users.findByPhone(PHONE)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.verifyOtp(PHONE, "483920"))
-                .isInstanceOf(AuthException.class)
-                .hasMessageContaining("Register");
-
-        when(users.findByPhone(PHONE)).thenReturn(Optional.of(customer()));
         when(otp.verify(PHONE, OtpType.LOGIN, "000000")).thenReturn(false);
         assertThatThrownBy(() -> service.verifyOtp(PHONE, "000000"))
                 .isInstanceOf(AuthException.class)
                 .hasMessageContaining("wrong");
+
+        when(otp.verify(PHONE, OtpType.LOGIN, "483920")).thenReturn(true);
+        when(users.findByPhone(PHONE)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.verifyOtp(PHONE, "483920"))
+                .isInstanceOf(AuthException.class)
+                .hasMessageContaining("Register");
 
         User inactive = customer();
         inactive.setActive(false);

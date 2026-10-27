@@ -52,10 +52,7 @@ class IdempotencyFilterTest {
                 .thenAnswer(inv ->
                         "idempotency:" + inv.getArgument(0) + ":" + inv.getArgument(1) + ":" + inv.getArgument(2));
         when(store.tryClaim(anyString(), anyString())).thenReturn(true);
-        filter = new IdempotencyFilter(
-                store,
-                new ClientIpResolver(
-                        new dev.hata.scheduler.common.ratelimit.RateLimitProperties(false, java.util.Map.of())));
+        filter = new IdempotencyFilter(store);
     }
 
     @Test

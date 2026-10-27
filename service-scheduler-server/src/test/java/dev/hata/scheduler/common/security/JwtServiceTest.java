@@ -1,16 +1,26 @@
 package dev.hata.scheduler.common.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 
+import dev.hata.scheduler.common.provider.AccountStateProvider;
+
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 /**
- * Covers the stateless JWT token issuance and in-memory cryptographic verification (ADR-005 / design D5).
+ * Covers the stateless JWT token issuance, Redis-backed revocation,
+ * and account state revalidation (ADR-005 / design D5).
  */
 class JwtServiceTest {
 
@@ -164,10 +174,120 @@ class JwtServiceTest {
     }
 
     @Test
+    void accountStateProviderRevalidatesRoleAndActiveStatus() {
+        UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000005");
+        AccountStateProvider provider = mock(AccountStateProvider.class);
+        when(provider.getAccountState(userId))
+                .thenReturn(Optional.of(new AccountStateProvider.AccountState(true, "CUSTOMER", null)));
+
+        JwtService service = new JwtService(
+                new JwtProperties(
+                        "secret-secret-secret-secret-secret-secret-1234",
+                        "service-scheduler",
+                        Duration.ofHours(8),
+                        "jwt",
+                        false),
+                null,
+                provider);
+
+        JwtService.Issued issued = service.issue(userId.toString(), "CUSTOMER", "+84900000004", null);
+        assertThat(service.authenticate(issued.token())).isPresent();
+
+        // Stale token claiming ADMIN role rejected
+        JwtService.Issued elevated = service.issue(userId.toString(), "ADMIN", "+84900000004", null);
+        assertThat(service.authenticate(elevated.token())).isEmpty();
+
+        // Deactivated user rejected
+        when(provider.getAccountState(userId))
+                .thenReturn(Optional.of(new AccountStateProvider.AccountState(false, "CUSTOMER", null)));
+        assertThat(service.authenticate(issued.token())).isEmpty();
+
+        // Missing user rejected
+        when(provider.getAccountState(userId)).thenReturn(Optional.empty());
+        assertThat(service.authenticate(issued.token())).isEmpty();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void redisBackedSessionRevocationAndStateRevalidationWork() {
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> ops = mock(ValueOperations.class);
+        when(redis.opsForValue()).thenReturn(ops);
+
+        AccountStateProvider provider = mock(AccountStateProvider.class);
+        UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000003");
+        UUID dealerId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
+        JwtService service = new JwtService(
+                new JwtProperties(
+                        "secret-secret-secret-secret-secret-secret-1234",
+                        "service-scheduler",
+                        Duration.ofHours(8),
+                        "jwt",
+                        true),
+                redis,
+                provider);
+
+        // Issue writes session to Redis
+        JwtService.Issued issued = service.issue(userId.toString(), "MANAGER", "+84900000002", dealerId.toString());
+        verify(ops).set(eq("session:" + issued.jti()), eq("1"), eq(Duration.ofHours(8)));
+
+        // Revoke deletes session key from Redis
+        service.revoke(issued.jti());
+        verify(redis).delete("session:" + issued.jti());
+
+        // Deactivate user sets user:active in Redis and deletes user:state
+        service.deactivateUser(userId);
+        verify(ops).set("user:active:" + userId, "false", Duration.ofHours(8));
+        verify(redis).delete("user:state:" + userId);
+
+        service.invalidateUserState(userId);
+        verify(redis, org.mockito.Mockito.times(2)).delete("user:state:" + userId);
+
+        // Authenticate with active Redis session and cache hit
+        when(redis.hasKey("session:" + issued.jti())).thenReturn(true);
+        when(ops.get("user:active:" + userId)).thenReturn(null);
+        when(ops.get("user:state:" + userId)).thenReturn("true|MANAGER|" + dealerId);
+        Optional<AuthPrincipal> authenticated = service.authenticate(issued.token());
+        assertThat(authenticated).isPresent();
+
+        // Authenticate with cached deactivated state
+        when(ops.get("user:state:" + userId)).thenReturn("false|MANAGER|" + dealerId);
+        assertThat(service.authenticate(issued.token())).isEmpty();
+
+        // Authenticate with cached role mismatch
+        when(ops.get("user:state:" + userId)).thenReturn("true|ADMIN|" + dealerId);
+        assertThat(service.authenticate(issued.token())).isEmpty();
+
+        // Authenticate with cached dealership mismatch
+        when(ops.get("user:state:" + userId)).thenReturn("true|MANAGER|00000000-0000-0000-0000-000000000099");
+        assertThat(service.authenticate(issued.token())).isEmpty();
+
+        // Authenticate with user:active: = false in Redis
+        when(ops.get("user:active:" + userId)).thenReturn("false");
+        assertThat(service.authenticate(issued.token())).isEmpty();
+
+        // Authenticate with revoked session (hasKey returns false)
+        when(ops.get("user:active:" + userId)).thenReturn(null);
+        when(redis.hasKey("session:" + issued.jti())).thenReturn(false);
+        assertThat(service.authenticate(issued.token())).isEmpty();
+
+        // Cache miss querying provider and caching result
+        when(redis.hasKey("session:" + issued.jti())).thenReturn(true);
+        when(ops.get("user:state:" + userId)).thenReturn(null);
+        when(provider.getAccountState(userId))
+                .thenReturn(Optional.of(new AccountStateProvider.AccountState(true, "MANAGER", dealerId)));
+        assertThat(service.authenticate(issued.token())).isPresent();
+        verify(ops).set(eq("user:state:" + userId), eq("true|MANAGER|" + dealerId), any(Duration.class));
+    }
+
+    @Test
     void revokeIgnoresBlankJti() {
         JwtService service = service();
         service.revoke(null);
         service.revoke("");
         service.revoke("   ");
+        service.deactivateUser(null);
+        service.invalidateUserState(null);
     }
 }
