@@ -44,7 +44,7 @@ public class WorkshopSlotFixturePopulator implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        populate(LocalDate.now());
+        populate(LocalDate.now(TIMEZONE));
     }
 
     /**

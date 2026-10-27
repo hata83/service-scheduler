@@ -13,9 +13,11 @@ test.describe('Workshop seed data and fixtures', () => {
   const DEMO_DEALERSHIP_ID = '00000000-0000-0000-0000-000000000001';
 
   function formatIsoDate(daysFromNow: number): string {
-    const d = new Date();
-    d.setDate(d.getDate() + daysFromNow);
-    return d.toISOString().split('T')[0];
+    const now = new Date();
+    const hcmDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+    const [yyyy, mm, dd] = hcmDateStr.split('-').map(Number);
+    const target = new Date(Date.UTC(yyyy, mm - 1, dd + daysFromNow));
+    return target.toISOString().split('T')[0];
   }
 
   test('seeded vehicle categories contain SEDAN, SUV, TRUCK, and EV categories', async ({ playwright, baseURL }) => {

@@ -117,6 +117,17 @@ Applied rules based on `ocr delegate rule --format json service-scheduler-server
 - `service-scheduler-ui/tests/e2e/workshop-seed-data.spec.ts`:
   - Validates seeded vehicle categories across all four body types (`SEDAN`, `SUV`, `TRUCK`, `EV`), service types, confirmed slot cache across Days +1 to +3, and OpenAPI 3.1 documentation.
 
+### 3.6 PR Code Review Findings & Resolution (Qodo)
+- **Finding (Qodo Review)**: Use the workshop timezone when generating fixture dates.
+  - *Context*: `WorkshopSlotFixturePopulator.run()` used `LocalDate.now()` (system default timezone), and `R__seed_schedule_and_appointments.sql` used `CURRENT_DATE` (PostgreSQL server session timezone). Around midnight, these independent dates could diverge from the workshop's local operating day (`Asia/Ho_Chi_Minh`).
+  - *Fix Applied*:
+    - `WorkshopSlotFixturePopulator.java`: Changed `populate(LocalDate.now())` to `populate(LocalDate.now(TIMEZONE))`.
+    - `AuthFixtureReset.java`: Changed `populate(LocalDate.now())` to `populate(LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh")))`.
+    - `R__seed_schedule_and_appointments.sql`: Changed `CURRENT_DATE` to `((now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)` across all appointment and job seed records.
+    - `slots-available-cached.bru`: Formatted `TARGET_DATE` using `Asia/Ho_Chi_Minh` timezone.
+    - Playwright test suites: Updated `formatIsoDate()` helper to format target dates against `Asia/Ho_Chi_Minh`.
+  - *Status*: RESOLVED and verified across all test suites.
+
 ---
 
 ## 4. Verification Proofs

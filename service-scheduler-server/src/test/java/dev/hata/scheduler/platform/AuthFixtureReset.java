@@ -81,7 +81,7 @@ public final class AuthFixtureReset {
                 template.delete(keys);
             }
         }
-        new WorkshopSlotFixturePopulator(template).populate(LocalDate.now());
+        new WorkshopSlotFixturePopulator(template).populate(LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")));
         factory.destroy();
     }
 
