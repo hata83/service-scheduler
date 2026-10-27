@@ -95,11 +95,37 @@ class RateLimitServiceTest {
         }
     }
 
+    @Test
+    void aspectNormalizesWhitespaceAndCaseInKeyExpression() throws Exception {
+        when(counter.tryAcquire(any(), anyLong(), any())).thenReturn(true);
+        when(ipResolver.resolve(any())).thenReturn("10.0.0.1");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        try {
+            Method method =
+                    SampleEndpoint.class.getDeclaredMethod("handle", OtpSendRequest.class, HttpServletRequest.class);
+            RateLimited annotation = method.getAnnotation(RateLimited.class);
+            JoinPoint joinPoint = mock(JoinPoint.class);
+            MethodSignature signature = mock(MethodSignature.class);
+            when(joinPoint.getSignature()).thenReturn(signature);
+            when(signature.getMethod()).thenReturn(method);
+            when(joinPoint.getArgs())
+                    .thenReturn(new Object[] {new OtpSendRequest(" +84900000004 ", "  LoGiN  "), request});
+
+            aspect.enforceRateLimits(joinPoint, annotation);
+
+            verify(counter).tryAcquire(eq("ratelimit:otp-send-phone:login:+84900000004"), eq(5L), any());
+        } finally {
+            RequestContextHolder.resetRequestAttributes();
+        }
+    }
+
     static class SampleEndpoint {
         @RateLimited({
             @RateLimited.Rule(
                     policy = "otp-send-phone",
-                    keyExpression = "#body.type().toLowerCase() + ':' + #body.phone()"),
+                    keyExpression = "#body.type().trim().toLowerCase() + ':' + #body.phone().trim()"),
             @RateLimited.Rule(policy = "otp-send-ip")
         })
         void handle(OtpSendRequest body, HttpServletRequest request) {}

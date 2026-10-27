@@ -137,3 +137,16 @@
   - JaCoCo coverage: 100% on `@Service` classes.
   - Delegate review: `verifyCodeReviewDelegate` passed.
 
+## 7. Rate Limit Normalization and Documentation Alignment
+
+- **Findings Resolved:**
+  1. **Qodo Medium (`AuthController.java`):** Normalized type and phone strings with `trim()` in rate-limit SpEL expressions. Requests with case or whitespace differences now share the same rate-limit bucket.
+  2. **Documentation Alignment:** Synchronized `README.md` and `docs/SYSTEM_DESIGN.md` with current rate-limiting architecture and centralized profile management.
+- **Verification Gates Passed:**
+  - Spotless and Checkstyle: clean pass.
+  - PMD: clean pass.
+  - Unit tests: `./gradlew :service-scheduler-server:test` passed.
+  - JaCoCo coverage: 100% on `@Service` classes.
+  - Delegate review: `verifyCodeReviewDelegate` passed.
+
+

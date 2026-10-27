@@ -235,7 +235,7 @@ TECHNICIAN cannot:
 ```
 USERS (1) ---- (1) PROFILES [centralized first_name, last_name, locale for all 4 roles]
 PROFILES (1) ---- (0..1) EMPLOYEES [employee_id, role IN (ADMIN, MANAGER, TECHNICIAN), dealership_id]
-EMPLOYEES (1) ---- (0..1) TECHNICIANS [role=TECHNICIAN, career level, is_available]
+EMPLOYEES (1) ---- (0..1) TECHNICIANS [role=TECHNICIAN, career grade (grade), is_available]
 TECHNICIANS (1) ---- (N) TECHNICIAN_SKILLS [skill code + skill proficiency level]
 
 DEALERSHIPS (1) ---- (N) EMPLOYEES [local MANAGER and TECHNICIAN; global ADMIN has dealership_id=NULL]
@@ -1669,7 +1669,7 @@ AUTHENTICATION
   POST   /api/v1/auth/otp/verify               Verify a LOGIN OTP and issue the httpOnly JWT session cookie
   POST   /api/v1/auth/register                 Register a customer with a REGISTER OTP and issue the session
   GET    /api/v1/auth/me                       Read the caller identity
-  PATCH  /api/v1/auth/me                       Edit the email and, for a CUSTOMER or a TECHNICIAN, the names
+  PATCH  /api/v1/auth/me                       Edit the user email and centralized profile names
   POST   /api/v1/auth/logout                   Invalidate user session in Redis
 
 SLOT AVAILABILITY

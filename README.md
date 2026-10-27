@@ -130,7 +130,7 @@ The system formats all log entries as structured JSON with trace ID, span ID, ap
 | Migrations | Flyway 10+ | Versioned, reproducible schema management |
 | Cache | Redis 7 | Distributed slot cache and idempotency response cache |
 | Real-time Push | Spring MVC SseEmitter | Direct cookie-authenticated Server-Sent Events |
-| Rate Limiting | Resilience4j + Redis | Per-IP and per-user rate limiting across pods |
+| Rate Limiting | @RateLimited AOP + Redis | Sliding window rate limiting per IP and per entity across pods |
 | Resilience | Resilience4j | Circuit breaker and retries for webhook dispatch |
 | API Documentation | SpringDoc OpenAPI 3.1 | Auto-generated Swagger UI and schema export |
 | Build | Gradle 9.x | Multi-module build |
@@ -289,7 +289,7 @@ SPRING_PROFILES_ACTIVE=test ./gradlew bootRun
 ./gradlew :service-scheduler-server:resetAuthFixtures
 
 # 5. Execute Bruno API contract test suite
-npx --yes @usebruno/cli@2.14.1 run service-scheduler-server/src/test/bruno --env local --disable-cookies
+cd service-scheduler-server/src/test/bruno && npx --yes @usebruno/cli@2.14.1 run --env local --disable-cookies && cd ../../../..
 
 # 6. Execute the Playwright E2E suite
 cd service-scheduler-ui && npx playwright test
