@@ -273,6 +273,52 @@ class SlotAvailabilityServiceTest {
         assertThat(slots.get(0).available()).isTrue();
     }
 
+    @Test
+    void getCachedAvailableSlotsReturnsEmptyForPastDateOnCacheMiss() {
+        LocalDate date = LocalDate.of(2020, 1, 1);
+
+        DealershipConfig config = buildConfig();
+        when(dealershipConfigPort.findConfig(DEALERSHIP_ID)).thenReturn(Optional.of(config));
+        ServiceType serviceType = buildServiceType();
+        when(serviceTypeRepository.findById(SERVICE_TYPE_ID)).thenReturn(Optional.of(serviceType));
+
+        List<SlotAvailabilityResponse> slots = service.getCachedAvailableSlots(DEALERSHIP_ID, SERVICE_TYPE_ID, date);
+
+        assertThat(slots).isEmpty();
+        verify(gridCompute, never()).compute(any(), any(), any(), any());
+    }
+
+    @Test
+    void getCachedAvailableSlotsRejectsServiceTypeFromAnotherDealership() {
+        LocalDate date = LocalDate.of(2026, 10, 28);
+
+        DealershipConfig config = buildConfig();
+        when(dealershipConfigPort.findConfig(DEALERSHIP_ID)).thenReturn(Optional.of(config));
+        ServiceType st = buildServiceTypeWithDealership(UUID.randomUUID());
+        when(serviceTypeRepository.findById(SERVICE_TYPE_ID)).thenReturn(Optional.of(st));
+
+        List<SlotAvailabilityResponse> slots = service.getCachedAvailableSlots(DEALERSHIP_ID, SERVICE_TYPE_ID, date);
+
+        assertThat(slots).isEmpty();
+        verify(gridCompute, never()).compute(any(), any(), any(), any());
+    }
+
+    @Test
+    void getCachedAvailableSlotsRejectsInactiveServiceType() throws Exception {
+        LocalDate date = LocalDate.of(2026, 10, 28);
+
+        DealershipConfig config = buildConfig();
+        when(dealershipConfigPort.findConfig(DEALERSHIP_ID)).thenReturn(Optional.of(config));
+        ServiceType st = buildServiceTypeWithDealership(DEALERSHIP_ID);
+        set(st, "active", false);
+        when(serviceTypeRepository.findById(SERVICE_TYPE_ID)).thenReturn(Optional.of(st));
+
+        List<SlotAvailabilityResponse> slots = service.getCachedAvailableSlots(DEALERSHIP_ID, SERVICE_TYPE_ID, date);
+
+        assertThat(slots).isEmpty();
+        verify(gridCompute, never()).compute(any(), any(), any(), any());
+    }
+
     // -------------------------------------------------------------------------
     // evictSlotsByDate — delegates to SlotCacheEvictionService
     // -------------------------------------------------------------------------
@@ -315,10 +361,14 @@ class SlotAvailabilityServiceTest {
     }
 
     private ServiceType buildServiceType() {
+        return buildServiceTypeWithDealership(DEALERSHIP_ID);
+    }
+
+    private ServiceType buildServiceTypeWithDealership(UUID dealershipId) {
         try {
             ServiceType st = new ServiceType();
             set(st, "id", SERVICE_TYPE_ID);
-            set(st, "dealershipId", DEALERSHIP_ID);
+            set(st, "dealershipId", dealershipId);
             set(st, "active", true);
             set(st, "estimatedMinutes", 60);
             set(st, "allowedBayTypes", new java.util.ArrayList<>(List.of("STANDARD")));

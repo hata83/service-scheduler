@@ -368,6 +368,36 @@ class SlotGridComputeServiceTest {
         assertThat(service.canFillAllRoleSlots(candidates)).isFalse();
     }
 
+    @Test
+    void canFillAllRoleSlotsAcceptsEmptyRoleList() {
+        assertThat(service.canFillAllRoleSlots(List.of())).isTrue();
+    }
+
+    // --- Midnight wrap: long service cannot start late and wrap past midnight ---
+
+    @Test
+    void computeDoesNotGenerateSlotsThatWrapPastMidnight() {
+        // 120-minute service starting at 23:00 would end at 01:00 (next day) —
+        // such a candidate must be skipped, not looped. Closing at 23:30.
+        DealershipConfig evening = new DealershipConfig(
+                DEALERSHIP_ID, "Asia/Ho_Chi_Minh", 30, LocalTime.of(8, 0), LocalTime.of(23, 30), null, null, 7, 3600);
+        Instant now = Instant.parse("2026-10-27T01:00:00Z");
+        LocalDate tomorrow = LocalDate.of(2026, 10, 28);
+        ServiceType st = buildServiceType(120, List.of("STANDARD"));
+
+        List<SlotAvailabilityResponse> result = service.compute(evening, st, tomorrow, now);
+
+        // No 120-min slot fits in 8:00-23:30 without wrapping; at most the day's
+        // in-range non-wrapping slots (none here, since every candidate starting
+        // late enough to wrap is dropped and earlier ones end by close).
+        assertThat(result).isNotEmpty();
+        for (SlotAvailabilityResponse slot : result) {
+            // endTime must be on the same date as startTime.
+            assertThat(slot.endTime().getDayOfMonth())
+                    .isEqualTo(slot.startTime().getDayOfMonth());
+        }
+    }
+
     // --- Builders ---
 
     private ServiceType buildServiceType(int durationMinutes, List<String> allowedBayTypes) {

@@ -5,7 +5,7 @@
 Compute available workshop time slots from live database state and cache the result.
 The system must evaluate bay capacity and technician availability for each candidate slot.
 
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Slot grid computation on cache miss
 
@@ -32,19 +32,42 @@ The system SHALL include a candidate slot when at least one active bay supportin
 - **WHEN** the slot grid is computed
 - **THEN** the slot is excluded from the result
 
+### Requirement: Completed or cancelled jobs release bays and technicians
+
+The bay and technician gates SHALL ignore service jobs whose status is `CANCELLED` or `DONE`.
+
+#### Scenario: Done job frees its bay
+- **GIVEN** a service job on a bay with status `DONE`
+- **WHEN** a candidate slot overlaps that job's time window
+- **THEN** the bay passes the bay gate (the past job does not block it)
+
+#### Scenario: Done job frees its technician
+- **GIVEN** a technician assignment attached to a `DONE` service job
+- **WHEN** a candidate slot overlaps the assignment window
+- **THEN** the technician is available for the technician gate
+
 ### Requirement: Technician gate passes when all role slots can be filled
 
 The system SHALL include a slot when every required technician role slot in `service_type_technician_requirements` can be filled by a distinct available technician.
 
 #### Scenario: Technician gate passes
 - **GIVEN** qualified unassigned technicians exist for every required role slot
-- **WHEN** scarcest-slot greedy matching runs
+- **WHEN** augmenting-path bipartite matching runs
 - **THEN** the slot passes the technician gate
 
 #### Scenario: Technician gate fails when a role slot cannot be filled
 - **GIVEN** no available technician meets the required skill and level for one role slot
-- **WHEN** scarcest-slot greedy matching runs
+- **WHEN** augmenting-path matching runs
 - **THEN** the slot is excluded from the result
+
+### Requirement: Matching finds distinct technicians across overlapping candidate sets
+
+The system SHALL assign a distinct technician to each role slot using augmenting-path matching, so a slot is included even when greedy first-fit assignment would exhaust shared candidates.
+
+#### Scenario: Overlapping candidate sets still match
+- **GIVEN** role slots with candidate sets {T1,T2}, {T2,T3}, {T1,T2}
+- **WHEN** the technician gate evaluates the slot
+- **THEN** the slot is included because T1,T2,T3 can fill the three role slots distinctly
 
 ### Requirement: Slots that do not cover the full service duration are excluded
 
@@ -55,6 +78,15 @@ The system SHALL exclude any candidate slot where `slot_start + estimatedMinutes
 - **AND** a candidate slot starts at 16:30 with close time 17:30
 - **WHEN** the grid is computed
 - **THEN** that slot is excluded because 16:30 + 120 min exceeds 17:30
+
+### Requirement: Slots that wrap past midnight are excluded
+
+The system SHALL not list a candidate slot whose start time plus the service duration crosses midnight.
+
+#### Scenario: Long service starting late is excluded
+- **GIVEN** a 120-minute service type and a close time of 23:30
+- **WHEN** the cursor reaches 22:00 and the end time would be 00:00 (next day)
+- **THEN** generation stops and no wrapping slot is listed
 
 ### Requirement: Out-of-range date returns HTTP 400
 
@@ -82,3 +114,31 @@ The system SHALL return the cached grid directly when `slot:grid:{dealershipId}:
 - **GIVEN** a cached grid exists for the requested parameters
 - **WHEN** client requests available slots
 - **THEN** response status is 200 and the body contains the cached slots
+
+#### Scenario: Expired slots are purged on cache hit
+- **GIVEN** a cached grid contains a slot whose start time has already elapsed
+- **WHEN** client requests available slots and the grid is returned from cache
+- **THEN** the elapsed slot is removed from the response
+
+### Requirement: Service type must belong to the requested dealership and be active
+
+The system SHALL not compute or cache slots for a service type that belongs to another dealership or is inactive.
+
+#### Scenario: Foreign service type is rejected
+- **GIVEN** a service type owned by a different dealership
+- **WHEN** client requests available slots for that service type
+- **THEN** response status is 200 and the body is an empty list
+
+#### Scenario: Inactive service type is rejected
+- **GIVEN** an inactive service type
+- **WHEN** client requests available slots for that service type
+- **THEN** response status is 200 and the body is an empty list
+
+### Requirement: Cache write failures do not affect the response
+
+The system SHALL log the exception with a stack trace and return the computed slots even when Redis write fails.
+
+#### Scenario: Redis write failure is non-fatal
+- **GIVEN** the compute grid is ready and Redis write throws
+- **WHEN** client requests available slots
+- **THEN** response status is 200 and the body contains the computed slots
