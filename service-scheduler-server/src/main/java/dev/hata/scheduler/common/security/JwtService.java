@@ -13,28 +13,42 @@ import javax.crypto.SecretKey;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 /**
  * Issues, reads, and revokes HS256 JWT tokens with embedded caller identity claims.
- * Cryptographic verification and revocation checks run in memory.
+ * Session revocation is stored in Redis (distributed, survives restarts) when
+ * available; falls back to an in-memory map for unit tests.
  */
 @Service
 public class JwtService {
+
+    private static final String SESSION_PREFIX = "session:";
+    private static final String USER_ACTIVE_PREFIX = "user:active:";
 
     private final SecretKey key;
     private final Duration tokenTtl;
     private final String issuer;
     private final String jwtCookieName;
     private final boolean secureCookie;
-    private final Map<String, Instant> revokedTokens = new ConcurrentHashMap<>();
+    private final StringRedisTemplate redis; // nullable in tests
+
+    // In-memory fallback when Redis is unavailable (unit tests only)
+    private final Map<String, Instant> inMemorySessions = new ConcurrentHashMap<>();
 
     public JwtService(JwtProperties properties) {
+        this(properties, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public JwtService(JwtProperties properties, StringRedisTemplate redis) {
         this.tokenTtl = properties.ttl();
         this.issuer = properties.issuer();
         this.jwtCookieName = properties.cookieName();
         this.secureCookie = properties.cookieSecure();
         this.key = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
+        this.redis = redis;
     }
 
     public String cookieName() {
@@ -49,9 +63,6 @@ public class JwtService {
         return tokenTtl;
     }
 
-    /**
-     * Signs a stateless token embedding the full caller principal claims.
-     */
     public Issued issue(AuthPrincipal principal) {
         return issueToken(
                 principal.userId().toString(),
@@ -64,9 +75,6 @@ public class JwtService {
                 principal.jti());
     }
 
-    /**
-     * Signs a stateless token for the given basic identity fields.
-     */
     public Issued issue(String subject, String role, String phone, String dealershipId) {
         return issueToken(subject, role, phone, dealershipId, null, null, null, null);
     }
@@ -96,39 +104,76 @@ public class JwtService {
                 .expiration(Date.from(now.plus(tokenTtl)))
                 .signWith(key, Jwts.SIG.HS256)
                 .compact();
+        storeSession(jti, now.plus(tokenTtl));
         return new Issued(token, jti, now.plus(tokenTtl));
     }
 
     /**
-     * Revokes the given token identifier in memory until its expiration horizon.
+     * Revokes the given token identifier. Uses Redis (distributed) when available,
+     * otherwise falls back to the in-memory map (unit tests).
      */
     public void revoke(String jti) {
         if (jti == null || jti.isBlank()) {
             return;
         }
-        Instant now = Instant.now();
-        revokedTokens.entrySet().removeIf(entry -> !entry.getValue().isAfter(now));
-        revokedTokens.put(jti, now.plus(tokenTtl));
+        if (redis != null) {
+            redis.delete(SESSION_PREFIX + jti);
+        } else {
+            inMemorySessions.remove(jti);
+        }
+    }
+
+    /**
+     * Marks a user as deactivated so that existing sessions are rejected on
+     * the next {@link #authenticate} call, even before the 8-hour TTL expires.
+     */
+    public void deactivateUser(UUID userId) {
+        if (userId == null) {
+            return;
+        }
+        if (redis != null) {
+            redis.opsForValue().set(USER_ACTIVE_PREFIX + userId, "false", tokenTtl);
+        }
     }
 
     private boolean isRevoked(String jti) {
         if (jti == null) {
             return false;
         }
-        Instant exp = revokedTokens.get(jti);
+        if (redis != null) {
+            Boolean exists = redis.hasKey(SESSION_PREFIX + jti);
+            return !Boolean.TRUE.equals(exists);
+        }
+        Instant exp = inMemorySessions.get(jti);
         if (exp == null) {
-            return false;
+            return true; // not in map → revoked/unknown
         }
         if (!exp.isAfter(Instant.now())) {
-            revokedTokens.remove(jti);
-            return false;
+            inMemorySessions.remove(jti);
+            return true;
         }
-        return true;
+        return false;
     }
 
-    /**
-     * Reads and cryptographically verifies claims of a signed token.
-     */
+    private boolean isUserActive(UUID userId) {
+        if (userId == null || redis == null) {
+            return true; // no Redis → skip check (unit tests)
+        }
+        String value = redis.opsForValue().get(USER_ACTIVE_PREFIX + userId);
+        if (value == null) {
+            return true; // not set → assume active
+        }
+        return !"false".equals(value);
+    }
+
+    private void storeSession(String jti, Instant expiresAt) {
+        if (redis != null) {
+            redis.opsForValue().set(SESSION_PREFIX + jti, "1", tokenTtl);
+        } else {
+            inMemorySessions.put(jti, expiresAt);
+        }
+    }
+
     public Optional<Claims> read(String token) {
         if (token == null || token.isBlank()) {
             return Optional.empty();
@@ -145,9 +190,6 @@ public class JwtService {
         }
     }
 
-    /**
-     * Validates a token and extracts the authenticated caller principal in memory.
-     */
     public Optional<AuthPrincipal> authenticate(String token) {
         return read(token).flatMap(claims -> {
             try {
@@ -156,6 +198,9 @@ public class JwtService {
                     return Optional.empty();
                 }
                 UUID userId = UUID.fromString(claims.getSubject());
+                if (!isUserActive(userId)) {
+                    return Optional.empty();
+                }
                 String role = claims.get("role", String.class);
                 String phone = claims.get("ph", String.class);
                 if (role == null || role.isBlank() || phone == null || phone.isBlank()) {
