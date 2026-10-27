@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "6acfb0a7-06dc-4906-a77b-8edea17e1c14",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\otp-login.sequence.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\otp-login.html",
+  "specification": {
+    "sha256": "5d737d0d613ba8c3aba5059a357ed172f619f6ae0863d5839497afd4119a1c8b",
+    "bytes": 5039
+  },
+  "artifact": {
+    "sha256": "9cf3d6b8dfb6d4d8db928855e444758f0725bd801efacbe14742eff591ae1942",
+    "bytes": 819118
+  }
+}

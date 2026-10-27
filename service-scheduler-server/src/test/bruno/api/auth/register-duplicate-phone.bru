@@ -1,0 +1,34 @@
+meta {
+  name: register-duplicate-phone
+  type: http
+  seq: 47
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Idempotency-Key: register-duplicate-84900000004
+  X-Forwarded-For: 203.0.113.44
+}
+
+body:json {
+  {
+    "phone": "+84900000004",
+    "firstName": "Tai",
+    "lastName": "Le",
+    "code": "{{REGISTER_CODE_DUPLICATE}}"
+  }
+}
+
+tests {
+  test("a registered phone responds 409", function() {
+    expect(res.getStatus()).to.equal(409);
+    expect(res.getHeader('content-type')).to.include("application/problem+json");
+  });
+  
+}

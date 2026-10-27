@@ -1,0 +1,34 @@
+meta {
+  name: register-rate-limited-fourth
+  type: http
+  seq: 53
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Idempotency-Key: register-rate-84900000998-4
+  X-Forwarded-For: 203.0.113.99
+}
+
+body:json {
+  {
+    "phone": "+84900000998",
+    "firstName": "Rate",
+    "lastName": "Limit",
+    "code": "000000"
+  }
+}
+
+tests {
+  test("fourth registration inside the window responds 429", function() {
+    expect(res.getStatus()).to.equal(429);
+    expect(res.getHeader('content-type')).to.include("application/problem+json");
+  });
+  
+}

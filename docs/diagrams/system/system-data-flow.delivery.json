@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "ecdb9bc4-304d-4d9d-9305-c75fba45971c",
+  "status": "current",
+  "command": "deliver",
+  "type": "dataflow",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\system-data-flow.dataflow.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-flow.html",
+  "specification": {
+    "sha256": "6b8a04685c17963290fe6a530810967da704633fe5081909c85280cae8e17086",
+    "bytes": 4969
+  },
+  "artifact": {
+    "sha256": "74c192b2e8e2791bc6bf69b2ae511aab4faa12d03fa3352e366da2419ba49836",
+    "bytes": 822259
+  }
+}

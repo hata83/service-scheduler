@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "6053e7b9-7c84-490b-ae4d-f0e537c4fb69",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\sse-reconnect.sequence.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\sse-reconnect.html",
+  "specification": {
+    "sha256": "f6a7c0d96ecf8e9af6b53c9deab2860bdac547172f33488047543c2c4d080bbb",
+    "bytes": 5015
+  },
+  "artifact": {
+    "sha256": "e71fe636d0d62093feec8d20f80b46e9b0f9444db023dc56cd37fab173d3e0ca",
+    "bytes": 818635
+  }
+}

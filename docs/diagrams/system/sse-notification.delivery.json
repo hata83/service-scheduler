@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "a7048b59-e561-46f1-86fb-866ff500778c",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\sse-notification.sequence.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\sse-notification.html",
+  "specification": {
+    "sha256": "674e291ff8b41ff5f576ce220154876270a1fa19dd09fe58f6cc44a3f5cf2e02",
+    "bytes": 3654
+  },
+  "artifact": {
+    "sha256": "0f1ca2722ccb1d5a48f18a7dd72473ff46099c31e53140b803122d47eb33f445",
+    "bytes": 818722
+  }
+}

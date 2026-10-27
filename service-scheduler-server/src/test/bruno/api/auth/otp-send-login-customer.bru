@@ -1,0 +1,41 @@
+meta {
+  name: otp-send-login-customer
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/otp/send
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Idempotency-Key: otp-send-LOGIN-84900000004
+  X-Forwarded-For: 203.0.113.10
+}
+
+body:json {
+  {
+    "phone": "+84900000004",
+    "type": "LOGIN"
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("LOGIN_CODE_CUSTOMER", res.getBody().otpCode);
+}
+
+tests {
+  test("send LOGIN code responds 202", function() {
+    expect(res.getStatus()).to.equal(202);
+  });
+  
+
+  test("send echoes the code in a non-production profile", function() {
+    expect(res.getBody().phone).to.equal("+84900000004");
+    expect(res.getBody().otpCode).to.match(/^[0-9]{6}$/);
+  });
+  
+}

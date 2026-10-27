@@ -1,0 +1,733 @@
+{
+  "schema_version": 1,
+  "diagram_type": "erd",
+  "meta": {
+    "title": "Unified Service Scheduler Data Model",
+    "output": "docs/diagrams/system/system-data-model.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "booking",
+        "label": "Booking core",
+        "focus": [
+          "users",
+          "profiles",
+          "appointments",
+          "service_jobs",
+          "job_assignments"
+        ],
+        "note": "appointments is the hub. It holds the appointment state machine and the bay window."
+      },
+      {
+        "id": "capacity",
+        "label": "Capacity and constraints",
+        "focus": [
+          "service_types",
+          "workshop_bays",
+          "employees",
+          "technicians",
+          "technician_skills"
+        ],
+        "note": "A bay carries many bay types inline. A technician carries a career level and many skills with levels."
+      },
+      {
+        "id": "pricing",
+        "label": "Pricing matrix",
+        "focus": [
+          "service_types",
+          "service_type_costs",
+          "vehicles"
+        ],
+        "note": "Cost is derived from service type and vehicle."
+      },
+      {
+        "id": "delivery",
+        "label": "Delivery",
+        "focus": [
+          "outbox_events"
+        ],
+        "note": "The outbox carries every notification. Transactional boundary protects delivery."
+      }
+    ]
+  },
+  "layout": {
+    "mode": "grid",
+    "gapY": 32,
+    "gapX": 24
+  },
+  "entities": [
+    {
+      "id": "users",
+      "label": "users",
+      "row": 0,
+      "col": 0,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "key": "pk"
+        },
+        {
+          "name": "phone",
+          "type": "varchar(30)",
+          "key": "uk"
+        },
+        {
+          "name": "email",
+          "type": "varchar(255)"
+        },
+        {
+          "name": "type",
+          "type": "varchar(20)"
+        }
+      ],
+      "width": 210
+    },
+    {
+      "id": "employees",
+      "label": "employees",
+      "row": 0,
+      "col": 1,
+      "attributes": [
+        {
+          "name": "user_id",
+          "type": "UUID",
+          "key": "pk",
+          "references": "profiles.user_id"
+        },
+        {
+          "name": "employee_id",
+          "type": "varchar(50)",
+          "key": "uk"
+        },
+        {
+          "name": "role",
+          "type": "varchar(20)"
+        },
+        {
+          "name": "dealership_id",
+          "type": "UUID",
+          "key": "fk",
+          "references": "dealerships.id"
+        }
+      ],
+      "width": 216
+    },
+    {
+      "id": "dealerships",
+      "label": "dealerships",
+      "row": 0,
+      "col": 3,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "key": "pk"
+        },
+        {
+          "name": "name",
+          "type": "varchar(255)"
+        },
+        {
+          "name": "timezone",
+          "type": "varchar(50)"
+        },
+        {
+          "name": "slot_interval",
+          "type": "int"
+        },
+        {
+          "name": "open_time",
+          "type": "time"
+        },
+        {
+          "name": "close_time",
+          "type": "time"
+        },
+        {
+          "name": "auto_confirm",
+          "type": "boolean"
+        }
+      ],
+      "width": 210
+    },
+    {
+      "id": "profiles",
+      "label": "profiles",
+      "row": 1,
+      "col": 0,
+      "width": 216,
+      "attributes": [
+        {
+          "name": "user_id",
+          "type": "UUID",
+          "key": "pk",
+          "references": "users.id"
+        },
+        {
+          "name": "first_name",
+          "type": "varchar(100)"
+        },
+        {
+          "name": "last_name",
+          "type": "varchar(100)"
+        },
+        {
+          "name": "locale",
+          "type": "varchar(10)"
+        }
+      ]
+    },
+    {
+      "id": "technicians",
+      "label": "technicians",
+      "row": 1,
+      "col": 2,
+      "width": 216,
+      "attributes": [
+        {
+          "name": "user_id",
+          "type": "UUID",
+          "key": "pk",
+          "references": "employees.user_id"
+        },
+        {
+          "name": "grade",
+          "type": "varchar(20)"
+        },
+        {
+          "name": "is_available",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "id": "appointments",
+      "label": "appointments",
+      "row": 2,
+      "col": 0,
+      "width": 246,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "key": "pk"
+        },
+        {
+          "name": "dealership_id",
+          "type": "UUID",
+          "key": "fk",
+          "references": "dealerships.id"
+        },
+        {
+          "name": "customer_id",
+          "type": "UUID",
+          "key": "fk",
+          "references": "profiles.user_id"
+        },
+        {
+          "name": "vehicle_id",
+          "type": "UUID",
+          "key": "fk",
+          "references": "vehicles.id"
+        },
+        {
+          "name": "vehicle_vin",
+          "type": "varchar(17)"
+        },
+        {
+          "name": "start_time",
+          "type": "timestamptz"
+        },
+        {
+          "name": "end_time",
+          "type": "timestamptz"
+        },
+        {
+          "name": "status",
+          "type": "varchar(30)"
+        },
+        {
+          "name": "estimate_cost",
+          "type": "numeric(12,2)"
+        },
+        {
+          "name": "total_cost",
+          "type": "numeric(12,2)"
+        },
+        {
+          "name": "idempotency_key",
+          "type": "varchar(100)",
+          "key": "uk"
+        },
+        {
+          "name": "version",
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "id": "outbox_events",
+      "label": "outbox_events",
+      "row": 2,
+      "col": 1,
+      "width": 216,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "key": "pk"
+        },
+        {
+          "name": "event_type",
+          "type": "varchar(100)"
+        },
+        {
+          "name": "aggregate_id",
+          "type": "UUID"
+        },
+        {
+          "name": "status",
+          "type": "varchar(20)"
+        }
+      ]
+    },
+    {
+      "id": "workshop_bays",
+      "label": "workshop_bays",
+      "row": 2,
+      "col": 2,
+      "width": 216,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "key": "pk"
+        },
+        {
+          "name": "dealership_id",
+          "type": "UUID",
+          "key": "fk",
+          "references": "dealerships.id"
+        },
+        {
+          "name": "bay_name",
+          "type": "varchar(50)"
+        },
+        {
+          "name": "bay_types",
+          "type": "text[]"
+        },
+        {
+          "name": "last_used_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "id": "service_jobs",
+      "label": "service_jobs",
+      "row": 3,
+      "col": 0,
+      "width": 234,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "key": "pk"
+        },
+        {
+          "name": "appointment_id",
+          "type": "UUID",
+          "key": "fk",
+          "references": "appointments.id"
+        },
+        {
+          "name": "service_type_id",
+          "type": "UUID",
+          "key": "fk",
+          "references": "service_types.id"
+        },
+        {
+          "name": "bay_id",
+          "type": "UUID",
+          "key": "fk",
+          "references": "workshop_bays.id"
+        },
+        {
+          "name": "start_time",
+          "type": "timestamptz"
+        },
+        {
+          "name": "end_time",
+          "type": "timestamptz"
+        },
+        {
+          "name": "status",
+          "type": "varchar(20)"
+        },
+        {
+          "name": "base_minutes",
+          "type": "int"
+        },
+        {
+          "name": "estimate_cost",
+          "type": "numeric(12,2)"
+        },
+        {
+          "name": "final_cost",
+          "type": "numeric(12,2)"
+        }
+      ]
+    },
+    {
+      "id": "service_types",
+      "label": "service_types",
+      "row": 3,
+      "col": 1,
+      "width": 226,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "key": "pk"
+        },
+        {
+          "name": "dealership_id",
+          "type": "UUID",
+          "key": "fk",
+          "references": "dealerships.id"
+        },
+        {
+          "name": "code",
+          "type": "varchar(50)",
+          "key": "uk"
+        },
+        {
+          "name": "estimated_minutes",
+          "type": "int"
+        },
+        {
+          "name": "allowed_bay_types",
+          "type": "text[]"
+        }
+      ]
+    },
+    {
+      "id": "technician_skills",
+      "label": "technician_skills",
+      "row": 3,
+      "col": 2,
+      "width": 216,
+      "attributes": [
+        {
+          "name": "technician_id",
+          "type": "UUID",
+          "key": "pk",
+          "references": "technicians.user_id"
+        },
+        {
+          "name": "skill",
+          "type": "varchar(30)",
+          "key": "pk"
+        },
+        {
+          "name": "level",
+          "type": "varchar(20)"
+        }
+      ]
+    },
+    {
+      "id": "service_type_costs",
+      "label": "service_type_costs",
+      "row": 3,
+      "col": 3,
+      "width": 216,
+      "attributes": [
+        {
+          "name": "service_type_id",
+          "type": "UUID",
+          "key": "fk",
+          "references": "service_types.id"
+        },
+        {
+          "name": "vehicle_id",
+          "type": "UUID",
+          "key": "fk",
+          "references": "vehicles.id"
+        },
+        {
+          "name": "cost",
+          "type": "numeric(12,2)"
+        }
+      ]
+    },
+    {
+      "id": "vehicles",
+      "label": "vehicles",
+      "row": 4,
+      "col": 3,
+      "width": 212,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "key": "pk"
+        },
+        {
+          "name": "dealership_id",
+          "type": "UUID",
+          "key": "fk",
+          "references": "dealerships.id"
+        },
+        {
+          "name": "brand",
+          "type": "varchar(50)"
+        },
+        {
+          "name": "model",
+          "type": "varchar(50)"
+        },
+        {
+          "name": "year",
+          "type": "int"
+        },
+        {
+          "name": "vehicle_type",
+          "type": "varchar(50)"
+        }
+      ]
+    },
+    {
+      "id": "job_assignments",
+      "label": "job_technician_assignments",
+      "row": 4,
+      "col": 1,
+      "width": 257,
+      "attributes": [
+        {
+          "name": "job_id",
+          "type": "UUID",
+          "key": "pk",
+          "references": "service_jobs.id"
+        },
+        {
+          "name": "technician_id",
+          "type": "UUID",
+          "key": "pk",
+          "references": "technicians.user_id"
+        },
+        {
+          "name": "role",
+          "type": "varchar(20)"
+        },
+        {
+          "name": "assigned_start_time",
+          "type": "timestamptz"
+        },
+        {
+          "name": "assigned_end_time",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "id": "service_type_technician_requirements",
+      "label": "technician_requirements",
+      "row": 4,
+      "col": 2,
+      "width": 232,
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "key": "pk"
+        },
+        {
+          "name": "service_type_id",
+          "type": "UUID",
+          "key": "fk",
+          "references": "service_types.id"
+        },
+        {
+          "name": "slot_number",
+          "type": "int"
+        },
+        {
+          "name": "required_skill",
+          "type": "varchar(30)"
+        },
+        {
+          "name": "min_skill_level",
+          "type": "varchar(20)"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "id": "user_profile",
+      "from": "users",
+      "to": "profiles",
+      "label": "profile",
+      "fromCardinality": "one",
+      "toCardinality": "one"
+    },
+    {
+      "id": "user_employee",
+      "from": "users",
+      "to": "employees",
+      "label": "staff",
+      "fromCardinality": "one",
+      "toCardinality": "one"
+    },
+    {
+      "id": "dealership_employee",
+      "from": "dealerships",
+      "to": "employees",
+      "label": "staff",
+      "fromCardinality": "one",
+      "toCardinality": "many"
+    },
+    {
+      "id": "employee_technician",
+      "from": "employees",
+      "to": "technicians",
+      "label": "tech",
+      "fromCardinality": "one",
+      "toCardinality": "one"
+    },
+    {
+      "id": "appointment_customer",
+      "from": "profiles",
+      "to": "appointments",
+      "label": "books",
+      "fromCardinality": "one",
+      "toCardinality": "many"
+    },
+    {
+      "id": "appointment_job",
+      "from": "appointments",
+      "to": "service_jobs",
+      "label": "contains",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "labelDy": 24,
+      "labelDx": -15
+    },
+    {
+      "id": "service_type_job",
+      "from": "service_types",
+      "to": "service_jobs",
+      "label": "constrains",
+      "fromCardinality": "one",
+      "toCardinality": "many"
+    },
+    {
+      "id": "job_assignment",
+      "from": "service_jobs",
+      "to": "job_assignments",
+      "label": "assigns",
+      "fromCardinality": "one",
+      "toCardinality": "many"
+    },
+    {
+      "id": "technician_skill",
+      "from": "technicians",
+      "to": "technician_skills",
+      "label": "holds",
+      "fromCardinality": "one",
+      "toCardinality": "many"
+    },
+    {
+      "id": "dealership_bay",
+      "from": "dealerships",
+      "to": "workshop_bays",
+      "label": "owns",
+      "fromCardinality": "one",
+      "toCardinality": "many"
+    },
+    {
+      "id": "appointment_outbox",
+      "from": "appointments",
+      "to": "outbox_events",
+      "label": "emits",
+      "fromCardinality": "one",
+      "toCardinality": "many"
+    },
+    {
+      "id": "service_type_cost",
+      "from": "service_types",
+      "to": "service_type_costs",
+      "label": "has cost matrix",
+      "fromCardinality": "one",
+      "toCardinality": "many"
+    },
+    {
+      "id": "dealership_vehicles",
+      "from": "dealerships",
+      "to": "vehicles",
+      "label": "catalog",
+      "fromCardinality": "one",
+      "toCardinality": "many",
+      "fromSide": "right",
+      "toSide": "right"
+    },
+    {
+      "id": "appointment_vehicle",
+      "from": "appointments",
+      "to": "vehicles",
+      "label": "for vehicle",
+      "fromCardinality": "many",
+      "toCardinality": "one",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "service_type_cost_vehicle",
+      "from": "service_type_costs",
+      "to": "vehicles",
+      "label": "for vehicle",
+      "fromCardinality": "many",
+      "toCardinality": "one"
+    },
+    {
+      "id": "service_type_requirement",
+      "from": "service_types",
+      "to": "service_type_technician_requirements",
+      "label": "requires role slots",
+      "fromCardinality": "one",
+      "toCardinality": "many"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Multi-value constraints",
+      "items": [
+        "service_types.allowed_bay_types is an array, so one service type fits several bay types",
+        "workshop_bays.bay_types is an array, so a bay is multi-purpose",
+        "technician_skills gives one technician many skills with a level per skill"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Vehicle catalog & pricing matrix",
+      "items": [
+        "vehicles table stores VIN, brand, model, year per dealership",
+        "service_type_costs maps (service_type_id, vehicle_id) to catalog price",
+        "estimate_cost rolls up to appointments and is negotiated before check-in"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Booking safety & concurrency",
+      "items": [
+        "EXCLUDE USING gist on service_jobs prevents bay overlap",
+        "EXCLUDE on appointments prevents duplicate vehicle booking",
+        "EXCLUDE on job_technician_assignments prevents technician overlap",
+        "idempotency_key is unique, so retried requests never double-book"
+      ]
+    }
+  ]
+}

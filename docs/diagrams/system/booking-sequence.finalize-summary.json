@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "sequence",
+  "quality": "showcase",
+  "specification": {
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\booking-sequence.sequence.json",
+    "sha256": "5b6da370069376b248bd17fa47d753354f2918d8609ce23b5ea75560ac8b62bb",
+    "bytes": 5028
+  },
+  "artifact": {
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\booking-sequence.html",
+    "sha256": "6679de22f5c06545ef8598c8700eaa4be13aebfb41a66eca3b480f56492a9ccf",
+    "bytes": 823032
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\booking-sequence.finalize.json",
+    "summaryReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\booking-sequence.finalize-summary.json",
+    "browserCheckReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\booking-sequence.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-24T04:45:37.141Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 3732,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

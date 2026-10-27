@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "SSE Notification Flow",
+    "output": "sse-notification.html",
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    { "id": "client", "type": "external", "label": "Client", "sublabel": "portal or app" },
+    { "id": "api", "type": "backend", "label": "SSE API", "sublabel": "stream endpoint" },
+    { "id": "auth", "type": "security", "label": "Auth", "sublabel": "JWT cookie" },
+    { "id": "registry", "type": "backend", "label": "SSE Registry", "sublabel": "connection map" },
+    { "id": "relay", "type": "messagebus", "label": "Outbox Relay", "sublabel": "SKIP LOCKED" },
+    { "id": "db", "type": "database", "label": "PostgreSQL", "sublabel": "outbox_events" }
+  ],
+  "segments": [
+    { "from": 150, "to": 350, "label": "Connect and authenticate" },
+    { "from": 370, "to": 530, "label": "Push committed events" },
+    { "from": 550, "to": 700, "label": "Keep alive and record" }
+  ],
+  "messages": [
+    { "id": "connect", "from": "client", "to": "api", "y": 170, "label": "GET /notifications/stream", "variant": "emphasis" },
+    { "id": "consume", "from": "api", "to": "auth", "y": 210, "label": "validate JWT cookie", "variant": "security" },
+    { "id": "valid", "from": "auth", "to": "api", "y": 250, "label": "phone, role, dealership", "variant": "return" },
+    { "id": "register", "from": "api", "to": "registry", "y": 290, "label": "evict old & register stream", "variant": "default" },
+    { "id": "stream-open", "from": "registry", "to": "client", "y": 330, "label": "200 stream, retry 3s", "variant": "return" },
+    { "id": "publish", "from": "relay", "to": "registry", "y": 400, "label": "publish committed event", "variant": "default" },
+    { "id": "push", "from": "registry", "to": "client", "y": 440, "label": "push SSE event", "variant": "emphasis" },
+    { "id": "filter", "from": "registry", "to": "client", "y": 480, "label": "audience filter by role", "variant": "security" },
+    { "id": "heartbeat", "from": "registry", "to": "client", "y": 520, "label": "heartbeat every 25s", "variant": "dashed" },
+    { "id": "log", "from": "relay", "to": "db", "y": 590, "label": "write communication_log", "variant": "default" },
+    { "id": "disconnect", "from": "client", "to": "api", "y": 660, "label": "client disconnects", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "client", "from": 160, "to": 680, "type": "external" },
+    { "participant": "api", "from": 165, "to": 350, "type": "backend" },
+    { "participant": "auth", "from": 195, "to": 235, "type": "security" },
+    { "participant": "registry", "from": 275, "to": 540, "type": "backend" },
+    { "participant": "relay", "from": 380, "to": 610, "type": "messagebus" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Direct cookie authentication", "items": [
+      "Browser sends httpOnly JWT cookie automatically via withCredentials: true",
+      "No single-use URL tokens or Redis ticket endpoints required",
+      "The backend enforces exactly one active stream per user phone number"
+    ]},
+    { "dot": "cyan", "title": "Ordering", "items": [
+      "The outbox row commits with the appointment change",
+      "The relay publishes only after the commit succeeded",
+      "A rollback emits nothing"
+    ]},
+    { "dot": "orange", "title": "Keep alive", "items": [
+      "A 25 second heartbeat writes a comment line to the socket",
+      "The heartbeat detects a dead socket that the browser already dropped",
+      "The heartbeat stops an idle proxy from closing the connection"
+    ]}
+  ]
+}

@@ -1,0 +1,51 @@
+spring:
+  datasource:
+    # CI services or Testcontainers inject these env vars; fallback hits compose on host 5433
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/service_scheduler}
+    username: ${SPRING_DATASOURCE_USERNAME:scheduler}
+    password: ${SPRING_DATASOURCE_PASSWORD:scheduler}
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+management:
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+
+app:
+  auth:
+    jwt:
+      secret: ${JWT_SECRET:dev-only-insecure-secret-change-me-in-prod-0123456789}
+      cookie-secure: false
+    otp:
+      # Fast Bruno windows: echo every code, expire in 15 seconds (HIL-1 round 8)
+      ttl: 15s
+      echo: true
+      channel: zalo-stub
+  ratelimits:
+    # Low-value windows in YAML test profile so integration tests hit 429 in seconds (design D7)
+    trust-forwarded-for: true
+    policies:
+      otp-send-phone:
+        limit: 5
+        window: 10s
+      otp-send-ip:
+        limit: 50
+        window: 10s
+      otp-verify-phone:
+        limit: 50
+        window: 10s
+      otp-verify-ip:
+        limit: 50
+        window: 10s
+      register-phone:
+        limit: 50
+        window: 10s
+      register-ip:
+        limit: 3
+        window: 10s

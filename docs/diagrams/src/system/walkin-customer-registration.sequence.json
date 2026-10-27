@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Walk-In Customer Registration Sequence",
+    "output": "docs/diagrams/system/walkin-customer-registration.html",
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    { "id": "customer", "type": "external", "label": "Customer", "sublabel": "walk-in vehicle owner" },
+    { "id": "manager", "type": "external", "label": "Manager", "sublabel": "service advisor" },
+    { "id": "api", "type": "backend", "label": "Scheduler API", "sublabel": "Spring Boot MVC" },
+    { "id": "db", "type": "database", "label": "PostgreSQL", "sublabel": "customers & bookings" },
+    { "id": "redis", "type": "database", "label": "Redis", "sublabel": "cache & idempotency" },
+    { "id": "outbox", "type": "messagebus", "label": "Outbox Relay", "sublabel": "AFTER_COMMIT" }
+  ],
+  "segments": [
+    { "from": 140, "to": 340, "label": "Step 1: Register or lookup customer profile" },
+    { "from": 360, "to": 600, "label": "Step 2: Book walk-in appointment and allocate bay" },
+    { "from": 620, "to": 740, "label": "Step 3: Cache eviction and event broadcast" }
+  ],
+  "messages": [
+    { "id": "walkin-arrive", "from": "customer", "to": "manager", "y": 160, "label": "walk in to workshop", "variant": "emphasis" },
+    { "id": "reg-req", "from": "manager", "to": "api", "y": 200, "label": "POST /customers {phone, name}", "variant": "default" },
+    { "id": "db-upsert-cust", "from": "api", "to": "db", "y": 240, "label": "upsert customer by phone", "variant": "default" },
+    { "id": "db-cust-resp", "from": "db", "to": "api", "y": 280, "label": "return customerId", "variant": "return" },
+    { "id": "reg-resp", "from": "api", "to": "manager", "y": 320, "label": "200/201 customer profile", "variant": "return" },
+
+    { "id": "book-walkin", "from": "manager", "to": "api", "y": 380, "label": "POST /appointments (with Idempotency-Key)", "variant": "emphasis" },
+    { "id": "check-idem", "from": "api", "to": "redis", "y": 420, "label": "GET idempotency:{key}", "variant": "default" },
+    { "id": "db-book-tx", "from": "api", "to": "db", "y": 460, "label": "BEGIN: insert appointment, job, outbox", "variant": "emphasis" },
+    { "id": "db-book-commit", "from": "db", "to": "api", "y": 500, "label": "COMMIT (GIST exclusion safe)", "variant": "return" },
+    { "id": "save-idem", "from": "api", "to": "redis", "y": 540, "label": "SETEX idempotency:{key} 24h", "variant": "default" },
+    { "id": "book-resp", "from": "api", "to": "manager", "y": 580, "label": "201 Created appointment", "variant": "return" },
+
+    { "id": "evict-slot", "from": "api", "to": "redis", "y": 640, "label": "evict slot:grid:{id}:{date}:*", "variant": "dashed" },
+    { "id": "outbox-dispatch", "from": "api", "to": "outbox", "y": 675, "label": "publish appointment.requested event", "variant": "emphasis" },
+    { "id": "confirm-walkin", "from": "manager", "to": "customer", "y": 710, "label": "hand over service order", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "manager", "from": 155, "to": 715, "type": "external" },
+    { "participant": "api", "from": 195, "to": 680, "type": "backend" },
+    { "participant": "db", "from": 235, "to": 505, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Walk-in registration pattern",
+      "items": [
+        "Manager first verifies or registers customer profile via phone number",
+        "Booking attaches directly to the customer entity and vehicle VIN",
+        "Requires client-generated UUID v4 idempotency key"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Capacity and consistency",
+      "items": [
+        "Database GIST exclusion constraints prevent booking collisions",
+        "Date-level Redis slot cache evicts immediately after commit",
+        "Outbox event notifies schedule board over SSE"
+      ]
+    }
+  ]
+}

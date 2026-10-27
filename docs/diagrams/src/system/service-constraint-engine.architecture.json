@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Service Constraint Engine Architecture",
+    "output": "docs/diagrams/system/service-constraint-engine.html",
+    "visual_preset": "blueprint",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    { "id": "metadata", "type": "database", "label": "Relational Metadata", "sublabel": "service_types & reqs", "pos": [40, 250], "size": [190, 66], "tag": "source of truth" },
+    { "id": "evaluator", "type": "backend", "label": "Constraint Evaluator", "sublabel": "Pure Java Spring Service", "pos": [300, 250], "size": [190, 66], "tag": "evaluator" },
+    { "id": "input", "type": "frontend", "label": "Booking Request", "sublabel": "serviceCode & vehicle", "pos": [300, 90], "size": [190, 66], "tag": "input node" },
+    { "id": "bayrule", "type": "security", "label": "Bay Matching", "sublabel": "allowed bay types", "pos": [570, 90], "size": [150, 66], "tag": "multi-bay" },
+    { "id": "skillrule", "type": "security", "label": "Role Slots", "sublabel": "skills and level each", "pos": [570, 220], "size": [150, 66], "tag": "multi-slot" },
+    { "id": "timerule", "type": "backend", "label": "Duration & Pricing", "sublabel": "base minutes & cost", "pos": [570, 350], "size": [150, 66], "tag": "duration" },
+    { "id": "alloc", "type": "backend", "label": "Dual Slot Allocator", "sublabel": "bay & technician gates", "pos": [810, 220], "size": [170, 66], "tag": "consumer" },
+    { "id": "baycaps", "type": "database", "label": "Bay Capabilities", "sublabel": "workshop_bays & caps", "pos": [810, 350], "size": [170, 66], "tag": "capacity" },
+    { "id": "skills", "type": "database", "label": "Technician Skills", "sublabel": "technicians & skills", "pos": [810, 90], "size": [170, 66], "tag": "capacity" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Rule Source", "wraps": ["metadata"], "pad": 18 },
+    { "kind": "region", "label": "Java Constraint Evaluation", "wraps": ["evaluator", "input", "bayrule", "skillrule", "timerule"], "pad": 20 },
+    { "kind": "region", "label": "Dual Capacity Allocation", "wraps": ["alloc", "baycaps", "skills"], "pad": 18 }
+  ],
+  "connections": [
+    { "from": "metadata", "to": "evaluator", "label": "service metadata", "variant": "emphasis" },
+    { "from": "input", "to": "evaluator", "label": "evaluate", "variant": "emphasis" },
+    { "from": "evaluator", "to": "bayrule", "label": "bay types", "variant": "security" },
+    { "from": "evaluator", "to": "skillrule", "label": "skills", "variant": "security" },
+    { "from": "evaluator", "to": "timerule", "label": "duration" },
+    { "from": "bayrule", "to": "alloc", "label": "bay preference order", "variant": "dashed" },
+    { "from": "skillrule", "to": "alloc", "label": "required role slots", "variant": "dashed" },
+    { "from": "timerule", "to": "alloc", "label": "bay window", "variant": "emphasis" },
+    { "from": "baycaps", "to": "alloc", "label": "free capable bays" },
+    { "from": "skills", "to": "alloc", "label": "qualified candidates" }
+  ],
+  "cards": [
+    { "dot": "violet", "title": "Pure Java rule evaluation", "items": [
+      "ServiceConstraintEvaluator evaluates constraints in pure Java with sub-millisecond latency",
+      "Resource rules are stored in service_types and service_type_technician_requirements",
+      "Zero external native binary (UniFFI) dependencies"
+    ]},
+    { "dot": "cyan", "title": "Dual resource gating", "items": [
+      "The evaluator returns allowed bay types and required technician role slots",
+      "Both gates must pass: a capable bay is free AND qualified technicians are available",
+      "If either gate fails, the candidate time slot is excluded from the grid"
+    ]},
+    { "dot": "emerald", "title": "Scarcest slot allocation", "items": [
+      "Role slots are filled starting with the slot having the fewest qualified candidates",
+      "Each technician may fill only one role slot per job",
+      "The PostgreSQL EXCLUDE constraint provides final database-level concurrency protection"
+    ]}
+  ]
+}

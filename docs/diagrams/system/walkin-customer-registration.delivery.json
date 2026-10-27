@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "7beb1012-a555-4fbb-b865-22a1b5ecacea",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\walkin-customer-registration.sequence.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\walkin-customer-registration.html",
+  "specification": {
+    "sha256": "19a47eeb38094547847bb9b9ead0a0f5741d8cfe513196ee8cbd0205355ed51e",
+    "bytes": 3954
+  },
+  "artifact": {
+    "sha256": "e0b7a991789d2f2a55a6d0d06da0f60a139d7c1a3a1ce142c3bc882fc007b26e",
+    "bytes": 820469
+  }
+}

@@ -1,0 +1,23 @@
+meta {
+  name: health-db-redis
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{BASE_URL}}/actuator/health
+  body: none
+  auth: none
+}
+
+tests {
+  test("health responds 200 UP", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().status).to.equal("UP");
+  });
+
+  test("health proves db and redis connectivity", function() {
+    expect(res.getBody().components.db.status).to.equal("UP");
+    expect(res.getBody().components.redis.status).to.equal("UP");
+  });
+}

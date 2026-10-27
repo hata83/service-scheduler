@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "sequence",
+  "quality": "showcase",
+  "specification": {
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\sse-notification.sequence.json",
+    "sha256": "674e291ff8b41ff5f576ce220154876270a1fa19dd09fe58f6cc44a3f5cf2e02",
+    "bytes": 3654
+  },
+  "artifact": {
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\sse-notification.html",
+    "sha256": "0f1ca2722ccb1d5a48f18a7dd72473ff46099c31e53140b803122d47eb33f445",
+    "bytes": 818722
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\sse-notification.finalize.json",
+    "summaryReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\sse-notification.finalize-summary.json",
+    "browserCheckReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\sse-notification.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-24T04:45:37.141Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 3947,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

@@ -1,0 +1,33 @@
+meta {
+  name: register-rate-limited-second
+  type: http
+  seq: 51
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Idempotency-Key: register-rate-84900000998-2
+  X-Forwarded-For: 203.0.113.99
+}
+
+body:json {
+  {
+    "phone": "+84900000998",
+    "firstName": "Rate",
+    "lastName": "Limit",
+    "code": "000000"
+  }
+}
+
+tests {
+  test("second registration inside the window passes the rate limit", function() {
+    expect(res.getStatus()).to.equal(401);
+  });
+  
+}

@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Workshop Metadata Management Sequence",
+    "output": "docs/diagrams/system/metadata-management.html",
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    { "id": "manager", "type": "external", "label": "Manager / Admin", "sublabel": "dealership staff" },
+    { "id": "api", "type": "backend", "label": "Management API", "sublabel": "Spring Boot MVC" },
+    { "id": "db", "type": "database", "label": "PostgreSQL", "sublabel": "relational metadata" },
+    { "id": "redis", "type": "database", "label": "Redis", "sublabel": "config & slot cache" }
+  ],
+  "segments": [
+    { "from": 140, "to": 290, "label": "1. Dealership configuration flow" },
+    { "from": 310, "to": 430, "label": "2. Vehicle catalogue registration flow" },
+    { "from": 450, "to": 590, "label": "3. Workshop bay capabilities flow" },
+    { "from": 610, "to": 740, "label": "4. Technician multi-skills flow" },
+    { "from": 760, "to": 900, "label": "5. Service type rules & cost matrices flow" }
+  ],
+  "messages": [
+    { "id": "cfg-req", "from": "manager", "to": "api", "y": 160, "label": "PATCH /dealerships/{id}/config {hours, advance_days=7}", "variant": "emphasis" },
+    { "id": "db-cfg-upd", "from": "api", "to": "db", "y": 195, "label": "UPDATE dealerships (hours, max_advance_days=7)", "variant": "default" },
+    { "id": "evict-cfg", "from": "api", "to": "redis", "y": 230, "label": "evict dealership:config & slot grids", "variant": "dashed" },
+    { "id": "cfg-resp", "from": "api", "to": "manager", "y": 265, "label": "200 OK config updated", "variant": "return" },
+
+    { "id": "veh-req", "from": "manager", "to": "api", "y": 330, "label": "POST /dealerships/{id}/vehicles {brand, model, category}", "variant": "emphasis" },
+    { "id": "db-veh-ins", "from": "api", "to": "db", "y": 365, "label": "INSERT vehicles & dealership_vehicles", "variant": "default" },
+    { "id": "veh-resp", "from": "api", "to": "manager", "y": 400, "label": "201 Created vehicle model", "variant": "return" },
+
+    { "id": "bay-req", "from": "manager", "to": "api", "y": 470, "label": "POST /resources/bays {bay_name, bay_types[], equipment[]}", "variant": "emphasis" },
+    { "id": "db-bay-ins", "from": "api", "to": "db", "y": 505, "label": "INSERT workshop_bays", "variant": "default" },
+    { "id": "evict-bay", "from": "api", "to": "redis", "y": 540, "label": "evict slot:grid:{dealershipId}:*", "variant": "dashed" },
+    { "id": "bay-resp", "from": "api", "to": "manager", "y": 575, "label": "201 Created workshop bay", "variant": "return" },
+
+    { "id": "tech-req", "from": "manager", "to": "api", "y": 625, "label": "POST /resources/technicians {name, skills: [{code, level}]}", "variant": "emphasis" },
+    { "id": "db-tech-ins", "from": "api", "to": "db", "y": 660, "label": "INSERT technicians & technician_skills", "variant": "default" },
+    { "id": "evict-tech", "from": "api", "to": "redis", "y": 695, "label": "evict slot:grid:{dealershipId}:*", "variant": "dashed" },
+    { "id": "tech-resp", "from": "api", "to": "manager", "y": 730, "label": "201 Created technician profile", "variant": "return" },
+
+    { "id": "st-req", "from": "manager", "to": "api", "y": 775, "label": "POST /service-types {code, duration, allowed_bay_types[]}", "variant": "emphasis" },
+    { "id": "db-st-ins", "from": "api", "to": "db", "y": 810, "label": "INSERT service_types, requirements, costs", "variant": "default" },
+    { "id": "evict-st", "from": "api", "to": "redis", "y": 845, "label": "evict slot:grid:{dealershipId}:*", "variant": "dashed" },
+    { "id": "st-resp", "from": "api", "to": "manager", "y": 880, "label": "201 Created service type & constraints", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "manager", "from": 155, "to": 885, "type": "external" },
+    { "participant": "api", "from": 190, "to": 885, "type": "backend" },
+    { "participant": "db", "from": 190, "to": 815, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Metadata control planes",
+      "items": [
+        "Dealership configures 7-day lookahead and operating schedule",
+        "Vehicle catalogue registers supported brands, models, and types",
+        "Multi-bay types and multi-skill technician profiles define capacity",
+        "Pure Java ServiceConstraintEvaluator evaluates relational metadata"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Cache invalidation discipline",
+      "items": [
+        "Config update invalidates 3-day config cache and all slot grids",
+        "Bay or technician inventory changes evict dealership slot grids",
+        "Service type changes clear all cached candidate grids"
+      ]
+    }
+  ]
+}

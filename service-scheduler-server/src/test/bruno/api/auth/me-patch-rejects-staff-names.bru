@@ -1,0 +1,33 @@
+meta {
+  name: me-patch-rejects-staff-names
+  type: http
+  seq: 39
+}
+
+patch {
+  url: {{BASE_URL}}/api/v1/auth/me
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Cookie: jwt={{JWT_ADMIN}}
+  X-Idempotency-Key: patch-me-admin-names
+}
+
+body:json {
+  {
+    "firstName": "Chief",
+    "lastName": "Admin"
+  }
+}
+
+tests {
+  test("staff role patch with names updates centralized profile with 200", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().firstName).to.equal("Chief");
+    expect(res.getBody().lastName).to.equal("Admin");
+  });
+  
+}

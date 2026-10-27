@@ -1,0 +1,19 @@
+meta {
+  name: me-unauthenticated
+  type: http
+  seq: 36
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/auth/me
+  body: none
+  auth: none
+}
+
+tests {
+  test("me without a cookie responds 401", function() {
+    expect(res.getStatus()).to.equal(401);
+    expect(res.getHeader('content-type')).to.include("application/problem+json");
+  });
+  
+}

@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Availability Check Sequence",
+    "output": "availability-check.html",
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    {
+      "id": "client",
+      "type": "external",
+      "label": "Client",
+      "sublabel": "portal"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "Slots API",
+      "sublabel": "GET available"
+    },
+    {
+      "id": "auth",
+      "type": "security",
+      "label": "Auth",
+      "sublabel": "JWT cookie"
+    },
+    {
+      "id": "constraints",
+      "type": "backend",
+      "label": "Constraint",
+      "sublabel": "Java rules"
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis",
+      "sublabel": "grid cache"
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "appointments"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 270,
+      "label": "Request and rules"
+    },
+    {
+      "from": 290,
+      "to": 430,
+      "label": "Capacity search"
+    },
+    {
+      "from": 450,
+      "to": 580,
+      "label": "Return slots"
+    }
+  ],
+  "messages": [
+    {
+      "id": "req",
+      "from": "client",
+      "to": "api",
+      "y": 170,
+      "label": "GET /slots/available",
+      "variant": "emphasis"
+    },
+    {
+      "id": "verify",
+      "from": "api",
+      "to": "auth",
+      "y": 210,
+      "label": "validate JWT cookie",
+      "variant": "security"
+    },
+    {
+      "id": "cache-read",
+      "from": "api",
+      "to": "redis",
+      "y": 250,
+      "label": "read slot grid cache",
+      "variant": "return"
+    },
+    {
+      "id": "rules",
+      "from": "api",
+      "to": "constraints",
+      "y": 320,
+      "label": "evaluate service code",
+      "variant": "default"
+    },
+    {
+      "id": "rule-result",
+      "from": "constraints",
+      "to": "api",
+      "y": 360,
+      "label": "bay types, skills, minutes",
+      "variant": "return"
+    },
+    {
+      "id": "overlap",
+      "from": "api",
+      "to": "pg",
+      "y": 400,
+      "label": "query free bays and tech",
+      "variant": "default"
+    },
+    {
+      "id": "busy",
+      "from": "pg",
+      "to": "api",
+      "y": 440,
+      "label": "dual capacity result",
+      "variant": "return"
+    },
+    {
+      "id": "write-cache",
+      "from": "api",
+      "to": "redis",
+      "y": 470,
+      "label": "cache result, TTL 1 hour",
+      "variant": "dashed"
+    },
+    {
+      "id": "reply",
+      "from": "api",
+      "to": "client",
+      "y": 540,
+      "label": "200 open time windows",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "client",
+      "from": 160,
+      "to": 200,
+      "type": "external"
+    },
+    {
+      "participant": "api",
+      "from": 165,
+      "to": 550,
+      "type": "backend"
+    },
+    {
+      "participant": "auth",
+      "from": 195,
+      "to": 230,
+      "type": "security"
+    },
+    {
+      "participant": "constraints",
+      "from": 305,
+      "to": 345,
+      "type": "backend"
+    },
+    {
+      "participant": "pg",
+      "from": 390,
+      "to": 430,
+      "type": "database"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Dual Resource Gating",
+      "items": [
+        "The constraint evaluator returns allowed bay types and required technician skill levels",
+        "Both gates must pass: a compatible bay is free AND qualified technicians are available",
+        "The answer returns available time windows across the global dealership grid"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Cache rules",
+      "items": [
+        "The cache key combines dealership, date, and service type with a default 1-hour TTL",
+        "Any booking, cancellation, check-in adjustment, or overlap error evicts the date-level slot cache",
+        "The cache never holds booking truth; the database holds the reservation"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Limits",
+      "items": [
+        "This endpoint is rate limited per IP and user (100 req/min)",
+        "It returns 409 style conflict details as RFC 7807 Problem Details",
+        "It is a read-only query and writes no database rows"
+      ]
+    }
+  ]
+}

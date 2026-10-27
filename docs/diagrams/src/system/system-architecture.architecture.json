@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Unified Service Scheduler System Architecture",
+    "output": "docs/diagrams/system/system-architecture.html",
+    "visual_preset": "blueprint",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    { "id": "client", "type": "external", "label": "Client", "sublabel": "portal or Bruno", "pos": [40, 400], "size": [140, 66], "tag": "consumer" },
+    { "id": "auth", "type": "security", "label": "OTP Login", "sublabel": "phone to JWT cookie", "pos": [270, 400], "size": [150, 66], "tag": "security" },
+    { "id": "api", "type": "backend", "label": "REST API", "sublabel": "OpenAPI 3.1", "pos": [520, 400], "size": [140, 66], "tag": "app" },
+    { "id": "constraints", "type": "backend", "label": "Constraint Evaluator", "sublabel": "Java Spring Service", "pos": [520, 180], "size": [150, 66], "tag": "constraints" },
+    { "id": "booking", "type": "backend", "label": "Booking Service", "sublabel": "bay and technician", "pos": [770, 400], "size": [150, 66], "tag": "core" },
+    { "id": "outbox", "type": "messagebus", "label": "Outbox Relay", "sublabel": "SKIP LOCKED", "pos": [1030, 400], "size": [140, 66], "tag": "delivery" },
+    { "id": "notify", "type": "external", "label": "SSE and Webhook", "sublabel": "after commit", "pos": [1030, 90], "size": [150, 66], "tag": "dispatch" },
+    { "id": "pg", "type": "database", "label": "PostgreSQL 16", "sublabel": "EXCLUDE gist", "pos": [770, 620], "size": [150, 66], "tag": "system of record" },
+    { "id": "redis", "type": "database", "label": "Redis 7", "sublabel": "cache, session, OTP", "pos": [1030, 620], "size": [150, 66], "tag": "ephemeral" },
+    { "id": "metrics", "type": "external", "label": "Metrics", "sublabel": "counters and histograms", "pos": [1330, 120], "size": [160, 66], "tag": "observability" },
+    { "id": "logs", "type": "external", "label": "Logs and Traces", "sublabel": "JSON with trace and span", "pos": [1330, 260], "size": [160, 66], "tag": "observability" },
+    { "id": "alerts", "type": "external", "label": "Health and Alerts", "sublabel": "actuator probes", "pos": [1330, 660], "size": [160, 66], "tag": "operations" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Client Layer", "wraps": ["client"], "pad": 18 },
+    { "kind": "region", "label": "Application Layer", "wraps": ["auth", "api", "constraints", "booking", "outbox"], "pad": 20 },
+    { "kind": "region", "label": "Data Layer", "wraps": ["pg", "redis"], "pad": 18 },
+    { "kind": "region", "label": "Observability Layer", "wraps": ["metrics", "logs", "alerts"], "pad": 18 }
+  ],
+  "connections": [
+    { "from": "client", "to": "auth", "label": "phone and OTP", "variant": "security" },
+    { "from": "auth", "to": "api", "label": "JWT cookie", "variant": "security" },
+    { "from": "api", "to": "constraints", "label": "evaluate rules" },
+    { "from": "constraints", "to": "booking", "label": "bay type, skill, duration", "variant": "emphasis" },
+    { "from": "api", "to": "booking", "label": "book", "variant": "emphasis" },
+    { "from": "booking", "to": "outbox", "label": "same transaction", "variant": "dashed" },
+    { "from": "outbox", "to": "notify", "label": "dispatch", "variant": "dashed" },
+    { "from": "booking", "to": "pg", "label": "insert and query", "variant": "emphasis" },
+    { "from": "api", "to": "redis", "label": "OTP, idempotency", "variant": "dashed" },
+    { "from": "booking", "to": "redis", "label": "slot cache" },
+    { "from": "api", "to": "metrics", "label": "counters", "variant": "dashed" },
+    { "from": "booking", "to": "logs", "label": "JSON with trace", "variant": "dashed" },
+    { "from": "pg", "to": "alerts", "label": "db probe", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Component roles", "items": [
+      "OTP Login turns a phone number into an httpOnly JWT cookie, keeping the service stateless",
+      "REST API serves OpenAPI 3.1 contracts and rejects write requests without UUID v4 idempotency keys",
+      "Constraint Evaluator checks relational metadata in pure Java: bay types, technician skills, and duration",
+      "Booking Service allocates a bay and technicians, writing appointments and outbox events in one transaction",
+      "Outbox Relay polls pending rows with SKIP LOCKED so multiple pods never race"
+    ]},
+    { "dot": "rose", "title": "Security boundary", "items": [
+      "JWT is HMAC-SHA256 signed and stored in an httpOnly cookie, preventing script access",
+      "SSE authenticates directly using the httpOnly JWT cookie with single-stream per phone enforcement",
+      "Outbound webhooks carry HMAC-SHA256 signatures (X-Scheduler-Signature) for payload verification",
+      "Resilience4j with Redis counters enforces sliding-window rate limits per IP and user"
+    ]},
+    { "dot": "emerald", "title": "Observability strategy", "items": [
+      "Metrics: booking latency, slot utilization, conflict counts, evaluator duration, active SSE streams",
+      "Logging: Logstash JSON with traceId, spanId, appointmentId, and dealershipId in MDC",
+      "Tracing: MDC span context propagates across API requests, constraint evaluation, and relays",
+      "Monitoring: actuator health probes monitor PostgreSQL and Redis availability"
+    ]}
+  ]
+}

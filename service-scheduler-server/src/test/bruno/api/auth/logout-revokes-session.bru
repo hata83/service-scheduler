@@ -1,0 +1,24 @@
+meta {
+  name: logout-revokes-session
+  type: http
+  seq: 41
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/logout
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: jwt={{JWT_CUSTOMER}}
+}
+
+tests {
+  test("logout responds 204 and clears cookie", function() {
+    expect(res.getStatus()).to.equal(204);
+    const cookie = res.getHeader('set-cookie');
+    const cookieStr = Array.isArray(cookie) ? cookie.join(';') : String(cookie);
+    expect(cookieStr).to.include("Max-Age=0");
+  });
+}

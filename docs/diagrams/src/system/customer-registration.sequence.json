@@ -1,0 +1,245 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Customer Registration Sequence",
+    "output": "customer-registration.html",
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    {
+      "id": "customer",
+      "type": "external",
+      "label": "Customer",
+      "sublabel": "phone owner"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "API",
+      "sublabel": "Spring Boot"
+    },
+    {
+      "id": "otp",
+      "type": "database",
+      "label": "OTP Store",
+      "sublabel": "register-purpose slot"
+    },
+    {
+      "id": "auth",
+      "type": "backend",
+      "label": "Auth",
+      "sublabel": "stateless HS256 JWT"
+    },
+    {
+      "id": "users",
+      "type": "database",
+      "label": "Users DB",
+      "sublabel": "PostgreSQL"
+    }
+  ],
+  "segments": [
+    {
+      "from": 140,
+      "to": 300,
+      "label": "Request REGISTER-purpose OTP"
+    },
+    {
+      "from": 320,
+      "to": 660,
+      "label": "One-shot register with OTP"
+    },
+    {
+      "from": 680,
+      "to": 900,
+      "label": "Logged in customer"
+    }
+  ],
+  "messages": [
+    {
+      "id": "send-register-otp",
+      "from": "customer",
+      "to": "api",
+      "y": 180,
+      "label": "POST /otp/send {phone, type REGISTER}",
+      "variant": "emphasis"
+    },
+    {
+      "id": "otp-gen",
+      "from": "api",
+      "to": "otp",
+      "y": 220,
+      "label": "generate code into otp:register:{phone} 5min TTL",
+      "variant": "default"
+    },
+    {
+      "id": "otp-slot",
+      "from": "otp",
+      "to": "api",
+      "y": 250,
+      "label": "slot stored",
+      "variant": "return"
+    },
+    {
+      "id": "stub-print",
+      "from": "api",
+      "to": "customer",
+      "y": 280,
+      "label": "Zalo stub: print OTP console",
+      "variant": "return"
+    },
+    {
+      "id": "register-submit",
+      "from": "customer",
+      "to": "api",
+      "y": 360,
+      "label": "POST /register {phone, profile, code, idem key}",
+      "variant": "emphasis"
+    },
+    {
+      "id": "otp-consume",
+      "from": "api",
+      "to": "otp",
+      "y": 410,
+      "label": "verify + consume register code",
+      "variant": "default"
+    },
+    {
+      "id": "otp-valid",
+      "from": "otp",
+      "to": "api",
+      "y": 450,
+      "label": "valid, delete slot",
+      "variant": "return"
+    },
+    {
+      "id": "rows-insert",
+      "from": "api",
+      "to": "users",
+      "y": 500,
+      "label": "insert global CUSTOMER + profile",
+      "variant": "default"
+    },
+    {
+      "id": "rows-commit",
+      "from": "users",
+      "to": "api",
+      "y": 540,
+      "label": "committed userId",
+      "variant": "return"
+    },
+    {
+      "id": "jwt-issue",
+      "from": "api",
+      "to": "auth",
+      "y": 590,
+      "label": "issue JWT (login for the new customer)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "jwt-return",
+      "from": "auth",
+      "to": "api",
+      "y": 630,
+      "label": "signed stateless JWT",
+      "variant": "return"
+    },
+    {
+      "id": "register-response",
+      "from": "api",
+      "to": "customer",
+      "y": 690,
+      "label": "201 Set-Cookie jwt {id, role CUSTOMER}",
+      "variant": "return"
+    },
+    {
+      "id": "me-view",
+      "from": "customer",
+      "to": "api",
+      "y": 760,
+      "label": "GET /me",
+      "variant": "default"
+    },
+    {
+      "id": "profile-edit",
+      "from": "customer",
+      "to": "api",
+      "y": 830,
+      "label": "PATCH /me {names, email} + idem key",
+      "variant": "default"
+    },
+    {
+      "id": "profile-updated",
+      "from": "api",
+      "to": "customer",
+      "y": 870,
+      "label": "200 updated identity",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "customer",
+      "from": 140,
+      "to": 300,
+      "type": "external"
+    },
+    {
+      "participant": "api",
+      "from": 160,
+      "to": 890,
+      "type": "backend"
+    },
+    {
+      "participant": "otp",
+      "from": 200,
+      "to": 470,
+      "type": "database"
+    },
+    {
+      "participant": "users",
+      "from": 480,
+      "to": 560,
+      "type": "database"
+    },
+    {
+      "participant": "auth",
+      "from": 570,
+      "to": 650,
+      "type": "backend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Registration stages",
+      "items": [
+        "Customer requests a REGISTER-purpose OTP",
+        "Backend prints the code via the Zalo stub",
+        "One register call carries profile and code",
+        "201 response sets the JWT login session"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Guards",
+      "items": [
+        "OTP consumed once per purpose",
+        "Idempotency key replays the cached 201",
+        "Role pinned to CUSTOMER, 403 on role field",
+        "409 when the phone already belongs to a user"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "After registration",
+      "items": [
+        "GET /me returns the customer identity",
+        "PATCH /me edits names and email",
+        "Phone is the immutable login identity"
+      ]
+    }
+  ]
+}

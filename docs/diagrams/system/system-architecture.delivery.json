@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "1e54ac4b-f6d9-4679-a02d-65c75cdd061f",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\system-architecture.architecture.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-architecture.html",
+  "specification": {
+    "sha256": "aebcf2c5ef229cc5b92bdaa984cac2ba4ede8a6b2616e523b64e3957ba176d96",
+    "bytes": 5331
+  },
+  "artifact": {
+    "sha256": "a5623c386e3c30e5ee411f620b1025f083c81021a310307cc6210aa76b0a8b29",
+    "bytes": 838494
+  }
+}

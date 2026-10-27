@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagram Index — Unified Service Scheduler</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #161b22; --panel-2: #1c2230; --line: #2a313c;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
+    --cyan: #39c5cf; --emerald: #3fb950; --violet: #a371f7; --amber: #d29922;
+    --orange: #db6d28; --rose: #f85149;
+  }
+  html[data-theme="light"] {
+    --bg: #ffffff; --panel: #f6f8fa; --panel-2: #ffffff; --line: #d0d7de;
+    --text: #1f2328; --muted: #59636e; --accent: #0969da;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10; background: var(--bg);
+    border-bottom: 1px solid var(--line); padding: 20px 28px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  h1 { font-size: 19px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 13px; margin: 2px 0 0; }
+  .spacer { flex: 1; }
+  .count {
+    font-size: 12px; color: var(--muted); border: 1px solid var(--line);
+    border-radius: 999px; padding: 3px 10px;
+  }
+  button {
+    font: inherit; font-size: 13px; color: var(--text); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  main { padding: 8px 28px 64px; max-width: 1500px; }
+  section { margin-top: 34px; }
+  h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin: 0 0 14px; font-weight: 600;
+  }
+  .grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(430px, 1fr)); }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  .meta { padding: 13px 15px 11px; border-bottom: 1px solid var(--line); }
+  .title { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+  .title strong { font-size: 15px; font-weight: 600; }
+  .badge {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 4px; color: #0e1116;
+  }
+  .type-architecture { background: var(--cyan); }
+  .type-erd { background: var(--violet); }
+  .type-dataflow { background: var(--emerald); }
+  .type-sequence { background: var(--amber); }
+  .type-lifecycle { background: var(--orange); }
+  .type-workflow { background: var(--accent); }
+  .desc { color: var(--muted); font-size: 13px; margin: 7px 0 0; }
+  .ep { font-size: 12px; margin-top: 7px; }
+  .ep code {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px;
+    padding: 1px 5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .frame { position: relative; height: 460px; background: var(--panel-2); }
+  .frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .frame.loading::after {
+    content: "loading diagram…"; position: absolute; inset: 0; display: grid; place-items: center;
+    color: var(--muted); font-size: 13px;
+  }
+  .links { display: flex; gap: 14px; padding: 10px 15px; border-top: 1px solid var(--line); }
+  .links a { color: var(--accent); font-size: 13px; text-decoration: none; }
+  .links a:hover { text-decoration: underline; }
+  footer {
+    color: var(--muted); font-size: 12px; padding: 30px 28px; border-top: 1px solid var(--line);
+  }
+  footer code {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Diagram Index</h1>
+    <p class="sub">Unified Service Scheduler &middot; Keyloop Scenario A</p>
+  </div>
+  <div class="spacer"></div>
+  <span class="count" id="count">0 diagrams</span>
+  <button id="toggle" type="button">Light theme</button>
+</header>
+<main id="main"></main>
+<footer>
+  Every diagram has two artifacts: a JSON source of truth under <code>docs/diagrams/src/</code> and an interactive HTML viewer under <code>docs/diagrams/</code>.
+  <code>docs/SYSTEM_DESIGN.md</code> is the source of truth for the design. A failed <code>validate</code> blocks the commit.
+</footer>
+
+<script>
+const DIAGRAMS = [
+  { section: "Layers and Components", title: "System Architecture", type: "architecture",
+    desc: "Four bounded layers: client, application, data, and observability. Fifteen components with their roles.",
+    src: "src/system/system-architecture.architecture.json", file: "system/system-architecture.html" },
+  { section: "Layers and Components", title: "Service Constraint Engine", type: "architecture",
+    desc: "Pure Java constraint evaluation: bay type preference, technician role slots, and job duration.",
+    src: "src/system/service-constraint-engine.architecture.json", file: "system/service-constraint-engine.html" },
+
+  { section: "Data Model and Flow", title: "Data Model", type: "erd",
+    desc: "Entities and relations. Multi-value capacity through bay_capabilities and technician_skills.",
+    src: "src/system/system-data-model.erd.json", file: "system/system-data-model.html" },
+  { section: "Data Model and Flow", title: "Data Flow", type: "dataflow",
+    desc: "Where data comes from and who consumes it, from the booking write to the outbox relay.",
+    src: "src/system/system-data-flow.dataflow.json", file: "system/system-data-flow.html" },
+
+  { section: "State Machines", title: "Appointment Lifecycle", type: "lifecycle",
+    desc: "Eleven appointment states with the role that may trigger each transition.",
+    src: "src/system/appointment-lifecycle.lifecycle.json", file: "system/appointment-lifecycle.html" },
+  { section: "State Machines", title: "Service Job Lifecycle", type: "lifecycle",
+    desc: "Five job states driven by the technician, with the job clock and resources.",
+    src: "src/system/service-job-lifecycle.lifecycle.json", file: "system/service-job-lifecycle.html" },
+
+  { section: "Use Cases", title: "Customer Registration", type: "sequence",
+    desc: "REGISTER-purpose OTP via the Zalo stub, then one register call with profile plus code that returns the JWT login.",
+    ep: "POST /api/v1/auth/register",
+    src: "src/system/customer-registration.sequence.json", file: "system/customer-registration.html" },
+  { section: "Use Cases", title: "OTP Login", type: "sequence",
+    desc: "LOGIN-purpose OTP to verify to a JWT in an httpOnly cookie, then profile view and edit.",
+    ep: "POST /api/v1/auth/otp/verify",
+    src: "src/system/otp-login.sequence.json", file: "system/otp-login.html" },
+  { section: "Use Cases", title: "Availability Check", type: "sequence",
+    desc: "Rule pass, bay overlap query, and the open time windows returned to the client.",
+    ep: "GET /api/v1/slots/available",
+    src: "src/system/availability-check.sequence.json", file: "system/availability-check.html" },
+  { section: "Use Cases", title: "Booking", type: "sequence",
+    desc: "Constraint evaluation, allocation, the single transaction, and the dispatch after commit.",
+    ep: "POST /api/v1/appointments",
+    src: "src/system/booking-sequence.sequence.json", file: "system/booking-sequence.html" },
+  { section: "Use Cases", title: "Status Transition", type: "sequence",
+    desc: "Guard the transition, commit the change with the event, then push after commit.",
+    ep: "PATCH /api/v1/appointments/{id}/status",
+    src: "src/system/appointment-status-transition.sequence.json", file: "system/appointment-status-transition.html" },
+  { section: "Use Cases", title: "Appointment Check-In", type: "sequence",
+    desc: "Arrival check-in: face-to-face price negotiation to CHECKED_IN versus price rejection or info mismatch to NO_SHOW.",
+    ep: "PATCH /api/v1/appointments/{id}/checkin",
+    src: "src/system/appointment-checkin.sequence.json", file: "system/appointment-checkin.html" },
+  { section: "Use Cases", title: "Job Status Update", type: "sequence",
+    desc: "Ownership check, job transition guard, and the job clock.",
+    ep: "PATCH /api/v1/jobs/{id}/status",
+    src: "src/system/job-status-update.sequence.json", file: "system/job-status-update.html" },
+  { section: "Use Cases", title: "SSE Notification", type: "sequence",
+    desc: "Direct cookie authentication, single-stream per phone, receive committed events, and keepalive.",
+    ep: "GET /api/v1/notifications/stream",
+    src: "src/system/sse-notification.sequence.json", file: "system/sse-notification.html" },
+  { section: "Use Cases", title: "SSE Reconnect", type: "sequence",
+    desc: "Reconnect cases: the server closed, the server did not notice, and two tabs on one client.",
+    src: "src/system/sse-reconnect.sequence.json", file: "system/sse-reconnect.html" },
+  { section: "Use Cases", title: "Walk-In Customer Registration", type: "sequence",
+    desc: "Service advisor customer registration, walk-in booking creation, and real-time board dispatch.",
+    ep: "POST /api/v1/customers",
+    src: "src/system/walkin-customer-registration.sequence.json", file: "system/walkin-customer-registration.html" },
+  { section: "Use Cases", title: "Workshop Metadata Management", type: "sequence",
+    desc: "Dealership operating config, vehicle catalogue, bay types, technician skills, and service constraint setup.",
+    ep: "PATCH /api/v1/dealerships/{id}/config",
+    src: "src/system/metadata-management.sequence.json", file: "system/metadata-management.html" },
+
+  { section: "Delivery", title: "Agentic SDLC Workflow", type: "workflow",
+    desc: "The fourteen-state Agentic SDLC lifecycle with human gates and rework paths.",
+    src: "src/agentic-sdlc/agentic-sdlc.workflow.json", file: "agentic-sdlc/agentic-sdlc.html" }
+];
+
+const ORDER = ["Layers and Components", "Data Model and Flow", "State Machines", "Use Cases", "Delivery"];
+
+document.getElementById("count").textContent = DIAGRAMS.length + " diagrams";
+
+function render() {
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  for (const name of ORDER) {
+    const items = DIAGRAMS.filter(d => d.section === name);
+    if (!items.length) continue;
+    const sec = document.createElement("section");
+    const h = document.createElement("h2");
+    h.textContent = name;
+    sec.appendChild(h);
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    for (const d of items) {
+      const card = document.createElement("article");
+      card.className = "card";
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.innerHTML =
+        '<div class="title"><strong>' + d.title + '</strong>' +
+        '<span class="badge type-' + d.type + '">' + d.type + '</span></div>' +
+        '<p class="desc">' + d.desc + '</p>' +
+        (d.ep ? '<p class="ep"><code>' + d.ep + '</code></p>' : '');
+      const frame = document.createElement("div");
+      frame.className = "frame loading";
+      const ifr = document.createElement("iframe");
+      ifr.title = d.title;
+      ifr.loading = "lazy";
+      ifr.src = d.file;
+      ifr.addEventListener("load", () => frame.classList.remove("loading"));
+      frame.appendChild(ifr);
+      const links = document.createElement("div");
+      links.className = "links";
+      links.innerHTML =
+        '<a href="' + d.file + '" target="_blank" rel="noopener">Open viewer</a>' +
+        '<a href="' + d.src + '" target="_blank" rel="noopener">JSON source</a>';
+      card.append(meta, frame, links);
+      grid.appendChild(card);
+    }
+    sec.appendChild(grid);
+    main.appendChild(sec);
+  }
+}
+
+render();
+
+const toggle = document.getElementById("toggle");
+toggle.addEventListener("click", () => {
+  const root = document.documentElement;
+  const light = root.getAttribute("data-theme") === "light";
+  root.setAttribute("data-theme", light ? "dark" : "light");
+  toggle.textContent = light ? "Light theme" : "Dark theme";
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "erd",
+  "quality": "showcase",
+  "specification": {
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\system-data-model.erd.json",
+    "sha256": "82dc01067eb7e5e48dbd782fa482360a8bdbb08d298ce7b8aff9536c3e7d0251",
+    "bytes": 16242
+  },
+  "artifact": {
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-model.html",
+    "sha256": "25953739df56cda1deb38c45ef10d57e77a3c8ea29bcd434f33a5c9d9cc20163",
+    "bytes": 885715
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-model.finalize.json",
+    "summaryReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-model.finalize-summary.json",
+    "browserCheckReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-model.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-26T12:00:03.507Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 5508,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  },
+  "visualReviewRecommendation": {
+    "action": "inspect-route-readability",
+    "signals": {
+      "routesOverSuggestedBends": 2,
+      "routesOverSuggestedStretch": 1
+    },
+    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
+    "affectedRoutes": {
+      "crossings": [],
+      "detours": [
+        {
+          "relationship": {
+            "id": "service_type_cost",
+            "from": "service_types",
+            "to": "service_type_costs",
+            "label": "has cost matrix",
+            "collectionIndex": 11,
+            "artifactIndex": 12
+          },
+          "bends": 3,
+          "stretch": 1.074
+        },
+        {
+          "relationship": {
+            "id": "appointment_vehicle",
+            "from": "appointments",
+            "to": "vehicles",
+            "label": "for vehicle",
+            "collectionIndex": 13,
+            "artifactIndex": 14
+          },
+          "bends": 6,
+          "stretch": 1.436
+        }
+      ],
+      "truncated": false
+    },
+    "repair": "Advisory only: this mode places or routes these relationships itself. Report them; do not remove relationships or meaning to reduce crossings."
+  }
+}

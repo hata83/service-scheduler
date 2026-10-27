@@ -1,0 +1,22 @@
+meta {
+  name: logout-session-is-rejected
+  type: http
+  seq: 42
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/auth/me
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: jwt=
+}
+
+tests {
+  test("a cleared session cookie responds 401", function() {
+    expect(res.getStatus()).to.equal(401);
+    expect(res.getHeader('content-type')).to.include("application/problem+json");
+  });
+}

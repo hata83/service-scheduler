@@ -1,0 +1,117 @@
+{
+  "schema_version": 3,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Service Job Lifecycle",
+    "output": "service-job-lifecycle.html",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "mainPath": [
+    "pending",
+    "in_progress",
+    "done"
+  ],
+  "states": [
+    {
+      "id": "pending",
+      "type": "start",
+      "label": "Pending",
+      "sublabel": "PENDING",
+      "tag": "entry",
+      "step": "01"
+    },
+    {
+      "id": "in_progress",
+      "type": "active",
+      "label": "In Progress",
+      "sublabel": "IN_PROGRESS",
+      "tag": "work",
+      "step": "02"
+    },
+    {
+      "id": "on_hold",
+      "type": "waiting",
+      "label": "On Hold",
+      "sublabel": "ON_HOLD",
+      "tag": "wait"
+    },
+    {
+      "id": "done",
+      "type": "success",
+      "label": "Done",
+      "sublabel": "DONE",
+      "tag": "done",
+      "step": "03"
+    },
+    {
+      "id": "cancelled",
+      "type": "failure",
+      "label": "Cancelled",
+      "sublabel": "CANCELLED",
+      "tag": "terminal"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "pending-progress",
+      "from": "pending",
+      "to": "in_progress",
+      "label": "start work"
+    },
+    {
+      "id": "progress-done",
+      "from": "in_progress",
+      "to": "done",
+      "label": "complete"
+    },
+    {
+      "id": "progress-hold",
+      "from": "in_progress",
+      "to": "on_hold",
+      "label": "pause"
+    },
+    {
+      "id": "hold-progress",
+      "from": "on_hold",
+      "to": "in_progress",
+      "label": "resume"
+    },
+    {
+      "id": "pending-cancelled",
+      "from": "pending",
+      "to": "cancelled",
+      "label": "cancel",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Job duration",
+      "items": [
+        "base_minutes comes from the service catalogue",
+        "actual_minutes records the actual duration on completion",
+        "The gap between planned and actual duration feeds capacity reports"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Job pause",
+      "items": [
+        "On Hold pauses the job without freeing the workshop bay",
+        "The technician logs findings in notes before pausing",
+        "The manager approves resumption to In Progress"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Terminal cancel",
+      "items": [
+        "Pending jobs cancel if the appointment is cancelled",
+        "The PostgreSQL EXCLUDE constraint frees the bay slot instantly",
+        "Technician assignments are unreserved immediately"
+      ]
+    }
+  ]
+}

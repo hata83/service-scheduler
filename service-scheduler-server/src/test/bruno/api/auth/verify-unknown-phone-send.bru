@@ -1,0 +1,34 @@
+meta {
+  name: verify-unknown-phone-send
+  type: http
+  seq: 31
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/otp/send
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Idempotency-Key: otp-send-unknown-84900000777
+  X-Forwarded-For: 203.0.113.29
+}
+
+body:json {
+  {
+    "phone": "+84900000777",
+    "type": "LOGIN"
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("UNKNOWN_PHONE_CODE", res.getBody().otpCode);
+}
+
+tests {
+  test("send otp to unknown phone responds 202", function() {
+    expect(res.getStatus()).to.equal(202);
+  });
+}

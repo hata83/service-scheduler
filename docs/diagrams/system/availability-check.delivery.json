@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "d5341abb-b4a6-4ac5-808e-cebb365b6e06",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\availability-check.sequence.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\availability-check.html",
+  "specification": {
+    "sha256": "fdc2e8d94ce345fbc50b067204769fbf286db43544bdd2908f3c0340d413007c",
+    "bytes": 4530
+  },
+  "artifact": {
+    "sha256": "0d5b1aab6309b8ea685e4a043c452b6c46b5a67048a7b85fa89778a1edfb1562",
+    "bytes": 816919
+  }
+}

@@ -1,0 +1,31 @@
+meta {
+  name: me-after-login
+  type: http
+  seq: 35
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/auth/me
+  body: none
+  auth: none
+}
+
+headers {
+  Cookie: jwt={{JWT_CUSTOMER}}
+}
+
+tests {
+  test("me responds 200 with the caller identity", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().role).to.equal("CUSTOMER");
+    expect(res.getBody().phone).to.equal("+84900000004");
+  });
+  
+
+  test("me carries the global customer identity and profile names", function() {
+    expect(res.getBody().dealershipId).to.be.null;
+    expect(res.getBody().firstName).to.be.a("string");
+    expect(res.getBody().lastName).to.be.a("string");
+  });
+  
+}

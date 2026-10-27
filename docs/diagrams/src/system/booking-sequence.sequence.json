@@ -1,0 +1,243 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Booking Request Sequence",
+    "output": "booking-sequence.html",
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    {
+      "id": "client",
+      "type": "external",
+      "label": "Client",
+      "sublabel": "web or mobile"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "API",
+      "sublabel": "Spring Boot"
+    },
+    {
+      "id": "idempotency",
+      "type": "security",
+      "label": "Idempotency",
+      "sublabel": "Redis key check"
+    },
+    {
+      "id": "constraints",
+      "type": "backend",
+      "label": "Constraint",
+      "sublabel": "Java rules"
+    },
+    {
+      "id": "booking",
+      "type": "backend",
+      "label": "Booking",
+      "sublabel": "allocation"
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "appointments"
+    },
+    {
+      "id": "outbox",
+      "type": "messagebus",
+      "label": "Outbox",
+      "sublabel": "events"
+    },
+    {
+      "id": "notify",
+      "type": "external",
+      "label": "Notify",
+      "sublabel": "SSE and webhook"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 250,
+      "label": "Request"
+    },
+    {
+      "from": 280,
+      "to": 395,
+      "label": "Constraint and allocation"
+    },
+    {
+      "from": 425,
+      "to": 590,
+      "label": "Commit and dispatch"
+    }
+  ],
+  "messages": [
+    {
+      "id": "post-booking",
+      "from": "client",
+      "to": "api",
+      "y": 170,
+      "label": "POST /appointments",
+      "variant": "emphasis"
+    },
+    {
+      "id": "idem-check",
+      "from": "api",
+      "to": "idempotency",
+      "y": 200,
+      "label": "check key",
+      "variant": "security"
+    },
+    {
+      "id": "idem-hit",
+      "from": "idempotency",
+      "to": "api",
+      "y": 230,
+      "label": "miss or cached response",
+      "variant": "return"
+    },
+    {
+      "id": "eval-rules",
+      "from": "api",
+      "to": "constraints",
+      "y": 290,
+      "label": "evaluate rules",
+      "variant": "emphasis"
+    },
+    {
+      "id": "eval-result",
+      "from": "constraints",
+      "to": "api",
+      "y": 320,
+      "label": "bay type, skill, duration",
+      "variant": "return"
+    },
+    {
+      "id": "allocate",
+      "from": "api",
+      "to": "booking",
+      "y": 350,
+      "label": "find bay and technician",
+      "variant": "default"
+    },
+    {
+      "id": "insert",
+      "from": "booking",
+      "to": "db",
+      "y": 380,
+      "label": "insert appointment and job",
+      "variant": "emphasis"
+    },
+    {
+      "id": "insert-outbox",
+      "from": "booking",
+      "to": "outbox",
+      "y": 440,
+      "label": "insert event",
+      "variant": "default"
+    },
+    {
+      "id": "commit",
+      "from": "db",
+      "to": "booking",
+      "y": 470,
+      "label": "commit",
+      "variant": "return"
+    },
+    {
+      "id": "created",
+      "from": "booking",
+      "to": "api",
+      "y": 500,
+      "label": "appointment created",
+      "variant": "return"
+    },
+    {
+      "id": "dispatch",
+      "from": "outbox",
+      "to": "notify",
+      "y": 530,
+      "label": "dispatch event",
+      "variant": "dashed"
+    },
+    {
+      "id": "response",
+      "from": "api",
+      "to": "client",
+      "y": 560,
+      "label": "201 Created",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "api",
+      "from": 165,
+      "to": 570,
+      "type": "backend"
+    },
+    {
+      "participant": "idempotency",
+      "from": 195,
+      "to": 236,
+      "type": "security"
+    },
+    {
+      "participant": "constraints",
+      "from": 285,
+      "to": 326,
+      "type": "backend"
+    },
+    {
+      "participant": "booking",
+      "from": 345,
+      "to": 510,
+      "type": "backend"
+    },
+    {
+      "participant": "db",
+      "from": 375,
+      "to": 480,
+      "type": "database"
+    },
+    {
+      "participant": "outbox",
+      "from": 435,
+      "to": 540,
+      "type": "messagebus"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Ordering guarantees",
+      "items": [
+        "The idempotency key check runs before any state change",
+        "The appointment row, the job row, and the outbox row commit together",
+        "The client receives 201 only after the commit"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Booking safety",
+      "items": [
+        "EXCLUDE constraints guard workshop bay, vehicle VIN, and technician assignments",
+        "Constraint violation returns HTTP 409 Problem Details",
+        "No distributed application lock runs in parallel"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "After commit",
+      "items": [
+        "The outbox dispatcher sends the webhook and SSE event",
+        "The slot cache entry is evicted on every mutation",
+        "The stored response replays on a retry with the same key"
+      ]
+    }
+  ]
+}

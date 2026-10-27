@@ -1,0 +1,33 @@
+meta {
+  name: register-missing-idempotency-key
+  type: http
+  seq: 43
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Forwarded-For: 203.0.113.40
+}
+
+body:json {
+  {
+    "phone": "+84900000999",
+    "firstName": "Tai",
+    "lastName": "Le",
+    "code": "{{REGISTER_CODE_NEW}}"
+  }
+}
+
+tests {
+  test("missing idempotency key responds 400", function() {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getHeader('content-type')).to.include("application/problem+json");
+  });
+  
+}

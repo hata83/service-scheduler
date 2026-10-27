@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Appointment Check-In Sequence",
+    "output": "docs/diagrams/system/appointment-checkin.html",
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    { "id": "customer", "type": "external", "label": "Customer", "sublabel": "vehicle owner" },
+    { "id": "manager", "type": "external", "label": "Manager", "sublabel": "service advisor" },
+    { "id": "api", "type": "backend", "label": "Check-In API", "sublabel": "Spring Boot" },
+    { "id": "db", "type": "database", "label": "PostgreSQL", "sublabel": "appointments & jobs" },
+    { "id": "outbox", "type": "messagebus", "label": "Outbox Relay", "sublabel": "event dispatch" },
+    { "id": "notify", "type": "external", "label": "SSE Board", "sublabel": "manager stream" }
+  ],
+  "segments": [
+    { "from": 140, "to": 260, "label": "Arrival and inspection" },
+    { "from": 280, "to": 440, "label": "Path A: Deal agreed (CHECKED_IN)" },
+    { "from": 460, "to": 580, "label": "Path B: Mismatch or no deal (NO_SHOW)" }
+  ],
+  "messages": [
+    { "id": "arrive", "from": "customer", "to": "manager", "y": 160, "label": "arrive at workshop", "variant": "emphasis" },
+    { "id": "inspect", "from": "manager", "to": "api", "y": 190, "label": "GET /appointments/{id}", "variant": "default" },
+    { "id": "fetch-data", "from": "api", "to": "db", "y": 220, "label": "query estimate & vehicle", "variant": "return" },
+    { "id": "display-data", "from": "api", "to": "manager", "y": 250, "label": "200 estimate_cost & jobs", "variant": "return" },
+    { "id": "agree-deal", "from": "customer", "to": "manager", "y": 300, "label": "agree on discounted total", "variant": "emphasis" },
+    { "id": "checkin-req", "from": "manager", "to": "api", "y": 330, "label": "PATCH /check-in {total_cost}", "variant": "emphasis" },
+    { "id": "db-update-checkin", "from": "api", "to": "db", "y": 360, "label": "status='CHECKED_IN', total_cost", "variant": "default" },
+    { "id": "outbox-checkin", "from": "api", "to": "outbox", "y": 390, "label": "insert checked_in event", "variant": "default" },
+    { "id": "sse-checkin", "from": "outbox", "to": "notify", "y": 415, "label": "push status to live board", "variant": "dashed" },
+    { "id": "checkin-resp", "from": "api", "to": "manager", "y": 435, "label": "200 CHECKED_IN", "variant": "return" },
+    { "id": "dispute", "from": "customer", "to": "manager", "y": 480, "label": "reject cost / info mismatch", "variant": "security" },
+    { "id": "noshow-req", "from": "manager", "to": "api", "y": 510, "label": "PATCH /status {status: NO_SHOW}", "variant": "security" },
+    { "id": "db-update-noshow", "from": "api", "to": "db", "y": 540, "label": "status='NO_SHOW' (frees bay)", "variant": "security" },
+    { "id": "noshow-resp", "from": "api", "to": "manager", "y": 570, "label": "200 NO_SHOW (bay released)", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "manager", "from": 155, "to": 575, "type": "external" },
+    { "participant": "api", "from": 185, "to": 575, "type": "backend" },
+    { "participant": "db", "from": 215, "to": 550, "type": "database" },
+    { "participant": "outbox", "from": 385, "to": 420, "type": "messagebus" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "On-site negotiation",
+      "items": [
+        "Customer arrives at workshop and meets manager face-to-face",
+        "Manager inspects vehicle and confirms billable price with direct discount",
+        "Final agreed amount is stored in total_cost and status moves to CHECKED_IN"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Dispute or mismatch (NO_SHOW)",
+      "items": [
+        "If customer rejects on-site cost deal, work does not process",
+        "If vehicle condition or VIN mismatches booking, manager marks NO_SHOW",
+        "NO_SHOW status terminates appointment and frees bay reservation immediately"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Real-time visibility",
+      "items": [
+        "Check-in event pushes over SSE to the workshop dispatch board immediately",
+        "Technicians see vehicle marked ready on shop floor queue"
+      ]
+    }
+  ]
+}

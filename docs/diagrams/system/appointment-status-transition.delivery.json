@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "637beeda-8f0b-47a0-9c5d-65d6fc22a9f9",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\appointment-status-transition.sequence.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\appointment-status-transition.html",
+  "specification": {
+    "sha256": "b9b73800ca9a75967032560c6aaaf17c10a8ba5e54695e08018b37df5d203ad9",
+    "bytes": 3368
+  },
+  "artifact": {
+    "sha256": "04838fbca4b22a8c161144523a5e6c662c25c637d4e7930e14b394b43716e736",
+    "bytes": 819381
+  }
+}

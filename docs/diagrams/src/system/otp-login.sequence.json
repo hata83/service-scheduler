@@ -1,0 +1,246 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "OTP Login Sequence",
+    "output": "otp-login.html",
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "User",
+      "sublabel": "customer or staff"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "API",
+      "sublabel": "Spring Boot"
+    },
+    {
+      "id": "otp",
+      "type": "database",
+      "label": "OTP Store",
+      "sublabel": "login-purpose slot"
+    },
+    {
+      "id": "auth",
+      "type": "backend",
+      "label": "Auth",
+      "sublabel": "stateless HS256 JWT"
+    },
+    {
+      "id": "users",
+      "type": "database",
+      "label": "Users DB",
+      "sublabel": "PostgreSQL"
+    }
+  ],
+  "segments": [
+    {
+      "from": 140,
+      "to": 300,
+      "label": "Request LOGIN-purpose OTP"
+    },
+    {
+      "from": 320,
+      "to": 660,
+      "label": "Verify and issue JWT"
+    },
+    {
+      "from": 680,
+      "to": 900,
+      "label": "User authenticated"
+    }
+  ],
+  "messages": [
+    {
+      "id": "send-login-otp",
+      "from": "user",
+      "to": "api",
+      "y": 180,
+      "label": "POST /otp/send {phone, type LOGIN}",
+      "variant": "emphasis"
+    },
+    {
+      "id": "otp-gen",
+      "from": "api",
+      "to": "otp",
+      "y": 220,
+      "label": "generate code into otp:login:{phone} 5min TTL",
+      "variant": "default"
+    },
+    {
+      "id": "otp-slot",
+      "from": "otp",
+      "to": "api",
+      "y": 250,
+      "label": "slot stored",
+      "variant": "return"
+    },
+    {
+      "id": "stub-print",
+      "from": "api",
+      "to": "user",
+      "y": 280,
+      "label": "Zalo stub: print OTP console",
+      "variant": "return"
+    },
+    {
+      "id": "enter-otp",
+      "from": "user",
+      "to": "api",
+      "y": 360,
+      "label": "POST /otp/verify {phone, code}",
+      "variant": "emphasis"
+    },
+    {
+      "id": "otp-consume",
+      "from": "api",
+      "to": "otp",
+      "y": 410,
+      "label": "verify + consume login code",
+      "variant": "default"
+    },
+    {
+      "id": "otp-valid",
+      "from": "otp",
+      "to": "api",
+      "y": 450,
+      "label": "valid, delete slot",
+      "variant": "return"
+    },
+    {
+      "id": "user-lookup",
+      "from": "api",
+      "to": "users",
+      "y": 500,
+      "label": "lookup user by phone (never create)",
+      "variant": "default"
+    },
+    {
+      "id": "user-found",
+      "from": "users",
+      "to": "api",
+      "y": 540,
+      "label": "return userId, role",
+      "variant": "return"
+    },
+    {
+      "id": "jwt-issue",
+      "from": "api",
+      "to": "auth",
+      "y": 590,
+      "label": "issue JWT (role, jti)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "jwt-return",
+      "from": "auth",
+      "to": "api",
+      "y": 630,
+      "label": "signed stateless JWT",
+      "variant": "return"
+    },
+    {
+      "id": "login-response",
+      "from": "api",
+      "to": "user",
+      "y": 690,
+      "label": "200 Set-Cookie jwt {id, role, phone, dealershipId}",
+      "variant": "return"
+    },
+    {
+      "id": "me-view",
+      "from": "user",
+      "to": "api",
+      "y": 760,
+      "label": "GET /me",
+      "variant": "default"
+    },
+    {
+      "id": "profile-edit",
+      "from": "user",
+      "to": "api",
+      "y": 830,
+      "label": "PATCH /me {names, email} + idem key",
+      "variant": "default"
+    },
+    {
+      "id": "profile-updated",
+      "from": "api",
+      "to": "user",
+      "y": 870,
+      "label": "200 updated identity",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "user",
+      "from": 140,
+      "to": 300,
+      "type": "external"
+    },
+    {
+      "participant": "api",
+      "from": 160,
+      "to": 890,
+      "type": "backend"
+    },
+    {
+      "participant": "otp",
+      "from": 200,
+      "to": 470,
+      "type": "database"
+    },
+    {
+      "participant": "users",
+      "from": 480,
+      "to": 560,
+      "type": "database"
+    },
+    {
+      "participant": "auth",
+      "from": 570,
+      "to": 650,
+      "type": "backend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Login flow",
+      "items": [
+        "User requests a LOGIN-purpose OTP",
+        "Zalo stub prints the code to console",
+        "Verify consumes the code and never creates rows",
+        "200 sets the httpOnly JWT cookie"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Guards",
+      "items": [
+        "OTP expires in 5 minutes",
+        "Single use per purpose",
+        "Purpose mismatch fails with 401",
+        "Unregistered phone names registration"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Roles",
+      "items": [
+        "customer, manager, technician, admin",
+        "Role resolves from the users row",
+        "JWT carries role and jti for revocation",
+        "After login: view and edit profile"
+      ]
+    }
+  ]
+}

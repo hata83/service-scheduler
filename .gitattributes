@@ -1,0 +1,7 @@
+# Normalize all text files to LF in the repository and the working tree.
+# Keeps ~/.github CI, Bruno, and Gradle output byte-stable across Windows checkouts.
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "sequence",
+  "quality": "showcase",
+  "specification": {
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\appointment-checkin.sequence.json",
+    "sha256": "dfae67a11a765e1dd41aa9a9311063bfd7a11fbc872049f2753c2ef1478e7741",
+    "bytes": 4251
+  },
+  "artifact": {
+    "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\appointment-checkin.html",
+    "sha256": "3c6eab1b1dcbeb64da9829f6a2f939ad7d710090e01711764af061133f76513f",
+    "bytes": 821163
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\appointment-checkin.finalize.json",
+    "summaryReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\appointment-checkin.finalize-summary.json",
+    "browserCheckReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\appointment-checkin.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-24T04:45:37.141Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 4368,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

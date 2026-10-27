@@ -1,0 +1,31 @@
+meta {
+  name: otp-send-rate-limited-third
+  type: http
+  seq: 22
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/otp/send
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Idempotency-Key: otp-send-LOGIN-84900000990-3
+  X-Forwarded-For: 203.0.113.20
+}
+
+body:json {
+  {
+    "phone": "+84900000990",
+    "type": "LOGIN"
+  }
+}
+
+tests {
+  test("third send inside the window responds 202", function() {
+    expect(res.getStatus()).to.equal(202);
+  });
+  
+}

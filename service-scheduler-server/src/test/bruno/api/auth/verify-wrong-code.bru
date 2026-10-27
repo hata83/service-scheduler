@@ -1,0 +1,32 @@
+meta {
+  name: verify-wrong-code
+  type: http
+  seq: 30
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/auth/otp/verify
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Idempotency-Key: otp-verify-wrong-84900000004
+  X-Forwarded-For: 203.0.113.27
+}
+
+body:json {
+  {
+    "phone": "+84900000004",
+    "code": "000000"
+  }
+}
+
+tests {
+  test("wrong code responds 401", function() {
+    expect(res.getStatus()).to.equal(401);
+    expect(res.getHeader('content-type')).to.include("application/problem+json");
+  });
+  
+}

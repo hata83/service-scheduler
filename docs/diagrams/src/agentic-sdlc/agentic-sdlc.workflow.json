@@ -1,0 +1,285 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Agentic SDLC Workflow",
+    "output": "agentic-sdlc.html",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "spec",
+      "label": "Specification and build"
+    },
+    {
+      "id": "verify",
+      "label": "Verification and approval"
+    },
+    {
+      "id": "release",
+      "label": "Archive and merge"
+    }
+  ],
+  "mainPath": [
+    "propose",
+    "branch",
+    "plan",
+    "code",
+    "format",
+    "test"
+  ],
+  "nodes": [
+    {
+      "id": "propose",
+      "lane": "spec",
+      "col": 0,
+      "type": "external",
+      "label": "Propose",
+      "sublabel": "HIL-1 spec gate",
+      "tag": "01"
+    },
+    {
+      "id": "branch",
+      "lane": "spec",
+      "col": 1,
+      "type": "backend",
+      "label": "Branch",
+      "sublabel": "feature branch",
+      "tag": "02"
+    },
+    {
+      "id": "plan",
+      "lane": "spec",
+      "col": 2,
+      "type": "backend",
+      "label": "Plan",
+      "sublabel": "next task",
+      "tag": "03"
+    },
+    {
+      "id": "code",
+      "lane": "spec",
+      "col": 3,
+      "type": "backend",
+      "label": "Code",
+      "sublabel": "failing test first",
+      "tag": "04"
+    },
+    {
+      "id": "format",
+      "lane": "spec",
+      "col": 4,
+      "type": "backend",
+      "label": "Format",
+      "sublabel": "Spotless gate",
+      "tag": "05"
+    },
+    {
+      "id": "test",
+      "lane": "spec",
+      "col": 5,
+      "type": "backend",
+      "label": "Test",
+      "sublabel": "JaCoCo gate",
+      "tag": "06"
+    },
+    {
+      "id": "review",
+      "lane": "verify",
+      "col": 0,
+      "type": "security",
+      "label": "Review",
+      "sublabel": "OCR delegate gate",
+      "tag": "07"
+    },
+    {
+      "id": "verify",
+      "lane": "verify",
+      "col": 1,
+      "type": "backend",
+      "label": "Verify",
+      "sublabel": "clean build gate",
+      "tag": "08"
+    },
+    {
+      "id": "approval",
+      "lane": "verify",
+      "col": 2,
+      "type": "external",
+      "label": "Approval",
+      "sublabel": "HIL-2 human gate",
+      "tag": "09"
+    },
+    {
+      "id": "publish",
+      "lane": "verify",
+      "col": 3,
+      "type": "backend",
+      "label": "Publish",
+      "sublabel": "push and open PR",
+      "tag": "10"
+    },
+    {
+      "id": "pr_verify",
+      "lane": "verify",
+      "col": 4,
+      "type": "security",
+      "label": "PR Verify",
+      "sublabel": "CI check result",
+      "tag": "11"
+    },
+    {
+      "id": "archive",
+      "lane": "verify",
+      "col": 5,
+      "type": "backend",
+      "label": "Archive",
+      "sublabel": "move the spec",
+      "tag": "12"
+    },
+    {
+      "id": "review_archive",
+      "lane": "release",
+      "col": 0,
+      "type": "backend",
+      "label": "Review Archive",
+      "sublabel": "push the archive",
+      "tag": "13"
+    },
+    {
+      "id": "merge",
+      "lane": "release",
+      "col": 1,
+      "type": "external",
+      "label": "Merge",
+      "sublabel": "HIL-3 human gate",
+      "tag": "14"
+    }
+  ],
+  "edges": [
+    {
+      "id": "propose-branch",
+      "from": "propose",
+      "to": "branch",
+      "label": "approved"
+    },
+    {
+      "id": "branch-plan",
+      "from": "branch",
+      "to": "plan",
+      "label": "ready"
+    },
+    {
+      "id": "plan-code",
+      "from": "plan",
+      "to": "code",
+      "label": "selected"
+    },
+    {
+      "id": "code-format",
+      "from": "code",
+      "to": "format",
+      "label": "written"
+    },
+    {
+      "id": "format-test",
+      "from": "format",
+      "to": "test",
+      "label": "formatted"
+    },
+    {
+      "id": "test-review",
+      "from": "test",
+      "to": "review",
+      "label": "passed"
+    },
+    {
+      "id": "review-verify",
+      "from": "review",
+      "to": "verify",
+      "label": "clean",
+      "variant": "emphasis"
+    },
+    {
+      "id": "verify-approval",
+      "from": "verify",
+      "to": "approval",
+      "label": "green"
+    },
+    {
+      "id": "approval-publish",
+      "from": "approval",
+      "to": "publish",
+      "label": "approved"
+    },
+    {
+      "id": "publish-pr-verify",
+      "from": "publish",
+      "to": "pr_verify",
+      "label": "opened"
+    },
+    {
+      "id": "pr-verify-archive",
+      "from": "pr_verify",
+      "to": "archive",
+      "label": "passed"
+    },
+    {
+      "id": "archive-review-archive",
+      "from": "archive",
+      "to": "review_archive",
+      "label": "archived"
+    },
+    {
+      "id": "review-archive-merge",
+      "from": "review_archive",
+      "to": "merge",
+      "label": "green"
+    },
+    {
+      "id": "review-code",
+      "from": "review",
+      "to": "code",
+      "label": "finding",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "pr-verify-code",
+      "from": "pr_verify",
+      "to": "code",
+      "label": "CI failed",
+      "variant": "dashed",
+      "role": "branch"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Main path",
+      "items": [
+        "Fourteen states run from the proposal to the merge",
+        "Every change lives on a feature branch",
+        "The clean build is the gate, not a shorter command"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Human gates",
+      "items": [
+        "HIL-1 approves the spec before any code",
+        "HIL-2 approves the diff before the push",
+        "HIL-3 approves the merge"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Rework paths",
+      "items": [
+        "A review finding returns to the code state",
+        "A failed CI run returns to the code state",
+        "The loop never ends at a failed gate"
+      ]
+    }
+  ]
+}

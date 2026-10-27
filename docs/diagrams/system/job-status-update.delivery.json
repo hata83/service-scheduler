@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "e38c2639-eafc-4e7c-9918-a3061fb7f774",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\job-status-update.sequence.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\job-status-update.html",
+  "specification": {
+    "sha256": "df238a0fae7b1e9ebfac8bbff76b25b62467198fae1c9971644cb8e955905f40",
+    "bytes": 3312
+  },
+  "artifact": {
+    "sha256": "7fadf2aabef32bd1263b95674ebff9ec4c533b6df0ac65d52aefd6d55bfa4005",
+    "bytes": 817117
+  }
+}

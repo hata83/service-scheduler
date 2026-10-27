@@ -1,0 +1,123 @@
+schema: spec-driven
+
+# Project context, shown to an AI when it creates an artifact.
+context: |
+  Unified Service Scheduler is an automotive dealership service-scheduling
+  platform. Customers log in with phone OTP, see an instant cost estimate when
+  they select a service type, pick slots, and book. Managers confirm bookings,
+  run check-in cost and slot negotiation, and watch the day schedule.
+  Technicians run service jobs and log progress.
+
+  Stack: Java 25 LTS, Spring Boot 4.1.1 Web MVC with virtual threads,
+  Hibernate 7, Flyway 10+, PostgreSQL 16 everywhere (Docker Compose for dev,
+  Testcontainers for CI), Redis 7, Resilience4j, SpringDoc OpenAPI 3.1,
+  Micrometer, Bruno CLI for API contracts. Backend work happens in
+  `service-scheduler-server` under `dev.hata.scheduler.*`. Frontend work
+  happens in `service-scheduler-ui`: Vue 3, TypeScript, Pinia, Vite, MSW
+  mocks, Playwright tests.
+
+  Backend packages are feature-based: `auth/`, `customer/`, `dealership/`,
+  `appointment/`, `resource/`, `vehicle/`, `notification/`, `scheduling/`,
+  `common/`. Each feature holds nested packages: `controller/`, `service/`,
+  `repository/`, `model/`, `dto/`, `event/`, `handler/`. One feature package
+  must not import another. Shared code goes in `common/`. ArchUnit enforces this.
+
+  Four invariants an agent cannot infer from an empty repository:
+  1. PostgreSQL `EXCLUDE USING gist` constraints are the booking safety gates
+     for bays, vehicles, and technicians. Do not add application-level locks.
+     The concurrency tests run against PostgreSQL through Testcontainers.
+  2. Every write endpoint requires the `X-Idempotency-Key` header and returns
+     HTTP 400 without it.
+  3. Every appointment mutation writes an `OUTBOX_EVENTS` row in the same
+     transaction. SSE and webhook listeners run after commit only.
+  4. The slot grid cache is per service type:
+     `slot:grid:{dealershipId}:{serviceTypeId}:{date}`, 1-hour TTL, evicted on
+     booking commit, cancel, reject, no-show, resource change, and check-in
+     slot adjustment. Availability covers now to
+     `current_date + max_advance_booking_days` (default 7).
+
+  Appointment states: REQUESTED, CONFIRMED, CHECKED_IN, IN_PROGRESS, ON_HOLD,
+  COMPLETED, INVOICED. Terminal states: CANCELLED, REJECTED, NO_SHOW. There is
+  no ESTIMATE_SENT state. The estimate shows at service type selection. The
+  manager adjusts costs and job slots at check-in.
+
+  `openspec/specs/` is the single source of truth for behaviour. A requirement
+  changes there first, never in prose elsewhere.
+
+# Per-artifact rules, keyed by artifact ID. These are ADVISORY: OpenSpec
+# injects them as prompt text when an agent builds that artifact. Nothing
+# validates them. `openspec validate --strict` does not read this file.
+#
+# Two consequences follow, and the Agentic SDLC depends on both:
+#   1. A rule is followed because an agent read it, not because a tool
+#      enforced it. An agent that skips these produces an invalid artifact and
+#      no tool will stop it.
+#   2. A human reviewer is the only backstop. See the human gates in AGENTS.md.
+rules:
+  proposal:
+    - "Capabilities MUST name existing spec paths. Read them with `openspec list --specs` and reuse each path exactly. Never invent a near-duplicate name."
+    - "The proposal MUST name the Bruno `.bru` files and Playwright E2E specs the change adds or modifies, and every Archify diagram it publishes under `docs/diagrams/`."
+    - "The proposal MUST map its work to the backend-first verification ladder in AGENTS.md Section 5."
+    - "Apply the `karpathy-ponytail` skill when you decompose the work into tasks."
+
+  specs:
+    - "Every `spec.md` MUST contain a `## Mapping` section with an `### API Mapping` table and a `### Capacity Mapping` table."
+    - "The `### API Mapping` table MUST list every REST and SSE endpoint the capability introduces. Each row MUST name the Bruno `.bru` file under `service-scheduler-server/src/test/bruno/` that exercises it. The file MUST exist before the change is archived."
+    - "The `### Capacity Mapping` table MUST have one row per `### Requirement:` block. Each row MUST name the Playwright spec under `service-scheduler-ui/tests/e2e/` that covers the requirement and the Archify diagram under `docs/diagrams/` that shows it."
+    - "Playwright spec files take the capability slug as the name: `<capability>.spec.ts`. Never use one generic file name."
+    - "Every `spec.md` MUST contain an `## Endpoint Contracts` section after its requirements. For each endpoint, give four pretty, separately fenced blocks: request headers, request body, response headers, response body. A reviewer copies each block straight into curl or Postman. Keep identifiers and JSON keys stable across blocks."
+    - "Every path a `## Mapping` table cites MUST exist in the repository before the change is archived. Verify each one with `ls` rather than assuming it."
+    - "Write requirement text in Simplified Technical English. Apply the `asd-ste100` skill: active voice, one idea per sentence, one term per concept."
+
+  design:
+    - "The design document MUST contain a `## Traceability` table. Each row maps one capability to its API, its Bruno `.bru` file, its Playwright spec, and its Archify diagram."
+    - "The design document MUST link each diagram to its Archify interactive HTML viewer."
+    - "The design document MUST name the AGENTS.md Section 4 architecture constraints that apply to each layer it touches."
+    - "Record any framework, database, or pattern decision in `docs/adr/` and index it in the Architecture Decisions section of `docs/SYSTEM_DESIGN.md`."
+
+  tasks:
+    - "Work the backend leg before the frontend leg. A frontend task that depends on an API is BLOCKED until the matching Bruno file passes."
+    - "Every backend capability task MUST have a sibling sub-task that creates its Bruno `.bru` file. The task MUST NOT be marked complete until that file exists."
+    - "Every frontend capability task MUST have a sub-task for an MSW mock in `service-scheduler-ui/tests/unit/mock/handlers.ts` and a separate sub-task that reviews the mock with the `vue-reviewer` agent. The mock review MUST complete before the integration sub-task."
+    - "Every frontend integration task MUST have a Playwright E2E sub-task that captures one screenshot per acceptance criterion."
+    - "Every task that adds or changes a `### Requirement:` block MUST have a sub-task that updates the `### Capacity Mapping` table in the owning `spec.md`."
+    - "Every task that adds or changes a domain feature MUST have a sub-task that publishes one Archify diagram under `docs/diagrams/<group>/<slug>`. The diagram type MUST follow the question the diagram answers, not default to sequence. See the diagram type table below."
+    - "Start `tasks.md` with the 14-state Agentic SDLC block from AGENTS.md Section 3 and update its marks when a state changes to track progress."
+    - "Run the `open-code-review-delegate` skill (`ocr delegate preview --format json` and `ocr delegate rule --format json <files>`) and `./gradlew :service-scheduler-server:verifyCodeReviewDelegate` at State 7 and State 8. Document all review findings (`total_files`, `reviewed_files`, `skipped_files`, `coverage_rate`), reproducer steps, and resolution proofs in `openspec/changes/<change-slug>/review.md` before closing State 7."
+    - "At State 11 (`Verify PR`), inspect all pull request reviews and inline comments (`gh api repos/:owner/:repo/pulls/:number/reviews` and `gh api repos/:owner/:repo/pulls/:number/comments`), fix every finding reported by reviewers or cloud review bots (`qodo-code-review[bot]` via `/review` and `kilo-code-bot[bot]` via `@kilocode-bot`), record each fix in `review.md`, and re-run Bruno and Playwright E2E suites before asking for approval to archive."
+
+# Which diagram type, and why. A change that picks a type MUST say which row
+# it matched, so no change defaults to sequence without a reason.
+#
+# | The diagram answers | Type | Project example |
+# |---|---|---|
+# | What calls what, in what order? | sequence | `appointment-checkin` |
+# | What states exist, and what transitions them? | lifecycle | `appointment-lifecycle` |
+# | What components exist, and how do they connect? | architecture | `system-architecture` |
+# | Where does data come from, and who consumes it? | dataflow | `system-data-flow` |
+# | What approval gates or CI steps control the process? | workflow | `agentic-sdlc` |
+# | What tables exist, and how do they relate? | erd | `system-data-model` |
+#
+# A change that adds an endpoint, an SSE event, or a check-in negotiation path
+# is a sequence. A change that adds or moves data between producers and
+# consumers is a dataflow.
+
+# Per-operation guidance. This is advisory and separate from the rules above.
+operations:
+  apply:
+    guidance:
+      - "Follow the verification ladder in AGENTS.md Section 5 in order. Do not start the frontend leg until the backend leg passes."
+      - "Write the failing test first (BE-1). Watch it fail. Then write the smallest code that makes it pass (BE-2)."
+      - "Run `./gradlew :service-scheduler-server:spotlessApply` before you leave each backend task. Keep `checkstyleMain`, `pmdMain`, and `test` green."
+      - "Add the constraint evaluator integration test for each service type behaviour the change touches (BE-4)."
+      - "Run the `open-code-review-delegate` loop before State 8: load the `open-code-review-delegate` skill, run `ocr delegate preview --format json`, run `ocr delegate rule --format json <files>`, inspect the diff of every `reviewable_files` entry, fix all critical and high findings, and run `./gradlew :service-scheduler-server:verifyCodeReviewDelegate`. Document each review run and its coverage summary in `openspec/changes/<change-slug>/review.md`."
+      - "Close State 8 with `openspec validate <change-slug> --strict`, then `./gradlew clean build` (which automatically runs `verifyCodeReviewDelegate`), then the Bruno suite and Playwright E2E suite against a running server. Ensure all reviews, Bruno integration tests, and Playwright tests pass, or return to the loop."
+      - "Present the diff and the State 8 results at State 9 and wait for human approval. Never push before that approval."
+      - "Keep test summaries concise."
+
+  archive:
+    guidance:
+      - "Verify every path cited in each `## Mapping` table resolves. Run `ls` on each cited file."
+      - "Move every Archify diagram to its durable home under `docs/diagrams/`. A committed link MUST NOT point inside `openspec/changes/`."
+      - "Run a link audit across the markdown documentation. Every diagram link MUST resolve."
+      - "Summarize the archive outcome before you finish."

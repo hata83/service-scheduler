@@ -1,0 +1,212 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Unified Service Scheduler Data Flow",
+    "output": "docs/diagrams/system/system-data-flow.html",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    {
+      "label": "Client"
+    },
+    {
+      "label": "Ingress"
+    },
+    {
+      "label": "Constraints"
+    },
+    {
+      "label": "Storage"
+    },
+    {
+      "label": "Dispatch"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "client",
+      "type": "frontend",
+      "label": "Client Portal",
+      "sublabel": "Vue 3 or Bruno",
+      "stage": 0,
+      "row": 1,
+      "tag": "REST and SSE"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "Spring Boot API",
+      "sublabel": "OpenAPI 3.1",
+      "stage": 1,
+      "row": 1,
+      "tag": "ingress"
+    },
+    {
+      "id": "zen",
+      "type": "backend",
+      "label": "Constraint Engine",
+      "sublabel": "Java in JVM",
+      "stage": 2,
+      "row": 0,
+      "tag": "constraint"
+    },
+    {
+      "id": "booking",
+      "type": "backend",
+      "label": "Booking Service",
+      "sublabel": "allocation",
+      "stage": 2,
+      "row": 2,
+      "tag": "core"
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL 16",
+      "sublabel": "appointments",
+      "stage": 3,
+      "row": 0,
+      "tag": "durable"
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis 7",
+      "sublabel": "slot cache",
+      "stage": 3,
+      "row": 2,
+      "tag": "cache"
+    },
+    {
+      "id": "outbox",
+      "type": "messagebus",
+      "label": "Outbox Relay",
+      "sublabel": "SKIP LOCKED",
+      "stage": 4,
+      "row": 0,
+      "tag": "poller"
+    },
+    {
+      "id": "notify",
+      "type": "external",
+      "label": "SSE and Webhook",
+      "sublabel": "after commit",
+      "stage": 4,
+      "row": 2,
+      "tag": "dispatch"
+    }
+  ],
+  "flows": [
+    {
+      "id": "book-request",
+      "from": "client",
+      "to": "api",
+      "label": "POST /appointments",
+      "classification": "customer request",
+      "variant": "emphasis"
+    },
+    {
+      "id": "otp-login",
+      "from": "client",
+      "to": "api",
+      "label": "OTP login",
+      "classification": "phone to JWT",
+      "variant": "security"
+    },
+    {
+      "id": "evaluate-jdm",
+      "from": "api",
+      "to": "zen",
+      "label": "evaluate constraints",
+      "classification": "relational metadata",
+      "variant": "default"
+    },
+    {
+      "id": "requirement",
+      "from": "zen",
+      "to": "booking",
+      "label": "bay type, skill, duration",
+      "classification": "constraint result",
+      "variant": "default"
+    },
+    {
+      "id": "overlap-query",
+      "from": "booking",
+      "to": "pg",
+      "label": "overlap query",
+      "classification": "read only",
+      "variant": "default"
+    },
+    {
+      "id": "commit-insert",
+      "from": "booking",
+      "to": "pg",
+      "label": "insert appointment and outbox",
+      "classification": "single transaction",
+      "variant": "emphasis"
+    },
+    {
+      "id": "read-cache",
+      "from": "api",
+      "to": "redis",
+      "label": "read slot cache",
+      "classification": "TTL 1 hour",
+      "variant": "default"
+    },
+    {
+      "id": "evict-cache",
+      "from": "booking",
+      "to": "redis",
+      "label": "evict slot cache",
+      "classification": "on mutation",
+      "variant": "dashed"
+    },
+    {
+      "id": "relay-poll",
+      "from": "outbox",
+      "to": "notify",
+      "label": "dispatch event",
+      "classification": "after commit",
+      "variant": "emphasis"
+    },
+    {
+      "id": "pg-outbox",
+      "from": "pg",
+      "to": "outbox",
+      "label": "pending rows",
+      "classification": "poll every 5s",
+      "variant": "default"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Booking write path",
+      "items": [
+        "The appointment row and the outbox row commit in one transaction",
+        "The EXCLUDE constraint rejects an overlapping bay slot",
+        "The client receives 201 only after the commit"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Cache rules",
+      "items": [
+        "Every mutation evicts the slot cache for that dealership, date, and bay type",
+        "Redis is shared, so every pod sees the same invalidation",
+        "The cache holds no booking truth"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Constraint Evaluation",
+      "items": [
+        "Pure Java ServiceConstraintEvaluator evaluates relational metadata tables",
+        "Zero native overhead and compile-time type safety in JVM",
+        "Only the webhook and SSE channels ship fully in week 1"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "fb0b560f-f9de-4a57-aa6c-4d8a437017e1",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\customer-registration.sequence.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\customer-registration.html",
+  "specification": {
+    "sha256": "b75a6fd7e4867ea69228bd32030994e216a98462f890f424868b6f3cd7fcacbf",
+    "bytes": 5174
+  },
+  "artifact": {
+    "sha256": "265b727cf950e814d9c1fbadcdaa58471c984ddf5bff316d5f2e72e29268e582",
+    "bytes": 819384
+  }
+}

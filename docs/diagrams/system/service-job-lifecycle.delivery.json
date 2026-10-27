@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "8f65894a-55db-4192-af73-ddacbe053d1b",
+  "status": "current",
+  "command": "deliver",
+  "type": "lifecycle",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\service-job-lifecycle.lifecycle.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\service-job-lifecycle.html",
+  "specification": {
+    "sha256": "ac03d0e15ea81e28eef886f8fa63297ffc4f237100e1475f2d4d2b3d23785594",
+    "bytes": 2579
+  },
+  "artifact": {
+    "sha256": "f320b6240e0650f5446e097d71a66f78ebc027f8d7476eb802878fae0ab17360",
+    "bytes": 812896
+  }
+}
