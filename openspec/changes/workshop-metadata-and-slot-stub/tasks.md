@@ -2,7 +2,7 @@
 
 ```
 CHANGE   workshop-metadata-and-slot-stub                   BRANCH   feature/workshop-metadata-and-slot-stub
-STATES   14   done 9  current 1  next 1  skipped 0  failed 0  pending 3
+STATES   14   done 10 current 1  next 1  skipped 0  failed 0  pending 2
 TASKS    25   done 25 open 0
 
   #   state                     mark     proof
@@ -15,9 +15,9 @@ TASKS    25   done 25 open 0
   7   Review                    done     ocr delegate preview + review.md + verifyCodeReviewDelegate passed
   8   Verify                    done     ./gradlew clean build: SUCCESSFUL + Playwright 34/34 + Bruno 56/56
   9   Approval                  done     HIL-2 approved by user to publish and create PR
-  10  Publish                   current  committing and pushing branch, opening PR
-  11  Verify PR                 next
-  12  Archive                   pending
+  10  Publish                   done     PR #2 created: https://github.com/hata83/service-scheduler/pull/2
+  11  Verify PR                 current  monitoring CI checks, Qodo, Kilo Code, and reviewer comments
+  12  Archive                   next
   13  Review archive            pending
   14  Merge                     pending
 ```
