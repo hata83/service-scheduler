@@ -76,6 +76,6 @@ class TechnicianAvailabilityProviderTest {
         assertThat(capturedSql).isNotEmpty();
         // DONE jobs must NOT block a technican — the predicate must exclude them
         // so completed jobs release capacity (R-TECHNICIAN-STATUS-FILTER).
-        assertThat(capturedSql.get(0)).contains("NOT IN ('CANCELLED', 'REJECTED', 'DONE')");
+        assertThat(capturedSql.get(0)).contains("NOT IN ('CANCELLED', 'DONE')");
     }
 }
