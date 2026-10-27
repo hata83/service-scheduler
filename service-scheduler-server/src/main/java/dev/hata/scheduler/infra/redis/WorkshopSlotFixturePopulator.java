@@ -13,8 +13,6 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -24,7 +22,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Profile({"dev", "test"})
-public class WorkshopSlotFixturePopulator implements ApplicationRunner {
+public class WorkshopSlotFixturePopulator {
 
     private static final Logger log = LoggerFactory.getLogger(WorkshopSlotFixturePopulator.class);
 
@@ -40,15 +38,6 @@ public class WorkshopSlotFixturePopulator implements ApplicationRunner {
 
     public WorkshopSlotFixturePopulator(StringRedisTemplate redis) {
         this.redis = redis;
-    }
-
-    @Override
-    public void run(ApplicationArguments args) {
-        try {
-            populate(LocalDate.now(TIMEZONE));
-        } catch (Exception ex) {
-            log.warn("Failed to populate demo slot availability grids in Redis: {}", ex.getMessage());
-        }
     }
 
     /**

@@ -147,7 +147,11 @@ Applied rules based on `ocr delegate rule --format json service-scheduler-server
   - *Fix*: Downgraded MSW to `^2.7.0` in `service-scheduler-ui/package.json` for full Node 20 LTS compatibility.
 - **Finding 9 — Pricing Mock Query Param**: Mock handler accepted `vehicleCategoryId` query parameter unsupported by the real pricing endpoint.
   - *Fix*: Updated `service-scheduler-ui/tests/unit/mock/handlers.ts` to read only `categoryId` and return 400 Bad Request when absent.
-- *Status*: All 9 findings RESOLVED and covered by unit and E2E tests.
+- **Finding 10 — Startup Calendar Date Coordination**: Appointment and Redis fixture runners sampled the calendar date independently, causing relative-day fixtures to disagree across midnight rollovers.
+  - *Fix*: Introduced `WorkshopFixtureOrchestrator` to capture a single `LocalDate.now(TIMEZONE)` date and pass it to both `AppointmentFixturePopulator` and `WorkshopSlotFixturePopulator`.
+- **Finding 11 — Transactional Fixture Upserts**: Three fixture upserts committed independently, risking partial schedule state if an exclusion constraint failed.
+  - *Fix*: Wrapped all three upserts inside a single transaction via `TransactionTemplate.executeWithoutResult()` in `AppointmentFixturePopulator.populate()`.
+- *Status*: All 11 findings RESOLVED and covered by unit and E2E tests.
 
 ---
 
