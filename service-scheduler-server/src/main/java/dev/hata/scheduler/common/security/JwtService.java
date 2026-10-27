@@ -171,8 +171,12 @@ public class JwtService {
             return false;
         }
         if (redis != null) {
-            Boolean exists = redis.hasKey(SESSION_PREFIX + jti);
-            return !Boolean.TRUE.equals(exists);
+            try {
+                Boolean exists = redis.hasKey(SESSION_PREFIX + jti);
+                return !Boolean.TRUE.equals(exists);
+            } catch (Exception ex) {
+                throw new RedisUnavailableException("Redis unavailable for session validation", ex);
+            }
         }
         Instant exp = inMemorySessions.get(jti);
         if (exp == null) {
@@ -190,9 +194,13 @@ public class JwtService {
             return false;
         }
         if (redis != null) {
-            String activeFlag = redis.opsForValue().get(USER_ACTIVE_PREFIX + userId);
-            if (DEACTIVATED_FLAG.equals(activeFlag)) {
-                return false;
+            try {
+                String activeFlag = redis.opsForValue().get(USER_ACTIVE_PREFIX + userId);
+                if (DEACTIVATED_FLAG.equals(activeFlag)) {
+                    return false;
+                }
+            } catch (Exception ex) {
+                throw new RedisUnavailableException("Redis unavailable for account state validation", ex);
             }
         }
         if (accountStateProvider == null) {

@@ -281,6 +281,33 @@ class JwtServiceTest {
     }
 
     @Test
+    void redisUnavailableDuringAuthenticateThrowsRedisUnavailableException() {
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> ops = mock(ValueOperations.class);
+        when(redis.opsForValue()).thenReturn(ops);
+
+        JwtService service = new JwtService(
+                new JwtProperties(
+                        "secret-secret-secret-secret-secret-secret-1234",
+                        "service-scheduler",
+                        Duration.ofHours(8),
+                        "jwt",
+                        false),
+                redis,
+                null);
+
+        JwtService.Issued issued =
+                service.issue("00000000-0000-0000-0000-000000000005", "CUSTOMER", "+84900000004", null);
+
+        // Simulate Redis being unavailable during session validation (hasKey throws)
+        when(redis.hasKey("session:" + issued.jti()))
+                .thenThrow(new org.springframework.data.redis.RedisConnectionFailureException("Connection refused"));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                RedisUnavailableException.class, () -> service.authenticate(issued.token()));
+    }
+
+    @Test
     void revokeIgnoresBlankJti() {
         JwtService service = service();
         service.revoke(null);
