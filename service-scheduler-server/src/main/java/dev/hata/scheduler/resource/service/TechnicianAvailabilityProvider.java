@@ -55,7 +55,7 @@ public class TechnicianAvailabilityProvider implements TechnicianAvailabilityPor
                 WHERE a.technician_id = t.user_id
                   AND a.assigned_start_time < ?
                   AND a.assigned_end_time > ?
-                  AND sj.status NOT IN ('CANCELLED', 'DONE')
+                  AND sj.status NOT IN ('CANCELLED', 'REJECTED')
               )
             """;
 

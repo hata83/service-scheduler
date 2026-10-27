@@ -14,7 +14,9 @@ import dev.hata.scheduler.scheduling.dto.SlotAvailabilityResponse;
 import dev.hata.scheduler.scheduling.model.ServiceType;
 import dev.hata.scheduler.scheduling.repository.ServiceTypeRepository;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,8 +100,14 @@ public class SlotAvailabilityService {
 
         String key = SLOT_GRID_KEY_PREFIX + dealershipId + ":" + serviceTypeId + ":" + date;
 
+        // Read the live generation stamp before any cache use. The stamp is a
+        // composite of the dealership-wide and date counters; any eviction
+        // advances one half, so a grid stamped with an older value is stale
+        // and rejected (cache-stampede guard, R14).
+        String generation = eviction.readGeneration(dealershipId, date);
+
         // Step 1: cache read.
-        Optional<List<SlotAvailabilityResponse>> cached = readFromCache(key);
+        Optional<List<SlotAvailabilityResponse>> cached = readFromCache(key, generation);
         if (cached.isPresent()) {
             // Finding #1: purge slots whose start time has already elapsed (the grid
             // was computed before the slot started) so they are not resold.
@@ -136,8 +144,8 @@ public class SlotAvailabilityService {
         // Step 3: compute the grid.
         List<SlotAvailabilityResponse> slots = gridCompute.compute(config, serviceType, date, now);
 
-        // Step 4: write to cache.
-        writeToCache(key, slots, config.slotCacheTtlSeconds());
+        // Step 4: write to cache, stamped with the generation observed above.
+        writeToCache(key, slots, config.slotCacheTtlSeconds(), generation);
 
         return slots;
     }
@@ -217,14 +225,30 @@ public class SlotAvailabilityService {
     // Cache helpers
     // -------------------------------------------------------------------------
 
-    private Optional<List<SlotAvailabilityResponse>> readFromCache(String key) {
+    private Optional<List<SlotAvailabilityResponse>> readFromCache(String key, String expectedGeneration) {
         try {
             String json = redis.opsForValue().get(key);
             if (json == null || json.isBlank()) {
                 return Optional.empty();
             }
-            List<SlotAvailabilityResponse> slots =
-                    objectMapper.readValue(json, new TypeReference<List<SlotAvailabilityResponse>>() {});
+            // The cached value carries its stamped generation. If the live
+            // counter for this dealership+date has advanced past it, another
+            // thread evicted the grid after this one was written — the grid is
+            // stale (computed before the booking/cancellation). Reject it so the
+            // caller recomputes fresh state instead of serving stale slots for
+            // the whole TTL (R14).
+            JsonNode node = objectMapper.readTree(json);
+            if (node.has("generation") && !node.get("generation").asText().equals(expectedGeneration)) {
+                log.debug(
+                        "Stale slot grid at {} (gen {} ≠ {}); recompute",
+                        key,
+                        node.get("generation").asText(),
+                        expectedGeneration);
+                return Optional.empty();
+            }
+            List<SlotAvailabilityResponse> slots = objectMapper
+                    .readerFor(new TypeReference<List<SlotAvailabilityResponse>>() {})
+                    .readValue(objectMapper.treeAsTokens(node.get("slots")));
             return Optional.of(slots);
         } catch (Exception ex) {
             log.warn("Failed to read slot grid from cache key {}: {}", key, ex);
@@ -232,12 +256,25 @@ public class SlotAvailabilityService {
         }
     }
 
-    private void writeToCache(String key, List<SlotAvailabilityResponse> slots, int ttlSeconds) {
+    private void writeToCache(String key, List<SlotAvailabilityResponse> slots, int ttlSeconds, String generation) {
         try {
-            String json = objectMapper.writeValueAsString(slots);
+            // Store the grid together with the generation stamp it was computed
+            // under. The stamp lets readers reject grids written before an
+            // eviction, closing the stale-write window.
+            StampedGrid stamped = new StampedGrid(generation, slots);
+            String json = objectMapper.writeValueAsString(stamped);
             redis.opsForValue().set(key, json, Duration.ofSeconds(ttlSeconds));
         } catch (Exception ex) {
             log.warn("Failed to write slot grid to cache key {}: {}", key, ex);
         }
     }
+
+    /**
+     * A cached grid together with the generation counter value it was computed
+     * under. Readers compare the stamp against the live counter to reject grids
+     * written before an eviction (R14).
+     */
+    private record StampedGrid(
+            @JsonProperty("generation") String generation,
+            @JsonProperty("slots") List<SlotAvailabilityResponse> slots) {}
 }

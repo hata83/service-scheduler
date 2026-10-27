@@ -47,6 +47,28 @@ public class SlotCacheEvictionService {
     }
 
     /**
+     * Reads the live generation stamp for a dealership and date. The stamp is a
+     * composite logical clock: (dealership-wide counter, date counter). Any
+     * eviction advances one of the two halves, so a grid must match both
+     * halves to be considered fresh. Returns {@code 0:0} if neither counter
+     * has been set yet (no eviction observed).
+     *
+     * @param dealershipId the dealership scope
+     * @param date         the calendar date
+     * @return composite stamp string {@code "<dealership>:<date>"}
+     */
+    public String readGeneration(java.util.UUID dealershipId, java.time.LocalDate date) {
+        long deal = readCounter(generationKey(dealershipId, null));
+        long day = readCounter(generationKey(dealershipId, date));
+        return deal + ":" + day;
+    }
+
+    private long readCounter(String counterKey) {
+        String value = redis.opsForValue().get(counterKey);
+        return (value == null || value.isBlank()) ? 0L : Long.parseLong(value);
+    }
+
+    /**
      * Evicts all slot grid keys for a dealership on a specific date.
      *
      * <p>Use after: booking committed, appointment cancelled/rejected/no-show,
@@ -59,6 +81,7 @@ public class SlotCacheEvictionService {
      */
     public void evictByDate(UUID dealershipId, LocalDate date) {
         String pattern = SLOT_GRID_PREFIX + dealershipId + ":*:" + date;
+        bumpGeneration(dealershipId, date);
         deleteByPattern(pattern, "date-level for dealership=" + dealershipId + " date=" + date);
     }
 
@@ -73,6 +96,9 @@ public class SlotCacheEvictionService {
      * @param dealershipId the dealership scope
      */
     public void evictByDealership(UUID dealershipId) {
+        // Dealership-level changes invalidate every date, so bump a single
+        // dealership-wide generation counter that applies to all dated grids.
+        bumpGeneration(dealershipId, null);
         String pattern = SLOT_GRID_PREFIX + dealershipId + ":*";
         deleteByPattern(pattern, "dealership-level for dealership=" + dealershipId);
     }
@@ -88,6 +114,28 @@ public class SlotCacheEvictionService {
             log.info("Evicted {} slot grid key(s) for {}", keys.size(), context);
         } catch (Exception ex) {
             log.warn("Failed to evict slot grid keys for {}: {}", context, ex);
+        }
+    }
+
+    /**
+     * Generation counter key for a dealership+date. A null date means the
+     * dealership-wide counter (covers all dates).
+     */
+    private String generationKey(UUID dealershipId, LocalDate date) {
+        String prefix = "slot:gen:" + dealershipId + ":";
+        return (date == null) ? prefix + "all" : prefix + date;
+    }
+
+    /**
+     * Atomically advances the generation counter. Grids stamped with a value
+     * below the new counter are stale and discarded on read. Best-effort: a
+     * counter bump failure is logged but never blocks eviction.
+     */
+    private void bumpGeneration(UUID dealershipId, LocalDate date) {
+        try {
+            redis.opsForValue().increment(generationKey(dealershipId, date));
+        } catch (Exception ex) {
+            log.warn("Failed to bump generation counter for dealership={} date={}: {}", dealershipId, date, ex);
         }
     }
 }

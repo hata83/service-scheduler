@@ -59,6 +59,21 @@ resource leaks, architecture compliance, and test coverage.
 2. `SlotGridComputeService` — Inner `record` types (`CandidateSlot`, `RoleSlotCandidates`)
    are private to the class. No visibility concern.
 
+3. **Cache stale-write guard (R14)** — A grid computed before a booking can be written
+   to Redis after that booking's eviction has run, serving stale availability for the
+   whole TTL. Fix: `SlotCacheEvictionService` now INCRs a per-dealership/date generation
+   counter (`slot:gen:{dealershipId}:{date}` and `:all`) on every eviction.
+   `SlotAvailabilityService` reads the counter before compute, stamps the grid with the
+   composite `"<dealership>:<date>"` value, and rejects any cached grid whose stamp does
+   not match the live counter (read-time validation closes the race without distributed
+   locks). Bump is best-effort (wrapped in try/catch) so eviction never blocks a commit.
+
+   _Verification:_ New tests `getCachedAvailableSlotsRecomputesWhenCacheStampIsStale`,
+   `readGenerationReturnsCompositeStampFromBothCounters`,
+   `readGenerationReturnsZeroZeroWhenCountersUnset`, `readGenerationTreatsBlankCounterAsZero`,
+   `evictByDateBumpGenerationFailureIsLoggedAndDoesNotBlockEviction` pass.
+   `./gradlew jacocoTestCoverageVerification` confirms 100% on `SlotCacheEvictionService`.
+
 ### Architecture Compliance
 
 - `ArchUnit featurePackagesAreIndependent` passes: `scheduling` does not import

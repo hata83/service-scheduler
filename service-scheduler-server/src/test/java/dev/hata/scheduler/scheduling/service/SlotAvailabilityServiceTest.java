@@ -64,6 +64,9 @@ class SlotAvailabilityServiceTest {
     @BeforeEach
     void setUp() {
         when(redis.opsForValue()).thenReturn(values);
+        // Default generation stamp: 0:0 (no eviction observed). Tests that
+        // exercise the stale-write guard override this to a different value.
+        when(eviction.readGeneration(DEALERSHIP_ID, LocalDate.of(2026, 10, 28))).thenReturn("0:0");
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         service = new SlotAvailabilityService(
@@ -78,10 +81,11 @@ class SlotAvailabilityServiceTest {
     void getCachedAvailableSlotsReturnsSlotsWhenCacheHit() {
         LocalDate date = LocalDate.of(2026, 10, 28);
         String key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + date;
-        String json = "[{\"startTime\":\"2026-10-28T08:00:00+07:00\","
+        String json = "{\"generation\":\"0:0\","
+                + "\"slots\":[{\"startTime\":\"2026-10-28T08:00:00+07:00\","
                 + "\"endTime\":\"2026-10-28T09:00:00+07:00\",\"available\":false},"
                 + "{\"startTime\":\"2026-10-28T09:00:00+07:00\","
-                + "\"endTime\":\"2026-10-28T10:00:00+07:00\",\"available\":true}]";
+                + "\"endTime\":\"2026-10-28T10:00:00+07:00\",\"available\":true}]}";
 
         when(values.get(key)).thenReturn(json);
 
@@ -91,6 +95,35 @@ class SlotAvailabilityServiceTest {
         assertThat(slots.get(0).available()).isFalse();
         assertThat(slots.get(1).available()).isTrue();
         verify(gridCompute, never()).compute(any(), any(), any(), any());
+    }
+
+    @Test
+    void getCachedAvailableSlotsRecomputesWhenCacheStampIsStale() {
+        LocalDate date = LocalDate.of(2026, 10, 28);
+        String key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + date;
+        // Cached grid stamped during a previous generation; the live counter
+        // has since advanced to 1:0 (a booking evicted this grid after compute).
+        String json = "{\"generation\":\"0:0\","
+                + "\"slots\":[{\"startTime\":\"2026-10-28T08:00:00+07:00\","
+                + "\"endTime\":\"2026-10-28T09:00:00+07:00\",\"available\":true}]}";
+        when(values.get(key)).thenReturn(json);
+        when(eviction.readGeneration(DEALERSHIP_ID, date)).thenReturn("1:0");
+
+        DealershipConfig config = buildConfig();
+        ServiceType serviceType = buildServiceType();
+        when(dealershipConfigPort.findConfig(DEALERSHIP_ID)).thenReturn(Optional.of(config));
+        when(serviceTypeRepository.findById(SERVICE_TYPE_ID)).thenReturn(Optional.of(serviceType));
+        SlotAvailabilityResponse computed = new SlotAvailabilityResponse(
+                java.time.OffsetDateTime.parse("2026-10-28T09:00:00+07:00"),
+                java.time.OffsetDateTime.parse("2026-10-28T10:00:00+07:00"),
+                true);
+        when(gridCompute.compute(any(), any(), any(), any())).thenReturn(List.of(computed));
+
+        List<SlotAvailabilityResponse> slots = service.getCachedAvailableSlots(DEALERSHIP_ID, SERVICE_TYPE_ID, date);
+
+        // Stale grid rejected; recompute ran.
+        assertThat(slots).hasSize(1);
+        verify(gridCompute).compute(any(), any(), eq(date), any());
     }
 
     // -------------------------------------------------------------------------
