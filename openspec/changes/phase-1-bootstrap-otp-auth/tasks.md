@@ -2,7 +2,7 @@
 
 ```
 CHANGE   phase-1-bootstrap-otp-auth      BRANCH   feature/phase-1-bootstrap-otp-auth
-STATES   14   done 10  current 1  next 1   skipped 0  failed 0  pending 2
+STATES   14   done 11  current 1  next 1   skipped 0  failed 0  pending 1
 TASKS    39   done 39  open 0
 
   #   state                     mark     proof
@@ -11,14 +11,14 @@ TASKS    39   done 39  open 0
   3   Plan                      done     resolve all PR #1 review comments (hata83 + Qodo + OCR)
   4   Code                      done     IdempotencyFilter SHA-256/lock, @RateLimited AOP, enums, UserProfile
   5   Format                    done     spotlessApply clean (Palantir Java Format 2.71)
-  6   Test                      done     106 JUnit tests, 49 Bruno requests, 20 Playwright E2E passed
+  6   Test                      done     106 JUnit tests, 50 Bruno requests, 20 Playwright E2E passed
   7   Review                    done     all PR review comments + ocr delegate resolved in review.md
   8   Verify                    done     ./gradlew clean build SUCCESS (100% @Service coverage)
   9   Request approval          done     HIL-2 approval granted by user
   10  Publish                   done     git push origin feature/phase-1-bootstrap-otp-auth (PR #1)
-  11  Verify PR                 current  GitHub Actions CI checks & Qodo/Kilo Code PR review
-  12  Archive                   next     openspec archive
-  13  Review archive            pending  PR archive review
+  11  Verify PR                 done     all GitHub Actions CI checks & review comments passed
+  12  Archive                   current  openspec archive
+  13  Review archive            next     PR archive review
   14  Merge                     pending  HIL-3 human gate
 ```
 
