@@ -46,7 +46,7 @@ public class WorkshopFixtureOrchestrator implements ApplicationRunner {
         try {
             slotPopulator.populate(today);
         } catch (Exception ex) {
-            log.warn("Failed to populate demo slot availability grids in Redis: {}", ex.getMessage());
+            log.warn("Failed to populate demo slot availability grids in Redis: {}", ex.getMessage(), ex);
         }
     }
 }

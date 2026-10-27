@@ -144,10 +144,17 @@ export const handlers = [
     }
     const url = new URL(request.url);
     const serviceTypeIds = url.searchParams.getAll('serviceTypeIds');
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const categoryId = url.searchParams.get('categoryId');
 
-    if (!categoryId || serviceTypeIds.length === 0) {
+    if (!categoryId || !UUID_REGEX.test(categoryId) || serviceTypeIds.length === 0) {
       return HttpResponse.json({ type: 'about:blank', title: 'Bad Request', status: 400 }, { status: 400 });
+    }
+
+    for (const stId of serviceTypeIds) {
+      if (!stId || !UUID_REGEX.test(stId)) {
+        return HttpResponse.json({ type: 'about:blank', title: 'Bad Request', status: 400 }, { status: 400 });
+      }
     }
 
     const items = serviceTypeIds.map((stId) => ({

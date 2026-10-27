@@ -151,7 +151,9 @@ Applied rules based on `ocr delegate rule --format json service-scheduler-server
   - *Fix*: Introduced `WorkshopFixtureOrchestrator` to capture a single `LocalDate.now(TIMEZONE)` date and pass it to both `AppointmentFixturePopulator` and `WorkshopSlotFixturePopulator`.
 - **Finding 11 — Transactional Fixture Upserts**: Three fixture upserts committed independently, risking partial schedule state if an exclusion constraint failed.
   - *Fix*: Wrapped all three upserts inside a single transaction via `TransactionTemplate.executeWithoutResult()` in `AppointmentFixturePopulator.populate()`.
-- *Status*: All 11 findings RESOLVED and covered by unit and E2E tests.
+- **Finding 12 — Fixture Orchestrator Exception Logging**: `WorkshopFixtureOrchestrator` caught slot population exceptions and logged only `ex.getMessage()`, omitting the exception cause and stack trace.
+  - *Fix*: Passed `ex` as the trailing argument to `log.warn()` in `WorkshopFixtureOrchestrator.java` to record the full trace.
+- *Status*: All 12 findings RESOLVED and covered by unit and E2E tests.
 
 ---
 
