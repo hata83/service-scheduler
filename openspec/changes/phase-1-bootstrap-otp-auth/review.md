@@ -61,7 +61,14 @@
 - **[Qodo #13 — Medium] `sendOtp` rate-limit key spacing:** `OtpType.fromWire` trims before key build (`AuthController` line 71 uses `#body.type()` parsed canonical form).
 - **[Qodo #14 — High] Large write bodies:** `MAX_BODY_BYTES = 65536`; `CachedBodyRequest` clones defensively within bound; `request.getInputStream().readNBytes(MAX_BODY_BYTES + 1)` rejects oversized. Proof: `IdempotencyFilter.java:70-78`.
 
-### State 11 — PR Verify (latest cycle, commit d8d7f79)
+### State 11 — PR Verify (latest cycle, commit f234ffc)
+
+- **Distributed session revocation (High):** `JwtService` now uses `StringRedisTemplate` for session storage. `issue()` stores `session:{jti}` in Redis with TTL. `revoke()` deletes from Redis (distributed, survives restarts). `authenticate()` checks Redis for session existence. Falls back to in-memory map when Redis is unavailable (unit tests).
+- **Account state validation (Medium):** `authenticate()` now checks `user:active:{userId}` in Redis. `deactivateUser(userId)` sets the flag. Deactivated users are rejected on next request even before 8h TTL expires.
+- **O(n) cleanup (Medium):** Redis TTL handles expiration automatically. No more O(n) cleanup on every revoke.
+- **OTP echo safety (Medium):** `OtpProperties` now throws `IllegalStateException` if `echo=true` with a non-stub channel. Prod config verified `echo: false`.
+- `ocr delegate preview` (3 files, 0 critical/high) + `verifyCodeReviewDelegate` PASS.
+- `./gradlew clean build` PASS (JaCoCo: JwtService 0.80, AuthService 0.99, 80% overall, 100% @Service).
 
 - **CI cleaned up:** Removed the entire `review` job (Alibaba OCR) from `.github/workflows/ci.yml`. OCR cannot run without an LLM model on GitHub runners. Workflow renamed to "CI/CD". Fixed missing `uses:` on Create GitHub Release step.
 - **Logout revoke (#6):** `AuthController.logout` now calls `jwt.revoke(principal.jti())` so logged-out sessions are invalidated server-side.
