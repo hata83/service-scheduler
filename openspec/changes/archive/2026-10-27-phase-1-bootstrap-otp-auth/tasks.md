@@ -2,7 +2,7 @@
 
 ```
 CHANGE   phase-1-bootstrap-otp-auth      BRANCH   feature/phase-1-bootstrap-otp-auth
-STATES   14   done 11  current 1  next 1   skipped 0  failed 0  pending 1
+STATES   14   done 12  current 1  next 1   skipped 0  failed 0  pending 0
 TASKS    39   done 39  open 0
 
   #   state                     mark     proof
@@ -17,9 +17,9 @@ TASKS    39   done 39  open 0
   9   Request approval          done     HIL-2 approval granted by user
   10  Publish                   done     git push origin feature/phase-1-bootstrap-otp-auth (PR #1)
   11  Verify PR                 done     all GitHub Actions CI checks & review comments passed
-  12  Archive                   current  openspec archive
-  13  Review archive            next     PR archive review
-  14  Merge                     pending  HIL-3 human gate
+  12  Archive                   done     archived as 2026-10-27-phase-1-bootstrap-otp-auth
+  13  Review archive            current  push archived spec to PR & verify CI
+  14  Merge                     next     HIL-3 human gate
 ```
 
 ## 1. Branch setup (State 2)
