@@ -6,11 +6,11 @@
   "status": "pass",
   "visualReview": "not-requested",
   "provenance": "current",
-  "deliveryReceiptId": "b83d0bf6-b3c6-4097-9ebe-f5b99ac0616c",
+  "deliveryReceiptId": "642214e0-5743-487e-9615-6931deaf01b7",
   "artifact": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\metadata-management.html",
-    "sha256": "2dc09a7ae4975132c7d992804c59faf4367b0fcf05cb6de414e89dcb925c8e91",
-    "bytes": 823473
+    "sha256": "ef72f1ba95ab823fbbf62f49ab8220b2f72ba42496382f1354cbd7c8c5973c3a",
+    "bytes": 823460
   },
   "state": {
     "detail": "read",

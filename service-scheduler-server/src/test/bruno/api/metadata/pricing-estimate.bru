@@ -1,0 +1,22 @@
+meta {
+  name: pricing-estimate
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/dealerships/00000000-0000-0000-0000-000000000001/pricing/estimate?categoryId=11111111-0000-0000-0000-000000000001&serviceTypeIds=22222222-0000-0000-0000-000000000001,22222222-0000-0000-0000-000000000002
+  body: none
+  auth: none
+}
+
+tests {
+  test("pricing estimate responds 200 with itemized and total costs", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().dealershipId).to.equal("00000000-0000-0000-0000-000000000001");
+    expect(res.getBody().vehicleCategoryId).to.equal("11111111-0000-0000-0000-000000000001");
+    expect(res.getBody().items).to.be.an('array');
+    expect(res.getBody().items.length).to.equal(2);
+    expect(res.getBody().totalCost).to.be.a('number');
+  });
+}

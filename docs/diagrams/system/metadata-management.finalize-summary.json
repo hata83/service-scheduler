@@ -7,13 +7,13 @@
   "quality": "showcase",
   "specification": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\metadata-management.sequence.json",
-    "sha256": "93152790552106349b869c2a4948d9d654a761a45015e2c55aeeca92f4585125",
-    "bytes": 4802
+    "sha256": "5b6cdb6fa1fe9db6b1c20309bd67f64b479eb9513b337ce2e2eae6c4ee0d44f8",
+    "bytes": 4798
   },
   "artifact": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\metadata-management.html",
-    "sha256": "2dc09a7ae4975132c7d992804c59faf4367b0fcf05cb6de414e89dcb925c8e91",
-    "bytes": 823473
+    "sha256": "ef72f1ba95ab823fbbf62f49ab8220b2f72ba42496382f1354cbd7c8c5973c3a",
+    "bytes": 823460
   },
   "gates": {
     "validate": "pass",
@@ -37,13 +37,13 @@
     "installedVersion": "3.2.0",
     "availableVersion": "3.2.0",
     "releaseNotes": null,
-    "checkedAt": "2026-10-25T09:29:22.168Z",
+    "checkedAt": "2026-10-27T08:39:03.150Z",
     "source": "cache",
     "noticeRequired": false,
     "noticeText": null
   },
   "visualReview": "not-requested",
-  "durationMs": 3679,
+  "durationMs": 3585,
   "browserCheck": {
     "requested": true,
     "ran": true

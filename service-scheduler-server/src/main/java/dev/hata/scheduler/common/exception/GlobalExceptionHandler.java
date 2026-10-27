@@ -3,6 +3,7 @@ package dev.hata.scheduler.common.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,7 @@ import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Converts every failure into an RFC 7807 problem+json body (ADR-006).
@@ -30,6 +32,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
     public ResponseEntity<ApiProblem> handleInvalid(Exception ex, HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, "Invalid request body", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(TypeMismatchException.class)
+    public ResponseEntity<ApiProblem> handleTypeMismatch(TypeMismatchException ex, HttpServletRequest request) {
+        String paramName;
+        if (ex instanceof MethodArgumentTypeMismatchException mismatch) {
+            paramName = mismatch.getName();
+        } else if (ex.getPropertyName() != null) {
+            paramName = ex.getPropertyName();
+        } else {
+            paramName = "unknown";
+        }
+        String detail = "Invalid request parameter '" + paramName + "': "
+                + (ex.getValue() != null ? ex.getValue().toString() : "invalid value");
+        return build(HttpStatus.BAD_REQUEST, "Invalid request parameter", detail, request);
     }
 
     @ExceptionHandler(Exception.class)

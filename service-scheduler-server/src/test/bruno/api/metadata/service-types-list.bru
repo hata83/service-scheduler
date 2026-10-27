@@ -1,0 +1,24 @@
+meta {
+  name: service-types-list
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/dealerships/00000000-0000-0000-0000-000000000001/service-types
+  body: none
+  auth: none
+}
+
+tests {
+  test("service types responds 200 with catalog items", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.be.an('array');
+    expect(res.getBody().length).to.be.at.least(1);
+    const first = res.getBody()[0];
+    expect(first.dealershipId).to.equal("00000000-0000-0000-0000-000000000001");
+    expect(first.code).to.be.a('string');
+    expect(first.name).to.be.a('string');
+    expect(first.estimatedMinutes).to.be.a('number');
+  });
+}

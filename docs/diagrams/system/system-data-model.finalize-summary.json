@@ -7,13 +7,13 @@
   "quality": "showcase",
   "specification": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\system-data-model.erd.json",
-    "sha256": "82dc01067eb7e5e48dbd782fa482360a8bdbb08d298ce7b8aff9536c3e7d0251",
-    "bytes": 16242
+    "sha256": "0efb875b0ac34e68157fe12e0d3c773fe24316eff6ef46e2da10a957eb90571c",
+    "bytes": 16284
   },
   "artifact": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\system-data-model.html",
-    "sha256": "25953739df56cda1deb38c45ef10d57e77a3c8ea29bcd434f33a5c9d9cc20163",
-    "bytes": 885715
+    "sha256": "e10efd98d78d4c5cc9e66c028aef56e9d010a00c6c6114544ccef98237ea9550",
+    "bytes": 885376
   },
   "gates": {
     "validate": "pass",
@@ -37,13 +37,13 @@
     "installedVersion": "3.2.0",
     "availableVersion": "3.2.0",
     "releaseNotes": null,
-    "checkedAt": "2026-10-26T12:00:03.507Z",
+    "checkedAt": "2026-10-27T08:39:03.150Z",
     "source": "cache",
     "noticeRequired": false,
     "noticeText": null
   },
   "visualReview": "not-requested",
-  "durationMs": 5508,
+  "durationMs": 5106,
   "browserCheck": {
     "requested": true,
     "ran": true
@@ -74,7 +74,7 @@
           "relationship": {
             "id": "appointment_vehicle",
             "from": "appointments",
-            "to": "vehicles",
+            "to": "vehicle_categories",
             "label": "for vehicle",
             "collectionIndex": 13,
             "artifactIndex": 14

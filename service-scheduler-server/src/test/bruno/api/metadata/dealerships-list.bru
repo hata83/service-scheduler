@@ -1,0 +1,23 @@
+meta {
+  name: dealerships-list
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/dealerships
+  body: none
+  auth: none
+}
+
+tests {
+  test("dealerships responds 200 with active list", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.be.an('array');
+    expect(res.getBody().length).to.be.at.least(1);
+    const first = res.getBody()[0];
+    expect(first.id).to.equal("00000000-0000-0000-0000-000000000001");
+    expect(first.name).to.equal("Hata Demo Service Center");
+    expect(first.slotIntervalMinutes).to.equal(30);
+  });
+}

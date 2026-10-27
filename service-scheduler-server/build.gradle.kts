@@ -67,6 +67,10 @@ dependencies {
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 
+    // Jackson 2 — required for offset-preserving date-time deserialization
+    // (Jackson 3 normalizes +07:00 to Z; Spring Boot 4 uses Jackson 2 when declared)
+    implementation("com.fasterxml.jackson.core:jackson-databind")
+
     // OpenAPI 3.1 & Swagger UI (SpringDoc 3.x for Spring Boot 4)
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
 

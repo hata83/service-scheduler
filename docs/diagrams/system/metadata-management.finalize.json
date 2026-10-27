@@ -5,16 +5,16 @@
   "status": "pass",
   "type": "sequence",
   "quality": "showcase",
-  "startedAt": "2026-10-25T14:02:09.387Z",
+  "startedAt": "2026-10-27T08:40:04.058Z",
   "specification": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\metadata-management.sequence.json",
-    "sha256": "93152790552106349b869c2a4948d9d654a761a45015e2c55aeeca92f4585125",
-    "bytes": 4802
+    "sha256": "5b6cdb6fa1fe9db6b1c20309bd67f64b479eb9513b337ce2e2eae6c4ee0d44f8",
+    "bytes": 4798
   },
   "artifact": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\metadata-management.html",
-    "sha256": "2dc09a7ae4975132c7d992804c59faf4367b0fcf05cb6de414e89dcb925c8e91",
-    "bytes": 823473
+    "sha256": "ef72f1ba95ab823fbbf62f49ab8220b2f72ba42496382f1354cbd7c8c5973c3a",
+    "bytes": 823460
   },
   "stages": {
     "validate": {
@@ -38,8 +38,8 @@
         "ok": true,
         "command": "validate",
         "specification": {
-          "sha256": "93152790552106349b869c2a4948d9d654a761a45015e2c55aeeca92f4585125",
-          "bytes": 4802
+          "sha256": "5b6cdb6fa1fe9db6b1c20309bd67f64b479eb9513b337ce2e2eae6c4ee0d44f8",
+          "bytes": 4798
         },
         "validation": {
           "checksPassed": 9,
@@ -54,7 +54,7 @@
     "deliver": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 852,
+      "durationMs": 884,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
@@ -68,19 +68,19 @@
       ],
       "receipt": {
         "schemaVersion": 1,
-        "receiptId": "b83d0bf6-b3c6-4097-9ebe-f5b99ac0616c",
+        "receiptId": "642214e0-5743-487e-9615-6931deaf01b7",
         "ok": true,
         "command": "deliver",
         "type": "sequence",
         "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\metadata-management.sequence.json",
         "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\metadata-management.html",
         "specification": {
-          "sha256": "93152790552106349b869c2a4948d9d654a761a45015e2c55aeeca92f4585125",
-          "bytes": 4802
+          "sha256": "5b6cdb6fa1fe9db6b1c20309bd67f64b479eb9513b337ce2e2eae6c4ee0d44f8",
+          "bytes": 4798
         },
         "artifact": {
-          "sha256": "2dc09a7ae4975132c7d992804c59faf4367b0fcf05cb6de414e89dcb925c8e91",
-          "bytes": 823473
+          "sha256": "ef72f1ba95ab823fbbf62f49ab8220b2f72ba42496382f1354cbd7c8c5973c3a",
+          "bytes": 823460
         },
         "validation": {
           "checksPassed": 9,
@@ -106,7 +106,7 @@
     "check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 173,
+      "durationMs": 217,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
@@ -118,8 +118,8 @@
         "ok": true,
         "file": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\metadata-management.html",
         "artifact": {
-          "sha256": "2dc09a7ae4975132c7d992804c59faf4367b0fcf05cb6de414e89dcb925c8e91",
-          "bytes": 823473
+          "sha256": "ef72f1ba95ab823fbbf62f49ab8220b2f72ba42496382f1354cbd7c8c5973c3a",
+          "bytes": 823460
         },
         "checks": [
           {
@@ -248,13 +248,13 @@
           "issues": []
         },
         "provenance": "current",
-        "deliveryReceiptId": "b83d0bf6-b3c6-4097-9ebe-f5b99ac0616c"
+        "deliveryReceiptId": "642214e0-5743-487e-9615-6931deaf01b7"
       }
     },
     "browser-check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 1963,
+      "durationMs": 1644,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
@@ -272,11 +272,11 @@
         "status": "pass",
         "visualReview": "not-requested",
         "provenance": "current",
-        "deliveryReceiptId": "b83d0bf6-b3c6-4097-9ebe-f5b99ac0616c",
+        "deliveryReceiptId": "642214e0-5743-487e-9615-6931deaf01b7",
         "artifact": {
           "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\metadata-management.html",
-          "sha256": "2dc09a7ae4975132c7d992804c59faf4367b0fcf05cb6de414e89dcb925c8e91",
-          "bytes": 823473
+          "sha256": "ef72f1ba95ab823fbbf62f49ab8220b2f72ba42496382f1354cbd7c8c5973c3a",
+          "bytes": 823460
         },
         "state": {
           "detail": "read",
@@ -974,14 +974,14 @@
     "browserCheckReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\metadata-management.browser-check.json"
   },
   "visualReview": "not-requested",
-  "finishedAt": "2026-10-25T14:02:13.067Z",
-  "durationMs": 3679,
+  "finishedAt": "2026-10-27T08:40:07.644Z",
+  "durationMs": 3585,
   "update": {
     "status": "current",
     "installedVersion": "3.2.0",
     "availableVersion": "3.2.0",
     "releaseNotes": null,
-    "checkedAt": "2026-10-25T09:29:22.168Z",
+    "checkedAt": "2026-10-27T08:39:03.150Z",
     "source": "cache",
     "noticeRequired": false,
     "noticeText": null
