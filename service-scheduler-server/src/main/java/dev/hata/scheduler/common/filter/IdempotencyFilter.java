@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.UUID;
 
+import dev.hata.scheduler.common.exception.ApiProblem;
 import dev.hata.scheduler.common.idempotency.IdempotencyStore;
 import dev.hata.scheduler.common.security.AuthPrincipal;
 
@@ -27,10 +28,11 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingResponseWrapper;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Enforces {@code X-Idempotency-Key} on write endpoints after {@link AuthFilter},
- * bounds request body size, binds the idempotency slot to the caller principal
+ * bounds request body size, binds the idempotency slot to the caller principal or client IP
  * and SHA-256 request payload hash, claims an owner-scoped atomic lock, and
  * caches/replays 2xx JSON bodies in {@link IdempotencyStore} (ADR-008 / design D8).
  */
@@ -42,11 +44,14 @@ public class IdempotencyFilter extends OncePerRequestFilter {
     public static final String MDC_KEY = "idempotencyKey";
     public static final int MAX_KEY_LENGTH = 128;
     public static final int MAX_BODY_BYTES = 64 * 1024;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final IdempotencyStore store;
+    private final ClientIpResolver ipResolver;
 
-    public IdempotencyFilter(IdempotencyStore store) {
+    public IdempotencyFilter(IdempotencyStore store, ClientIpResolver ipResolver) {
         this.store = store;
+        this.ipResolver = ipResolver;
     }
 
     @Override
@@ -109,8 +114,12 @@ public class IdempotencyFilter extends OncePerRequestFilter {
                 int status = wrappedResponse.getStatus();
                 if (status >= 200 && status < 300) {
                     String respBody = new String(wrappedResponse.getContentAsByteArray(), StandardCharsets.UTF_8);
+                    String contentType = wrappedResponse.getContentType();
+                    if (contentType == null || contentType.isBlank()) {
+                        contentType = "application/json;charset=UTF-8";
+                    }
                     try {
-                        store.store(slot, new IdempotencyStore.CachedResponse(status, respBody));
+                        store.store(slot, new IdempotencyStore.CachedResponse(status, respBody, contentType));
                     } catch (RuntimeException ignored) {
                         // Cache store failure does not fail an already-completed request
                     }
@@ -124,37 +133,37 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         }
     }
 
-    private static String resolveCallerScope(HttpServletRequest request) {
+    private String resolveCallerScope(HttpServletRequest request) {
         String uri = request.getRequestURI();
-        // Bootstrap auth endpoints are unauthenticated: keep the caller scope
-        // as "anon" so a session cookie set by the first successful request does
-        // not change the idempotency slot on replay (Playwright/E2E clients
-        // auto-send cookies; Bruno runs with --disable-cookies).
+        // Bootstrap auth endpoints are unauthenticated or pre-session:
+        // scope to client IP to prevent cross-client collision or anonymous brute force.
         if (uri.startsWith("/api/v1/auth/register") || uri.startsWith("/api/v1/auth/otp/")) {
-            return "anon";
+            return "ip:" + ipResolver.resolve(request);
         }
         Object attr = request.getAttribute(AuthFilter.PRINCIPAL_ATTRIBUTE);
         if (attr instanceof AuthPrincipal principal && principal.userId() != null) {
             return principal.userId().toString();
         }
-        return "anon";
+        return "ip:" + ipResolver.resolve(request);
     }
 
     private static void replayResponse(HttpServletResponse response, IdempotencyStore.CachedResponse cached)
             throws IOException {
         response.setStatus(cached.status());
-        response.setContentType("application/json");
+        String contentType = cached.contentType();
+        if (contentType == null || contentType.isBlank()) {
+            contentType = "application/json;charset=UTF-8";
+        }
+        response.setContentType(contentType);
         response.getWriter().write(cached.body());
     }
 
     private static void writeProblem(
             HttpServletResponse response, int status, String title, String detail, String instance) throws IOException {
         response.setStatus(status);
-        response.setContentType("application/problem+json");
-        response.getWriter()
-                .write("{\"type\":\"/errors/" + status + "\",\"title\":\"" + title + "\","
-                        + "\"status\":" + status + ",\"detail\":\"" + detail + "\","
-                        + "\"instance\":\"" + instance + "\"}");
+        response.setContentType("application/problem+json;charset=UTF-8");
+        ApiProblem problem = ApiProblem.of(status, title, detail, instance);
+        MAPPER.writeValue(response.getWriter(), problem);
     }
 
     private static String sha256Hex(byte[] input) {

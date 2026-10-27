@@ -14,7 +14,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
  * OtpStorage contract against a real Redis 7 instance:
- * type-scoped keys, SecureRandom six-digit codes, configurable TTL,
+ * tenant-scoped keys, SecureRandom six-digit codes, configurable TTL,
  * atomic single-use consumption, and constant-time comparison (design D7).
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
@@ -32,19 +32,21 @@ class RedisOtpStorageTest {
     @org.junit.jupiter.api.BeforeEach
     void clean() {
         redisTemplate.delete(java.util.List.of(
-                "otp:login:" + PHONE,
-                "otp:register:" + PHONE,
-                "otp:attempts:login:" + PHONE,
-                "otp:attempts:register:" + PHONE));
+                "otp:global:login:" + PHONE,
+                "otp:global:register:" + PHONE,
+                "otp:attempts:global:login:" + PHONE,
+                "otp:attempts:global:register:" + PHONE,
+                "otp:dealer-1:login:" + PHONE,
+                "otp:attempts:dealer-1:login:" + PHONE));
     }
 
     @Test
     void storesLoginPurposeUnderItsOwnKey() {
         otpStorage.save(PHONE, OtpType.LOGIN, "123456", TTL);
 
-        assertThat(redisTemplate.hasKey("otp:login:" + PHONE)).isTrue();
-        assertThat(redisTemplate.opsForValue().get("otp:login:" + PHONE)).isEqualTo("123456");
-        Long remaining = redisTemplate.getExpire("otp:login:" + PHONE);
+        assertThat(redisTemplate.hasKey("otp:global:login:" + PHONE)).isTrue();
+        assertThat(redisTemplate.opsForValue().get("otp:global:login:" + PHONE)).isEqualTo("123456");
+        Long remaining = redisTemplate.getExpire("otp:global:login:" + PHONE);
         assertThat(remaining).isBetween(1L, 302L);
     }
 
@@ -53,8 +55,19 @@ class RedisOtpStorageTest {
         otpStorage.save(PHONE, OtpType.LOGIN, "111111", TTL);
         otpStorage.save(PHONE, OtpType.REGISTER, "222222", TTL);
 
-        assertThat(redisTemplate.opsForValue().get("otp:login:" + PHONE)).isEqualTo("111111");
-        assertThat(redisTemplate.opsForValue().get("otp:register:" + PHONE)).isEqualTo("222222");
+        assertThat(redisTemplate.opsForValue().get("otp:global:login:" + PHONE)).isEqualTo("111111");
+        assertThat(redisTemplate.opsForValue().get("otp:global:register:" + PHONE))
+                .isEqualTo("222222");
+    }
+
+    @Test
+    void tenantScopedSlotsStayIsolated() {
+        otpStorage.save("dealer-1", PHONE, OtpType.LOGIN, "999888", TTL);
+
+        assertThat(redisTemplate.opsForValue().get("otp:dealer-1:login:" + PHONE))
+                .isEqualTo("999888");
+        assertThat(otpStorage.get("dealer-1", PHONE, OtpType.LOGIN)).contains("999888");
+        assertThat(otpStorage.get("global", PHONE, OtpType.LOGIN)).isEmpty();
     }
 
     @Test
@@ -76,7 +89,7 @@ class RedisOtpStorageTest {
 
         assertThat(otpStorage.consume(PHONE, OtpType.REGISTER, "555555")).isTrue();
         assertThat(otpStorage.consume(PHONE, OtpType.REGISTER, "555555")).isFalse();
-        assertThat(redisTemplate.hasKey("otp:register:" + PHONE)).isFalse();
+        assertThat(redisTemplate.hasKey("otp:global:register:" + PHONE)).isFalse();
     }
 
     @Test
@@ -99,6 +112,10 @@ class RedisOtpStorageTest {
             assertThat(otpStorage.consume(PHONE, OtpType.LOGIN, "000000")).isFalse();
         }
         assertThat(otpStorage.get(PHONE, OtpType.LOGIN)).isEmpty();
-        assertThat(otpStorage.consume(PHONE, OtpType.LOGIN, "888888")).isFalse();
+    }
+
+    @Test
+    void consumeNullCodeReturnsFalse() {
+        assertThat(otpStorage.consume(PHONE, OtpType.LOGIN, null)).isFalse();
     }
 }

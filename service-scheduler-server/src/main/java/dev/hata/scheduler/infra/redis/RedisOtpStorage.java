@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Redis adapter for OTP storage (design D7):
- * {@code otp:{type}:{phone}} with a configurable TTL, one live code per slot,
+ * {@code otp:{tenant}:{type}:{phone}} with a configurable TTL, one live code per slot,
  * single-use consumption that deletes on a match, and brute-force protection
  * that invalidates the code after {@link #MAX_FAILED_ATTEMPTS} failed guesses.
  */
@@ -45,34 +45,41 @@ public class RedisOtpStorage implements OtpStorage {
     }
 
     @Override
-    public void save(String phone, OtpType type, String code, Duration ttl) {
-        redis.delete(attemptsKey(type, phone));
-        redis.opsForValue().set(key(type, phone), code, ttl);
+    public void save(String tenant, String phone, OtpType type, String code, Duration ttl) {
+        String t = sanitizeTenant(tenant);
+        redis.delete(attemptsKey(t, type, phone));
+        redis.opsForValue().set(key(t, type, phone), code, ttl);
     }
 
     @Override
-    public boolean consume(String phone, OtpType type, String code) {
+    public boolean consume(String tenant, String phone, OtpType type, String code) {
         if (code == null) {
             return false;
         }
+        String t = sanitizeTenant(tenant);
         Boolean matched = redis.execute(
                 CONSUME_SCRIPT,
-                List.of(key(type, phone), attemptsKey(type, phone)),
+                List.of(key(t, type, phone), attemptsKey(t, type, phone)),
                 code,
                 String.valueOf(MAX_FAILED_ATTEMPTS));
         return Boolean.TRUE.equals(matched);
     }
 
     @Override
-    public Optional<String> get(String phone, OtpType type) {
-        return Optional.ofNullable(redis.opsForValue().get(key(type, phone)));
+    public Optional<String> get(String tenant, String phone, OtpType type) {
+        String t = sanitizeTenant(tenant);
+        return Optional.ofNullable(redis.opsForValue().get(key(t, type, phone)));
     }
 
-    private static String key(OtpType type, String phone) {
-        return "otp:" + type.value() + ":" + phone;
+    private static String sanitizeTenant(String tenant) {
+        return (tenant == null || tenant.isBlank()) ? DEFAULT_TENANT : tenant.trim();
     }
 
-    private static String attemptsKey(OtpType type, String phone) {
-        return "otp:attempts:" + type.value() + ":" + phone;
+    private static String key(String tenant, OtpType type, String phone) {
+        return "otp:" + tenant + ":" + type.value() + ":" + phone;
+    }
+
+    private static String attemptsKey(String tenant, OtpType type, String phone) {
+        return "otp:attempts:" + tenant + ":" + type.value() + ":" + phone;
     }
 }

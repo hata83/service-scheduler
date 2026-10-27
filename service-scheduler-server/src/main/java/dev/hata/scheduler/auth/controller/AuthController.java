@@ -108,6 +108,10 @@ public class AuthController {
     })
     @RateLimited({
         @RateLimited.Rule(
+                policy = "otp-verify-phone",
+                keyExpression = "#body != null && #body.phone() != null ? #body.phone() : null",
+                message = "Too many verification attempts for this phone. Wait before trying again."),
+        @RateLimited.Rule(
                 policy = "otp-verify-ip",
                 message = "Too many verification attempts from this IP. Wait before trying again.")
     })

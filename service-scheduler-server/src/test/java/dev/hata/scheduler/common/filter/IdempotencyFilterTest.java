@@ -52,7 +52,10 @@ class IdempotencyFilterTest {
                 .thenAnswer(inv ->
                         "idempotency:" + inv.getArgument(0) + ":" + inv.getArgument(1) + ":" + inv.getArgument(2));
         when(store.tryClaim(anyString(), anyString())).thenReturn(true);
-        filter = new IdempotencyFilter(store);
+        filter = new IdempotencyFilter(
+                store,
+                new ClientIpResolver(
+                        new dev.hata.scheduler.common.ratelimit.RateLimitProperties(false, java.util.Map.of())));
     }
 
     @Test
@@ -124,11 +127,14 @@ class IdempotencyFilterTest {
         request.addHeader("X-Idempotency-Key", "key-replay");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        when(store.load(anyString())).thenReturn(new IdempotencyStore.CachedResponse(201, "{\"role\":\"CUSTOMER\"}"));
+        when(store.load(anyString()))
+                .thenReturn(new IdempotencyStore.CachedResponse(
+                        201, "{\"role\":\"CUSTOMER\"}", "application/json;charset=UTF-8"));
 
         filter.doFilter(request, response, chain);
 
         assertThat(response.getStatus()).isEqualTo(201);
+        assertThat(response.getContentType()).contains("application/json");
         assertThat(response.getContentAsString()).isEqualTo("{\"role\":\"CUSTOMER\"}");
         assertThat(response.getHeader("Set-Cookie")).isNull();
         verify(chain, never()).doFilter(any(), any());

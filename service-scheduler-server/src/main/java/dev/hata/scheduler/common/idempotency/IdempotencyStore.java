@@ -39,7 +39,11 @@ public interface IdempotencyStore {
     void store(String slot, CachedResponse response);
 
     /**
-     * The response snapshot a replay returns (status and JSON body only).
+     * The response snapshot a replay returns (status, content type, and body).
      */
-    record CachedResponse(int status, String body) {}
+    record CachedResponse(int status, String body, String contentType) {
+        public CachedResponse(int status, String body) {
+            this(status, body, "application/json;charset=UTF-8");
+        }
+    }
 }
