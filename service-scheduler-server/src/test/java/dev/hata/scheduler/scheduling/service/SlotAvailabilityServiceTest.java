@@ -80,13 +80,15 @@ class SlotAvailabilityServiceTest {
     @Test
     void getCachedAvailableSlotsReturnsSlotsWhenCacheHit() {
         LocalDate date = LocalDate.of(2026, 10, 28);
-        String key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + date;
+        String key = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":" + SERVICE_TYPE_ID;
         String json = "{\"generation\":\"0:0\","
                 + "\"slots\":[{\"startTime\":\"2026-10-28T08:00:00+07:00\","
                 + "\"endTime\":\"2026-10-28T09:00:00+07:00\",\"available\":false},"
                 + "{\"startTime\":\"2026-10-28T09:00:00+07:00\","
                 + "\"endTime\":\"2026-10-28T10:00:00+07:00\",\"available\":true}]}";
 
+        DealershipConfig config = buildConfig();
+        when(dealershipConfigPort.findConfig(DEALERSHIP_ID)).thenReturn(Optional.of(config));
         when(values.get(key)).thenReturn(json);
 
         List<SlotAvailabilityResponse> slots = service.getCachedAvailableSlots(DEALERSHIP_ID, SERVICE_TYPE_ID, date);
@@ -100,7 +102,7 @@ class SlotAvailabilityServiceTest {
     @Test
     void getCachedAvailableSlotsRecomputesWhenCacheStampIsStale() {
         LocalDate date = LocalDate.of(2026, 10, 28);
-        String key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + date;
+        String key = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":" + SERVICE_TYPE_ID;
         // Cached grid stamped during a previous generation; the live counter
         // has since advanced to 1:0 (a booking evicted this grid after compute).
         String json = "{\"generation\":\"0:0\","
@@ -126,14 +128,39 @@ class SlotAvailabilityServiceTest {
         verify(gridCompute).compute(any(), any(), eq(date), any());
     }
 
-    // -------------------------------------------------------------------------
-    // getCachedAvailableSlots — cache miss triggers compute and write
+    @Test
+    void getCachedAvailableSlotsRecoversWhenGenerationReadFails() {
+        LocalDate date = LocalDate.of(2026, 10, 28);
+        String key = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":" + SERVICE_TYPE_ID;
+
+        // Redis read of the generation counter throws: the service must treat
+        // the cache as unreadable (miss) and still return a live grid — and must
+        // NOT write a grid back whose freshness cannot be verified.
+        when(eviction.readGeneration(DEALERSHIP_ID, date)).thenThrow(new RuntimeException("Redis down"));
+        when(values.get(key)).thenReturn(null);
+
+        DealershipConfig config = buildConfig();
+        ServiceType serviceType = buildServiceType();
+        when(dealershipConfigPort.findConfig(DEALERSHIP_ID)).thenReturn(Optional.of(config));
+        when(serviceTypeRepository.findById(SERVICE_TYPE_ID)).thenReturn(Optional.of(serviceType));
+        SlotAvailabilityResponse computed = new SlotAvailabilityResponse(
+                java.time.OffsetDateTime.parse("2026-10-28T08:00:00+07:00"),
+                java.time.OffsetDateTime.parse("2026-10-28T09:00:00+07:00"),
+                true);
+        when(gridCompute.compute(any(), any(), any(), any())).thenReturn(List.of(computed));
+
+        List<SlotAvailabilityResponse> slots = service.getCachedAvailableSlots(DEALERSHIP_ID, SERVICE_TYPE_ID, date);
+
+        assertThat(slots).hasSize(1);
+        verify(gridCompute).compute(any(), any(), eq(date), any());
+        verify(values, never()).set(anyString(), anyString(), any(java.time.Duration.class));
+    }
     // -------------------------------------------------------------------------
 
     @Test
     void getCachedAvailableSlotsComputesAndCachesOnCacheMiss() {
         LocalDate date = LocalDate.of(2026, 10, 28);
-        String key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + date;
+        String key = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":" + SERVICE_TYPE_ID;
 
         when(values.get(key)).thenReturn(null);
 
@@ -164,7 +191,7 @@ class SlotAvailabilityServiceTest {
     @Test
     void getCachedAvailableSlotsTriggersComputeWhenCacheBlank() {
         LocalDate date = LocalDate.of(2026, 10, 28);
-        String key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + date;
+        String key = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":" + SERVICE_TYPE_ID;
 
         when(values.get(key)).thenReturn("   ");
 
@@ -183,7 +210,7 @@ class SlotAvailabilityServiceTest {
     @Test
     void getCachedAvailableSlotsTriggersComputeWhenCacheMalformed() {
         LocalDate date = LocalDate.of(2026, 10, 28);
-        String key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + date;
+        String key = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":" + SERVICE_TYPE_ID;
 
         when(values.get(key)).thenReturn("not-valid-json{{");
 
@@ -205,7 +232,7 @@ class SlotAvailabilityServiceTest {
     @Test
     void getCachedAvailableSlotsTriggersComputeWhenRedisThrowsException() {
         LocalDate date = LocalDate.of(2026, 10, 28);
-        String key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + date;
+        String key = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":" + SERVICE_TYPE_ID;
 
         when(values.get(key)).thenThrow(new RuntimeException("Redis connection refused"));
 
@@ -227,7 +254,7 @@ class SlotAvailabilityServiceTest {
     @Test
     void getCachedAvailableSlotsThrowsWhenDateExceedsMaxAdvanceBookingDays() {
         LocalDate farFuture = LocalDate.of(2026, 10, 28).plusDays(8);
-        String key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + farFuture;
+        String key = "slot:grid:" + DEALERSHIP_ID + ":" + farFuture + ":" + SERVICE_TYPE_ID;
 
         when(values.get(key)).thenReturn(null);
 
@@ -246,7 +273,7 @@ class SlotAvailabilityServiceTest {
     @Test
     void getCachedAvailableSlotsReturnsEmptyWhenDealershipNotFound() {
         LocalDate date = LocalDate.of(2026, 10, 28);
-        String key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + date;
+        String key = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":" + SERVICE_TYPE_ID;
 
         when(values.get(key)).thenReturn(null);
         when(dealershipConfigPort.findConfig(DEALERSHIP_ID)).thenReturn(Optional.empty());
@@ -260,7 +287,7 @@ class SlotAvailabilityServiceTest {
     @Test
     void getCachedAvailableSlotsReturnsEmptyWhenServiceTypeNotFound() {
         LocalDate date = LocalDate.of(2026, 10, 28);
-        String key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + date;
+        String key = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":" + SERVICE_TYPE_ID;
 
         when(values.get(key)).thenReturn(null);
         DealershipConfig config = buildConfig();
@@ -280,7 +307,7 @@ class SlotAvailabilityServiceTest {
     @Test
     void getCachedAvailableSlotsReturnsResultEvenWhenRedisCacheWriteFails() {
         LocalDate date = LocalDate.of(2026, 10, 28);
-        String key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + date;
+        String key = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":" + SERVICE_TYPE_ID;
 
         when(values.get(key)).thenReturn(null);
 

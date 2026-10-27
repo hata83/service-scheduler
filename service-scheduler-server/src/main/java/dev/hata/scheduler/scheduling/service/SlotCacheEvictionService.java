@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 /**
  * Evicts slot availability grid caches from Redis.
  *
- * <p>Cache key pattern: {@code slot:grid:{dealershipId}:{serviceTypeId}:{date}}.
+ * <p>Cache key pattern: {@code slot:grid:{dealershipId}:{date}:{serviceTypeId}}.
  * Bays and technicians are shared across service types, so one booking or
  * resource change on a date affects capacity for all service types
  * (SYSTEM_DESIGN §12.1).
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
  * <ul>
  *   <li><strong>Date-level:</strong> booking committed, appointment cancelled/rejected/
  *       no-show, or check-in with bay or technician slot adjustment. Evicts
- *       {@code slot:grid:{dealershipId}:*:{date}}.</li>
+ *       {@code slot:grid:{dealershipId}:{date}:*}.</li>
  *   <li><strong>Dealership-level:</strong> bay added/removed/deactivated, technician
  *       added/removed/skill changed, or dealership config updated. Evicts
  *       {@code slot:grid:{dealershipId}:*}.</li>
@@ -57,15 +57,37 @@ public class SlotCacheEvictionService {
      * @param date         the calendar date
      * @return composite stamp string {@code "<dealership>:<date>"}
      */
+    /**
+     * Reads the live generation stamp for a dealership and date. The stamp is a
+     * composite logical clock: (dealership-wide counter, date counter). Any
+     * eviction advances one half, so a grid must match both halves to be
+     * considered fresh. Returns {@code -1:-1} if a counter read fails (e.g.
+     * Redis error) so callers treat the cache as unreadable and never accept a
+     * stale grid whose freshness cannot be established (R14).
+     *
+     * @param dealershipId the dealership scope
+     * @param date         the calendar date
+     * @return composite stamp {@code "<dealership>:<date>"}
+     */
     public String readGeneration(java.util.UUID dealershipId, java.time.LocalDate date) {
         long deal = readCounter(generationKey(dealershipId, null));
         long day = readCounter(generationKey(dealershipId, date));
+        if (deal < 0 || day < 0) {
+            // At least one counter is unreadable: do not trust any cached stamp
+            // (a stale grid would otherwise match a default 0 and be served).
+            return "-1:-1";
+        }
         return deal + ":" + day;
     }
 
     private long readCounter(String counterKey) {
-        String value = redis.opsForValue().get(counterKey);
-        return (value == null || value.isBlank()) ? 0L : Long.parseLong(value);
+        try {
+            String value = redis.opsForValue().get(counterKey);
+            return (value == null || value.isBlank()) ? 0L : Long.parseLong(value);
+        } catch (Exception ex) {
+            log.warn("Failed to read generation counter {}: {}", counterKey, ex);
+            return -1L;
+        }
     }
 
     /**
@@ -74,13 +96,13 @@ public class SlotCacheEvictionService {
      * <p>Use after: booking committed, appointment cancelled/rejected/no-show,
      * or check-in with bay or technician slot adjustment.
      *
-     * <p>Pattern: {@code slot:grid:{dealershipId}:*:{date}}
+     * <p>Pattern: {@code slot:grid:{dealershipId}:{date}:*}
      *
      * @param dealershipId the dealership scope
      * @param date         the affected calendar date
      */
     public void evictByDate(UUID dealershipId, LocalDate date) {
-        String pattern = SLOT_GRID_PREFIX + dealershipId + ":*:" + date;
+        String pattern = SLOT_GRID_PREFIX + dealershipId + ":" + date + ":*";
         bumpGeneration(dealershipId, date);
         deleteByPattern(pattern, "date-level for dealership=" + dealershipId + " date=" + date);
     }

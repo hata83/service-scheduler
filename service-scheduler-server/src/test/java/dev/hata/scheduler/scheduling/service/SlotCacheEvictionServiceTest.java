@@ -48,8 +48,8 @@ class SlotCacheEvictionServiceTest {
     void evictByDateDeletesMatchingKeys() {
         stubValueOps();
         LocalDate date = LocalDate.of(2026, 10, 28);
-        String pattern = "slot:grid:" + DEALERSHIP_ID + ":*:" + date;
-        String matchedKey = "slot:grid:" + DEALERSHIP_ID + ":22222222-0000-0000-0000-000000000002:" + date;
+        String pattern = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":*";
+        String matchedKey = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":22222222-0000-0000-0000-000000000002";
 
         when(redis.keys(pattern)).thenReturn(Set.of(matchedKey));
 
@@ -63,7 +63,7 @@ class SlotCacheEvictionServiceTest {
     void evictByDateDoesNotDeleteWhenNoKeysMatch() {
         stubValueOps();
         LocalDate date = LocalDate.of(2026, 10, 28);
-        String pattern = "slot:grid:" + DEALERSHIP_ID + ":*:" + date;
+        String pattern = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":*";
 
         when(redis.keys(pattern)).thenReturn(Set.of());
 
@@ -77,7 +77,7 @@ class SlotCacheEvictionServiceTest {
     void evictByDateHandlesRedisExceptionGracefully() {
         stubValueOps();
         LocalDate date = LocalDate.of(2026, 10, 28);
-        String pattern = "slot:grid:" + DEALERSHIP_ID + ":*:" + date;
+        String pattern = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":*";
 
         when(redis.keys(pattern)).thenThrow(new RuntimeException("Redis unavailable"));
 
@@ -93,8 +93,8 @@ class SlotCacheEvictionServiceTest {
     void evictByDealershipDeletesAllKeysForDealership() {
         stubValueOps();
         String pattern = "slot:grid:" + DEALERSHIP_ID + ":*";
-        String key1 = "slot:grid:" + DEALERSHIP_ID + ":type1:2026-10-28";
-        String key2 = "slot:grid:" + DEALERSHIP_ID + ":type2:2026-10-29";
+        String key1 = "slot:grid:" + DEALERSHIP_ID + ":2026-10-28:type1";
+        String key2 = "slot:grid:" + DEALERSHIP_ID + ":2026-10-29:type2";
 
         when(redis.keys(pattern)).thenReturn(Set.of(key1, key2));
 
@@ -134,14 +134,41 @@ class SlotCacheEvictionServiceTest {
     void evictByDateBumpGenerationFailureIsLoggedAndDoesNotBlockEviction() {
         stubValueOps();
         LocalDate date = LocalDate.of(2026, 10, 28);
+        String dayGenKey = "slot:gen:" + DEALERSHIP_ID + ":" + date;
+        String pattern = "slot:grid:" + DEALERSHIP_ID + ":" + date + ":*";
+        String matchedKey = "slot:grid:" + DEALERSHIP_ID + ":svc:" + date + ":22222222-0000-0000-0000-000000000002";
 
         // Counter bump fails (e.g. Redis down) — eviction must still proceed
         // best-effort and not throw, so a booking commit is never blocked.
-        when(valueOps.increment(any())).thenThrow(new RuntimeException("Redis unavailable"));
+        when(valueOps.increment(dayGenKey)).thenThrow(new RuntimeException("Redis unavailable"));
+        when(redis.keys(pattern)).thenReturn(Set.of(matchedKey));
 
         service.evictByDate(DEALERSHIP_ID, date);
 
-        verify(redis, never()).delete(anyCollection());
+        // Deletion still happened despite the failed bump.
+        verify(redis).delete(Set.of(matchedKey));
+    }
+
+    @Test
+    void readGenerationReturnsUnchangedStampAfterFailedIncrement() {
+        stubValueOps();
+        LocalDate date = LocalDate.of(2026, 10, 28);
+        String dayGenKey = "slot:gen:" + DEALERSHIP_ID + ":" + date;
+        String dealGenKey = "slot:gen:" + DEALERSHIP_ID + ":all";
+
+        // A grid was previously stamped "0:0"; no eviction has succeeded yet.
+        when(valueOps.get(dealGenKey)).thenReturn("0");
+        when(valueOps.get(dayGenKey)).thenReturn("0");
+        assertThat(service.readGeneration(DEALERSHIP_ID, date)).isEqualTo("0:0");
+
+        // Eviction's increment fails, but deletion still runs (best-effort).
+        when(valueOps.increment(dayGenKey)).thenThrow(new RuntimeException("Redis unavailable"));
+        when(redis.keys(any())).thenReturn(Set.of());
+
+        service.evictByDate(DEALERSHIP_ID, date);
+
+        // The counter never advanced, so readGeneration still reports "0:0".
+        assertThat(service.readGeneration(DEALERSHIP_ID, date)).isEqualTo("0:0");
     }
 
     // --- readGeneration ---
@@ -185,5 +212,20 @@ class SlotCacheEvictionServiceTest {
         when(valueOps.get(dayKey)).thenReturn("5");
 
         assertThat(service.readGeneration(DEALERSHIP_ID, date)).isEqualTo("0:5");
+    }
+
+    @Test
+    void readGenerationReturnsSentinelWhenCounterReadFails() {
+        stubValueOps();
+        LocalDate date = LocalDate.of(2026, 10, 28);
+        String dealKey = "slot:gen:" + DEALERSHIP_ID + ":all";
+        String dayKey = "slot:gen:" + DEALERSHIP_ID + ":" + date;
+
+        // A Redis read error must surface as the unreadable sentinel, so callers
+        // bypass the cache and never trust a stale grid.
+        when(valueOps.get(dealKey)).thenThrow(new RuntimeException("Redis down"));
+        when(valueOps.get(dayKey)).thenReturn("0");
+
+        assertThat(service.readGeneration(DEALERSHIP_ID, date)).isEqualTo("-1:-1");
     }
 }

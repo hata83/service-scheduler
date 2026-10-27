@@ -8,7 +8,7 @@ The system must evaluate bay capacity and technician availability for each candi
 
 ### Requirement: Slot grid computation on cache miss
 
-The system SHALL compute the available slot grid when no cached grid exists for `slot:grid:{dealershipId}:{serviceTypeId}:{date}`.
+The system SHALL compute the available slot grid when no cached grid exists for `slot:grid:{dealershipId}:{date}:{serviceTypeId}`.
 
 #### Scenario: Compute and cache on miss
 - **GIVEN** no cached slot grid for the requested parameters
@@ -107,7 +107,7 @@ The system SHALL return an empty list for `date < current_date`.
 
 ### Requirement: Cache hit returns stored grid without recomputation
 
-The system SHALL return the cached grid directly when `slot:grid:{dealershipId}:{serviceTypeId}:{date}` exists.
+The system SHALL return the cached grid directly when `slot:grid:{dealershipId}:{date}:{serviceTypeId}` exists.
 
 #### Scenario: Cache hit returns stored result
 - **GIVEN** a cached grid exists for the requested parameters

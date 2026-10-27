@@ -31,7 +31,7 @@ import org.springframework.stereotype.Service;
  *
  * <h3>Cache strategy (SYSTEM_DESIGN §12)</h3>
  * <ol>
- *   <li>Check Redis at {@code slot:grid:{dealershipId}:{serviceTypeId}:{date}}.</li>
+ *   <li>Check Redis at {@code slot:grid:{dealershipId}:{date}:{serviceTypeId}}.</li>
  *   <li>On hit, deserialize and return immediately.</li>
  *   <li>On miss, validate the date range, compute from live DB state via
  *       {@link SlotGridComputeService}, write to Redis, and return.</li>
@@ -98,23 +98,11 @@ public class SlotAvailabilityService {
     public List<SlotAvailabilityResponse> getCachedAvailableSlots(
             UUID dealershipId, UUID serviceTypeId, LocalDate date) {
 
-        String key = SLOT_GRID_KEY_PREFIX + dealershipId + ":" + serviceTypeId + ":" + date;
+        String key = SLOT_GRID_KEY_PREFIX + dealershipId + ":" + date + ":" + serviceTypeId;
 
-        // Read the live generation stamp before any cache use. The stamp is a
-        // composite of the dealership-wide and date counters; any eviction
-        // advances one half, so a grid stamped with an older value is stale
-        // and rejected (cache-stampede guard, R14).
-        String generation = eviction.readGeneration(dealershipId, date);
-
-        // Step 1: cache read.
-        Optional<List<SlotAvailabilityResponse>> cached = readFromCache(key, generation);
-        if (cached.isPresent()) {
-            // Finding #1: purge slots whose start time has already elapsed (the grid
-            // was computed before the slot started) so they are not resold.
-            return filterElapsed(cached.get());
-        }
-
-        // Step 2: load dealership config and validate date range.
+        // Load the current dealership configuration first so the advance-booking
+        // window is enforced against the live config even on a cache hit. A cached
+        // grid must never bypass a shrunken maxAdvanceBookingDays setting.
         DealershipConfig config = dealershipConfig.findConfig(dealershipId).orElse(null);
         if (config == null) {
             log.warn("Dealership config not found for slot grid: {}", dealershipId);
@@ -133,6 +121,29 @@ public class SlotAvailabilityService {
                     + config.maxAdvanceBookingDays() + " days from today.");
         }
 
+        // Read the live generation stamp before any cache use. The stamp is a
+        // composite of the dealership-wide and date counters; any eviction
+        // advances one half, so a grid stamped with an older value is stale
+        // and rejected (cache-stampede guard, R14). A read failure is treated
+        // as the unreadable sentinel "-1:-1": the cache is bypassed and no grid
+        // is written back, so a stale grid is never persisted as fresh.
+        String generation;
+        try {
+            generation = eviction.readGeneration(dealershipId, date);
+        } catch (Exception ex) {
+            log.warn(
+                    "Generation counter unreadable for dealership={} date={}; bypassing cache", dealershipId, date, ex);
+            generation = "-1:-1";
+        }
+
+        // Step 1: cache read.
+        Optional<List<SlotAvailabilityResponse>> cached = readFromCache(key, generation);
+        if (cached.isPresent()) {
+            // Finding #1: purge slots whose start time has already elapsed (the grid
+            // was computed before the slot started) so they are not resold.
+            return filterElapsed(cached.get());
+        }
+
         // Validate the service type belongs to the dealership and is active before
         // computing. A service type from another dealership or a deactivated one
         // must never produce or cache a grid (Finding #10).
@@ -141,11 +152,18 @@ public class SlotAvailabilityService {
             return Collections.emptyList();
         }
 
-        // Step 3: compute the grid.
+        // Step 2: compute the grid.
         List<SlotAvailabilityResponse> slots = gridCompute.compute(config, serviceType, date, now);
 
-        // Step 4: write to cache, stamped with the generation observed above.
-        writeToCache(key, slots, config.slotCacheTtlSeconds(), generation);
+        // Step 3: write to cache, stamped with the generation observed above.
+        // Skip the write entirely when the generation counter was unreadable
+        // ("-1:-1"): a grid stamped under an unknown generation cannot be
+        // validated on read and must never be persisted as fresh (R14).
+        if (generation == null || generation.startsWith("-1")) {
+            log.warn("Skipping cache write for {} (generation counter unreadable); returning live grid", key);
+        } else {
+            writeToCache(key, slots, config.slotCacheTtlSeconds(), generation);
+        }
 
         return slots;
     }
