@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "a9f9cb39-6b9a-46f6-8c7e-c8cb2f1500c2",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\booking-and-notification-flow.sequence.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\booking-and-notification-flow.html",
+  "specification": {
+    "sha256": "0f16cc4e1bf4340bc583821c5ebceefd1b4596995dab911c36e6d4b1ddf1e9b7",
+    "bytes": 5395
+  },
+  "artifact": {
+    "sha256": "425c9fa702589426c8877379b972a7e900b3748eb413b4cbc5b204d43f5ac28a",
+    "bytes": 821654
+  }
+}

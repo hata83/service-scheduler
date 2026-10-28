@@ -42,6 +42,27 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void handlesADeadlockVictimAsARequestableConflict() {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/appointments");
+
+        ResponseEntity<ApiProblem> response = handler.handleConcurrentLock(
+                new org.springframework.dao.CannotAcquireLockException("deadlock detected"), request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody().title()).isEqualTo("Concurrent request conflict");
+    }
+
+    @Test
+    void aLockAcquireFailureOutlinesTheRetry() {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/appointments");
+
+        ResponseEntity<ApiProblem> response = handler.handleConcurrentLock(
+                new org.springframework.dao.CannotAcquireLockException("lock wait timeout"), request);
+
+        assertThat(response.getBody().detail()).contains("retry");
+    }
+
+    @Test
     void handlesAnUnexpectedFailure() {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/auth/me");
 

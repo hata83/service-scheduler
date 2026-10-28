@@ -1324,6 +1324,7 @@ The system coordinates data across five distinct architectural stages:
 ### 8.2 Customer Booking Request Flow
 
 [Open the Booking Sequence diagram](diagrams/system/booking-sequence.html) · [JSON source](diagrams/src/system/booking-sequence.sequence.json)
+[Open the Booking and Real-Time Notification Flow diagram](diagrams/system/booking-and-notification-flow.html) · [JSON source](diagrams/src/system/booking-and-notification-flow.sequence.json)
 
 ```
 1. Client sends POST /api/v1/appointments
@@ -1833,6 +1834,7 @@ Each diagram has two layers: the interactive viewer and the JSON source of truth
 - [Appointment Lifecycle](diagrams/system/appointment-lifecycle.html)
 - [Service Job Lifecycle](diagrams/system/service-job-lifecycle.html)
 - [Booking Sequence](diagrams/system/booking-sequence.html)
+- [Booking and Real-Time Notification Flow](diagrams/system/booking-and-notification-flow.html)
 - [Appointment Check-In](diagrams/system/appointment-checkin.html)
 - [Job Status Update](diagrams/system/job-status-update.html)
 - [SSE Notification Flow](diagrams/system/sse-notification.html)

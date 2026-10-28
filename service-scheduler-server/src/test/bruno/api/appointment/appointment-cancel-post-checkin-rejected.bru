@@ -1,0 +1,24 @@
+meta {
+  name: appointment-cancel-post-checkin-rejected
+  type: http
+  seq: 19
+}
+
+delete {
+  url: {{BASE_URL}}/api/v1/appointments/44444444-0000-0000-0000-000000000003
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/problem+json
+  Cookie: jwt={{JWT_CUSTOMER}}
+}
+
+tests {
+  test("appointment cancel post check-in rejects with 422 Unprocessable Content", function() {
+    expect(res.getStatus()).to.equal(422);
+    expect(res.getBody().status).to.equal(422);
+    expect(res.getBody().detail).to.contain("Cancellation permitted prior to check-in only");
+  });
+}

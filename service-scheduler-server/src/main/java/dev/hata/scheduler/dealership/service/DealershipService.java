@@ -8,8 +8,10 @@ import dev.hata.scheduler.common.provider.DealershipConfigPort;
 import dev.hata.scheduler.common.provider.DealershipValidationProvider;
 import dev.hata.scheduler.dealership.dto.DealershipResponse;
 import dev.hata.scheduler.dealership.model.Dealership;
+import dev.hata.scheduler.dealership.repository.DealershipBayRepository;
 import dev.hata.scheduler.dealership.repository.DealershipRepository;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,9 +22,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class DealershipService implements DealershipValidationProvider, DealershipConfigPort {
 
     private final DealershipRepository dealerships;
+    private final DealershipBayRepository dealershipBayRepository;
 
-    public DealershipService(DealershipRepository dealerships) {
+    public DealershipService(DealershipRepository dealerships, DealershipBayRepository dealershipBayRepository) {
         this.dealerships = dealerships;
+        this.dealershipBayRepository = dealershipBayRepository;
     }
 
     @Transactional(readOnly = true)
@@ -45,10 +49,15 @@ public class DealershipService implements DealershipValidationProvider, Dealersh
 
     /**
      * Returns the scheduling configuration for a dealership.
-     * Returns empty when the dealership is not found or is inactive.
+     * Returns empty when the dealership is not found or is inactive; results are
+     * cached for 15 minutes and never cache missing lookups (Qodo #11).
      */
     @Override
     @Transactional(readOnly = true)
+    // Spring unwraps the Optional in #result for the unless check: present
+    // configs evaluate non-null (cached), empty lookups evaluate null (never
+    // cached, Qodo #11).
+    @Cacheable(cacheNames = "dealership-config", key = "#dealershipId.toString()", unless = "#result == null")
     public Optional<DealershipConfig> findConfig(UUID dealershipId) {
         return dealerships
                 .findById(dealershipId)
@@ -63,5 +72,29 @@ public class DealershipService implements DealershipValidationProvider, Dealersh
                         d.getLunchEnd(),
                         d.getMaxAdvanceBookingDays(),
                         d.getSlotCacheTtlSeconds()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isAutoConfirmEnabled(UUID dealershipId) {
+        return dealerships
+                .findById(dealershipId)
+                .map(Dealership::isAutoConfirmAppointments)
+                .orElse(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String getDealershipTimezone(UUID dealershipId) {
+        return dealerships.findById(dealershipId).map(Dealership::getTimezone).orElse("Asia/Ho_Chi_Minh");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsActiveBay(UUID dealershipId, UUID bayId) {
+        if (dealershipId == null || bayId == null) {
+            return false;
+        }
+        return dealershipBayRepository.existsByIdAndDealershipIdAndActiveTrue(bayId, dealershipId);
     }
 }

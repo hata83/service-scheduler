@@ -5,7 +5,7 @@
   "status": "pass",
   "type": "sequence",
   "quality": "showcase",
-  "startedAt": "2026-10-24T10:54:33.033Z",
+  "startedAt": "2026-10-27T15:55:16.709Z",
   "specification": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\sse-notification.sequence.json",
     "sha256": "674e291ff8b41ff5f576ce220154876270a1fa19dd09fe58f6cc44a3f5cf2e02",
@@ -54,7 +54,7 @@
     "deliver": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 930,
+      "durationMs": 906,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
@@ -68,7 +68,7 @@
       ],
       "receipt": {
         "schemaVersion": 1,
-        "receiptId": "a7048b59-e561-46f1-86fb-866ff500778c",
+        "receiptId": "3d704195-c679-40db-8a91-2e7db194a3bc",
         "ok": true,
         "command": "deliver",
         "type": "sequence",
@@ -106,7 +106,7 @@
     "check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 184,
+      "durationMs": 206,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
@@ -248,13 +248,13 @@
           "issues": []
         },
         "provenance": "current",
-        "deliveryReceiptId": "a7048b59-e561-46f1-86fb-866ff500778c"
+        "deliveryReceiptId": "3d704195-c679-40db-8a91-2e7db194a3bc"
       }
     },
     "browser-check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 2108,
+      "durationMs": 1697,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
@@ -272,7 +272,7 @@
         "status": "pass",
         "visualReview": "not-requested",
         "provenance": "current",
-        "deliveryReceiptId": "a7048b59-e561-46f1-86fb-866ff500778c",
+        "deliveryReceiptId": "3d704195-c679-40db-8a91-2e7db194a3bc",
         "artifact": {
           "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\sse-notification.html",
           "sha256": "0f1ca2722ccb1d5a48f18a7dd72473ff46099c31e53140b803122d47eb33f445",
@@ -974,14 +974,14 @@
     "browserCheckReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\sse-notification.browser-check.json"
   },
   "visualReview": "not-requested",
-  "finishedAt": "2026-10-24T10:54:36.981Z",
-  "durationMs": 3947,
+  "finishedAt": "2026-10-27T15:55:20.311Z",
+  "durationMs": 3602,
   "update": {
     "status": "current",
     "installedVersion": "3.2.0",
     "availableVersion": "3.2.0",
     "releaseNotes": null,
-    "checkedAt": "2026-10-24T04:45:37.141Z",
+    "checkedAt": "2026-10-27T08:39:03.150Z",
     "source": "cache",
     "noticeRequired": false,
     "noticeText": null

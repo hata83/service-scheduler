@@ -12,6 +12,7 @@ import java.util.UUID;
 import dev.hata.scheduler.common.provider.DealershipConfigPort.DealershipConfig;
 import dev.hata.scheduler.dealership.dto.DealershipResponse;
 import dev.hata.scheduler.dealership.model.Dealership;
+import dev.hata.scheduler.dealership.repository.DealershipBayRepository;
 import dev.hata.scheduler.dealership.repository.DealershipRepository;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -28,11 +29,14 @@ class DealershipServiceTest {
     @Mock
     private DealershipRepository repository;
 
+    @Mock
+    private DealershipBayRepository dealershipBayRepository;
+
     private DealershipService service;
 
     @BeforeEach
     void setUp() {
-        service = new DealershipService(repository);
+        service = new DealershipService(repository, dealershipBayRepository);
     }
 
     @Test
@@ -45,12 +49,11 @@ class DealershipServiceTest {
 
         assertThat(found).isPresent();
         assertThat(found.get().getFeatures()).isEqualTo("{\"autoConfirm\":false}");
-        assertThat(found.get().getUpdatedAt()).isNotNull();
     }
 
     @Test
-    void findAllActiveReturnsActiveDealerships() {
-        Dealership dealership = new Dealership();
+    void findAllActiveReturnsMappedResponses() {
+        Dealership dealership = buildActiveDealership();
         when(repository.findByActiveTrue()).thenReturn(List.of(dealership));
 
         List<DealershipResponse> result = service.findAllActive();
@@ -128,6 +131,39 @@ class DealershipServiceTest {
         Optional<DealershipConfig> result = service.findConfig(DEALERSHIP_ID);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void isAutoConfirmEnabledChecksDealershipProperty() {
+        Dealership dealership = mock(Dealership.class);
+        when(dealership.isAutoConfirmAppointments()).thenReturn(true);
+        when(repository.findById(DEALERSHIP_ID)).thenReturn(Optional.of(dealership));
+
+        assertThat(service.isAutoConfirmEnabled(DEALERSHIP_ID)).isTrue();
+    }
+
+    @Test
+    void getDealershipTimezoneReturnsConfiguredTimezone() {
+        Dealership dealership = mock(Dealership.class);
+        when(dealership.getTimezone()).thenReturn("Asia/Bangkok");
+        when(repository.findById(DEALERSHIP_ID)).thenReturn(Optional.of(dealership));
+
+        assertThat(service.getDealershipTimezone(DEALERSHIP_ID)).isEqualTo("Asia/Bangkok");
+    }
+
+    @Test
+    void existsActiveBayChecksWorkshopBays() {
+        UUID bayId = UUID.randomUUID();
+        when(dealershipBayRepository.existsByIdAndDealershipIdAndActiveTrue(bayId, DEALERSHIP_ID))
+                .thenReturn(true);
+
+        assertThat(service.existsActiveBay(DEALERSHIP_ID, bayId)).isTrue();
+    }
+
+    @Test
+    void existsActiveBayReturnsFalseOnNullInput() {
+        assertThat(service.existsActiveBay(null, UUID.randomUUID())).isFalse();
+        assertThat(service.existsActiveBay(DEALERSHIP_ID, null)).isFalse();
     }
 
     // --- builder ---

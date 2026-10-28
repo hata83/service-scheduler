@@ -20,7 +20,7 @@ INSERT INTO profiles (
 ON CONFLICT (user_id) DO NOTHING;
 
 INSERT INTO dealerships (
-  id, name, address, city, country, features, created_by, updated_by
+  id, name, address, city, country, features, auto_confirm_appointments, created_by, updated_by
 ) VALUES (
   '00000000-0000-0000-0000-000000000001',
   'Hata Demo Service Center',
@@ -28,6 +28,7 @@ INSERT INTO dealerships (
   'Ho Chi Minh City',
   'Vietnam',
   '{}'::jsonb,
+  TRUE,
   '00000000-0000-0000-0000-000000000002',
   '00000000-0000-0000-0000-000000000002'
 )

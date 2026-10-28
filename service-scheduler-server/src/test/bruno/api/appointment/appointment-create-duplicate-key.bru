@@ -1,0 +1,45 @@
+meta {
+  name: appointment-create-duplicate-key
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/appointments
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+  Cookie: jwt={{JWT_CUSTOMER}}
+  X-Idempotency-Key: a0000001-0000-0000-0000-000000000001
+}
+
+body:json {
+  {
+    "dealershipId": "00000000-0000-0000-0000-000000000001",
+    "vehicleCategoryId": "11111111-0000-0000-0000-000000000001",
+    "vehicleVin": "1HGCR2F83HA999001",
+    "serviceJobs": [
+      {
+        "serviceTypeId": "22222222-0000-0000-0000-000000000001",
+        "bayId": "33333333-0000-0000-0000-000000000001",
+        "startTime": "2026-11-20T14:00:00Z",
+        "endTime": "2026-11-20T14:30:00Z"
+      }
+    ]
+  }
+}
+
+tests {
+  test("appointment create duplicate idempotency key replays cached 201 response", function() {
+    expect(res.getStatus()).to.equal(201);
+    const expectedId = bru.getEnvVar('CREATED_APPOINTMENT_ID');
+    if (expectedId) {
+      expect(res.getBody().id).to.equal(expectedId);
+    }
+    expect(res.getBody().vehicleVin).to.equal("1HGCR2F83HA999001");
+  });
+}

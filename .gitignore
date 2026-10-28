@@ -47,6 +47,7 @@ yarn-error.log*
 service-scheduler-ui/playwright-report/
 service-scheduler-ui/playwright-results.xml
 service-scheduler-ui/playwright-results.json
+service-scheduler-server/src/test/bruno/**/bruno-results.xml
 service-scheduler-ui/test-results/
 
 # ─── Docker ───────────────────────────────────────────────────────────────────
@@ -77,9 +78,7 @@ Desktop.ini
 # validated by ci.yml. Only openspec/archive/ content is travel-neutral.
 
 # ─── OpenWiki generated output ────────────────────────────────────────────────
-# openwiki/ is generated — do not commit
-# Uncomment if you want to commit the wiki:
-# !openwiki/
+openwiki/
 
 # ─── Logs ─────────────────────────────────────────────────────────────────────
 *.log

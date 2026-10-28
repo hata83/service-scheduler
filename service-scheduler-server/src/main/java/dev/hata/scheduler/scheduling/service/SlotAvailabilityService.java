@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import dev.hata.scheduler.common.provider.DealershipConfigPort;
 import dev.hata.scheduler.common.provider.DealershipConfigPort.DealershipConfig;
+import dev.hata.scheduler.common.provider.SlotCacheEvictionProvider;
 import dev.hata.scheduler.scheduling.dto.SlotAvailabilityResponse;
 import dev.hata.scheduler.scheduling.model.ServiceType;
 import dev.hata.scheduler.scheduling.repository.ServiceTypeRepository;
@@ -21,6 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -52,7 +54,7 @@ import org.springframework.stereotype.Service;
  * importing the dealership package (ArchUnit ADR-009).
  */
 @Service
-public class SlotAvailabilityService {
+public class SlotAvailabilityService implements SlotCacheEvictionProvider {
 
     private static final Logger log = LoggerFactory.getLogger(SlotAvailabilityService.class);
     private static final String SLOT_GRID_KEY_PREFIX = "slot:grid:";
@@ -239,6 +241,10 @@ public class SlotAvailabilityService {
      *
      * @param dealershipId the dealership scope
      */
+    // Qodo #11: dealership-config is evicted here so configuration or resource
+    // changes are never served stale; this is the documented hook for
+    // dealership-wide change events (bays, technicians, config).
+    @CacheEvict(cacheNames = "dealership-config", allEntries = true)
     public void evictSlotsByDealership(UUID dealershipId) {
         eviction.evictByDealership(dealershipId);
     }
@@ -289,6 +295,11 @@ public class SlotAvailabilityService {
         } catch (Exception ex) {
             log.warn("Failed to write slot grid to cache key {}: {}", key, ex);
         }
+    }
+
+    @Override
+    public void evictSlots(UUID dealershipId, LocalDate date) {
+        evictSlotsByDate(dealershipId, date);
     }
 
     /**

@@ -65,10 +65,12 @@ class SlotAvailabilityServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(redis.opsForValue()).thenReturn(values);
+        org.mockito.Mockito.lenient().when(redis.opsForValue()).thenReturn(values);
         // Default generation stamp: 0:0 (no eviction observed). Tests that
         // exercise the stale-write guard override this to a different value.
-        when(eviction.readGeneration(DEALERSHIP_ID, LocalDate.of(2026, 10, 28))).thenReturn("0:0");
+        org.mockito.Mockito.lenient()
+                .when(eviction.readGeneration(DEALERSHIP_ID, LocalDate.of(2026, 10, 28)))
+                .thenReturn("0:0");
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         // Fixed clock pinned to 2026-10-28T00:30Z so "today" is 2026-10-28 in
@@ -461,5 +463,14 @@ class SlotAvailabilityServiceTest {
             }
             throw ex;
         }
+    }
+
+    @Test
+    void evictSlotsDelegatesToEvictionService() {
+        LocalDate date = LocalDate.of(2026, 10, 28);
+
+        service.evictSlots(DEALERSHIP_ID, date);
+
+        verify(eviction).evictByDate(DEALERSHIP_ID, date);
     }
 }

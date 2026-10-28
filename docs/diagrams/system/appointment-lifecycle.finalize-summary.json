@@ -7,8 +7,8 @@
   "quality": "showcase",
   "specification": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\appointment-lifecycle.lifecycle.json",
-    "sha256": "e18aa397e3ec3113d4171247872c29c9b5325bbadb28048370f396afa51a5894",
-    "bytes": 5147
+    "sha256": "233d8b023f7160b140115fdcd9fc7e276e8d6075deaf0c750dd7a46c01d5728c",
+    "bytes": 4930
   },
   "artifact": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\appointment-lifecycle.html",
@@ -37,13 +37,13 @@
     "installedVersion": "3.2.0",
     "availableVersion": "3.2.0",
     "releaseNotes": null,
-    "checkedAt": "2026-10-25T09:29:22.168Z",
+    "checkedAt": "2026-10-27T08:39:03.150Z",
     "source": "cache",
     "noticeRequired": false,
     "noticeText": null
   },
   "visualReview": "not-requested",
-  "durationMs": 3730,
+  "durationMs": 4050,
   "browserCheck": {
     "requested": true,
     "ran": true

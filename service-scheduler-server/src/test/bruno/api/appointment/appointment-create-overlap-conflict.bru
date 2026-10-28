@@ -1,0 +1,42 @@
+meta {
+  name: appointment-create-overlap-conflict
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/appointments
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/problem+json
+  Cookie: jwt={{JWT_CUSTOMER}}
+  X-Idempotency-Key: a0000001-0000-0000-0000-000000000006
+}
+
+body:json {
+  {
+    "dealershipId": "00000000-0000-0000-0000-000000000001",
+    "vehicleCategoryId": "11111111-0000-0000-0000-000000000001",
+    "vehicleVin": "1HGCR2F83HA999001",
+    "serviceJobs": [
+      {
+        "serviceTypeId": "22222222-0000-0000-0000-000000000001",
+        "bayId": "33333333-0000-0000-0000-000000000001",
+        "startTime": "2026-11-20T14:15:00Z",
+        "endTime": "2026-11-20T14:45:00Z"
+      }
+    ]
+  }
+}
+
+tests {
+  test("appointment create overlap conflict responds 409 Conflict", function() {
+    expect(res.getStatus()).to.equal(409);
+    expect(res.getBody().status).to.equal(409);
+    expect(res.getBody().title).to.contain("conflict");
+  });
+}

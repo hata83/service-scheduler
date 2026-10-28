@@ -1,4 +1,10 @@
-import { APIRequestContext, PlaywrightWorkerArgs, expect } from '@playwright/test';
+import { randomInt } from "node:crypto";
+
+import {
+  APIRequestContext,
+  PlaywrightWorkerArgs,
+  expect,
+} from "@playwright/test";
 
 /**
  * The API helpers of the Phase 1 suite. Every call carries the idempotency
@@ -14,11 +20,36 @@ const RUN_ID = Math.random().toString(36).slice(2, 8);
 let callCounter = 0;
 let clientCounter = 0;
 
+let vinCounter = 100000;
+
+/**
+ * Adds run-unique digits to the default VIN base. The process counter restarts
+ * on every suite run, so the bare base would reuse the VINs of an earlier
+ * run. A reused VIN that is already booked on the test date yields a vehicle
+ * conflict the test does not target. The stamp is crypto-random, so two runs
+ * share a stamp with a chance of about 1 in 1.2 million. Valid VIN charset is
+ * ^[A-HJ-NPR-Z0-9]{17}$, which excludes I, O, and Q.
+ */
+const VIN_ALPHABET = "0123456789ABCDEFGHJKLMNPRSTUVWXYZ";
+const VIN_RUN_STAMP = Array.from(
+  { length: 4 },
+  () => VIN_ALPHABET[randomInt(VIN_ALPHABET.length)],
+).join("");
+
+/**
+ * Builds a valid 17-character ISO VIN string conforming to ^[A-HJ-NPR-Z0-9]{17}$.
+ */
+export function freshVin(prefix = `1HGCR2F${VIN_RUN_STAMP}`): string {
+  vinCounter += 1;
+  const suffix = String(vinCounter).padStart(6, "0");
+  return `${prefix}${suffix}`;
+}
+
 /**
  * Builds a fresh E.164 phone number. Each run uses its own number, so the
  * suite never depends on a clean database.
  */
-export function freshPhone(prefix = '+849'): string {
+export function freshPhone(prefix = "+849"): string {
   const suffix = String(Date.now()).slice(-9);
   return `${prefix}${suffix}`;
 }
@@ -28,7 +59,7 @@ export function freshPhone(prefix = '+849'): string {
  */
 export function idempotencyKey(operation: string, phone: string): string {
   callCounter += 1;
-  return `${operation}-${phone.replace('+', '')}-${RUN_ID}-${callCounter}`;
+  return `${operation}-${phone.replace("+", "")}-${RUN_ID}-${callCounter}`;
 }
 
 /**
@@ -36,11 +67,16 @@ export function idempotencyKey(operation: string, phone: string): string {
  * the forwarded address, so each test owns its rate-limit budget and the
  * suite never trips the limit of another test.
  */
-export async function apiContext(playwright: PlaywrightWorkerArgs['playwright'], baseURL: string): Promise<APIRequestContext> {
+export async function apiContext(
+  playwright: PlaywrightWorkerArgs["playwright"],
+  baseURL: string,
+): Promise<APIRequestContext> {
   clientCounter += 1;
   return playwright.request.newContext({
     baseURL,
-    extraHTTPHeaders: { 'X-Forwarded-For': `203.0.113.${(clientCounter % 250) + 1}` }
+    extraHTTPHeaders: {
+      "X-Forwarded-For": `203.0.113.${(clientCounter % 250) + 1}`,
+    },
   });
 }
 
@@ -50,11 +86,11 @@ export async function apiContext(playwright: PlaywrightWorkerArgs['playwright'],
 export async function sendOtp(
   request: APIRequestContext,
   phone: string,
-  type: 'LOGIN' | 'REGISTER'
+  type: "LOGIN" | "REGISTER",
 ): Promise<string> {
-  const response = await request.post('/api/v1/auth/otp/send', {
-    headers: { 'X-Idempotency-Key': idempotencyKey(`otp-send-${type}`, phone) },
-    data: { phone, type }
+  const response = await request.post("/api/v1/auth/otp/send", {
+    headers: { "X-Idempotency-Key": idempotencyKey(`otp-send-${type}`, phone) },
+    data: { phone, type },
   });
 
   expect(response.status(), await response.text()).toBe(202);
@@ -66,9 +102,35 @@ export async function sendOtp(
 /**
  * Reads the session cookie value from a response.
  */
-export function sessionCookie(response: Awaited<ReturnType<APIRequestContext['post']>>): string {
-  const header = response.headers()['set-cookie'] ?? '';
-  const value = header.split(';')[0].replace(/^jwt=/, '');
-  expect(value).not.toBe('');
+export function sessionCookie(
+  response: Awaited<ReturnType<APIRequestContext["post"]>>,
+): string {
+  const header = response.headers()["set-cookie"] ?? "";
+  const value = header.split(";")[0].replace(/^jwt=/, "");
+  expect(value).not.toBe("");
   return value;
+}
+
+let cachedCustomerCookie: string | null = null;
+
+/**
+ * Returns a cached customer session JWT, obtaining one via OTP login if not yet cached.
+ */
+export async function getCustomerSession(
+  request: APIRequestContext,
+): Promise<string> {
+  if (cachedCustomerCookie) {
+    return cachedCustomerCookie;
+  }
+  const phone = "+84900000004";
+  const code = await sendOtp(request, phone, "LOGIN");
+  const verifyResp = await request.post("/api/v1/auth/otp/verify", {
+    headers: {
+      "X-Idempotency-Key": idempotencyKey("shared-customer-login", phone),
+    },
+    data: { phone, code },
+  });
+  expect(verifyResp.status()).toBe(200);
+  cachedCustomerCookie = sessionCookie(verifyResp);
+  return cachedCustomerCookie;
 }

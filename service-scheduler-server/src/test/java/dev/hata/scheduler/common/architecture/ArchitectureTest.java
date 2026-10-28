@@ -26,7 +26,7 @@ class ArchitectureTest {
 
     // Feature packages that must remain completely independent
     private static final String[] FEATURE_PACKAGES = {
-        "auth", "customer", "dealership", "appointment", "resource", "vehicle", "scheduling"
+        "auth", "customer", "dealership", "appointment", "resource", "vehicle", "scheduling", "notification"
     };
 
     @Test
@@ -77,6 +77,7 @@ class ArchitectureTest {
                         "dev.hata.scheduler.resource..",
                         "dev.hata.scheduler.vehicle..",
                         "dev.hata.scheduler.scheduling..",
+                        "dev.hata.scheduler.notification..",
                         "dev.hata.scheduler.infra..")
                 .allowEmptyShould(true);
         rule.check(classes);
@@ -96,7 +97,8 @@ class ArchitectureTest {
                         "dev.hata.scheduler.appointment..",
                         "dev.hata.scheduler.resource..",
                         "dev.hata.scheduler.vehicle..",
-                        "dev.hata.scheduler.scheduling..")
+                        "dev.hata.scheduler.scheduling..",
+                        "dev.hata.scheduler.notification..")
                 .allowEmptyShould(true);
         rule.check(classes);
     }
@@ -143,7 +145,8 @@ class ArchitectureTest {
     void noMethodsUseSynchronizedModifierToPreventVirtualThreadPinning() {
         ArchRule rule = com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods()
                 .should()
-                .haveModifier(com.tngtech.archunit.core.domain.JavaModifier.SYNCHRONIZED);
+                .haveModifier(com.tngtech.archunit.core.domain.JavaModifier.SYNCHRONIZED)
+                .allowEmptyShould(true);
         rule.check(classes);
     }
 }

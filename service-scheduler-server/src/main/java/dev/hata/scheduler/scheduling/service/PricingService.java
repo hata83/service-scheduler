@@ -4,10 +4,12 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import dev.hata.scheduler.common.provider.DealershipValidationProvider;
+import dev.hata.scheduler.common.provider.ServiceTypeMetadataProvider;
 import dev.hata.scheduler.common.provider.VehicleCategoryValidationProvider;
 import dev.hata.scheduler.scheduling.dto.CostItemResponse;
 import dev.hata.scheduler.scheduling.dto.PricingEstimateResponse;
@@ -25,7 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
  * Domain service for calculating instant service price estimates.
  */
 @Service
-public class PricingService {
+public class PricingService implements ServiceTypeMetadataProvider {
 
     private final ServiceTypeRepository serviceTypeRepository;
     private final ServiceTypeCostRepository costRepository;
@@ -91,5 +93,17 @@ public class PricingService {
         }
 
         return new PricingEstimateResponse(dealershipId, categoryId, items, totalCost);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ServiceTypeMetadata> findServiceTypeMetadata(
+            UUID dealershipId, UUID vehicleCategoryId, UUID serviceTypeId) {
+        return serviceTypeRepository
+                .findById(serviceTypeId)
+                .filter(st -> st.getDealershipId().equals(dealershipId) && st.isActive())
+                .flatMap(st -> costRepository
+                        .findByServiceTypeIdAndVehicleCategoryId(serviceTypeId, vehicleCategoryId)
+                        .map(c -> new ServiceTypeMetadata(st.getId(), st.getEstimatedMinutes(), c.getCost())));
     }
 }

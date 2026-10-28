@@ -1,0 +1,27 @@
+meta {
+  name: appointment-cancel
+  type: http
+  seq: 18
+}
+
+delete {
+  url: {{BASE_URL}}/api/v1/appointments/{{CREATED_APPOINTMENT_ID}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Cookie: jwt={{JWT_CUSTOMER}}
+}
+
+tests {
+  test("appointment cancel responds 200 with status CANCELLED", function() {
+    expect(res.getStatus()).to.equal(200);
+    const expectedId = bru.getEnvVar('CREATED_APPOINTMENT_ID');
+    if (expectedId) {
+      expect(res.getBody().id).to.equal(expectedId);
+    }
+    expect(res.getBody().status).to.equal("CANCELLED");
+  });
+}
