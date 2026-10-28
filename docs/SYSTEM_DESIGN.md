@@ -173,6 +173,7 @@ MANAGER can:
 
 | Use Case | Endpoint | Sequence Diagram |
 |---|---|---|
+| View the real-time day schedule | `GET /api/v1/schedule/day` | [Manager Schedule Flow](diagrams/system/manager-schedule-flow.html) |
 | Register walk-in customer | `POST /api/v1/customers` | [Walk-In Registration](diagrams/system/walkin-customer-registration.html) |
 | Book appointment for customer | `POST /api/v1/appointments` | [Booking](diagrams/system/booking-sequence.html) |
 | Drive appointment status | `PATCH /api/v1/appointments/{id}/status` | [Status Transition](diagrams/system/appointment-status-transition.html) |

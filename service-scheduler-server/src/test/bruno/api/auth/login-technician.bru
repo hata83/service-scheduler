@@ -23,6 +23,14 @@ body:json {
   }
 }
 
+script:post-response {
+  const headers = res.getHeaders() || {};
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === 'set-cookie');
+  const raw = key ? headers[key] : '';
+  const first = Array.isArray(raw) ? raw[0] : raw;
+  bru.setEnvVar('JWT_TECHNICIAN', (first || '').split(';')[0].replace(/^jwt=/, ''));
+}
+
 tests {
   test("technician login responds 200 with the TECHNICIAN role and bound dealership", function() {
     expect(res.getStatus()).to.equal(200);

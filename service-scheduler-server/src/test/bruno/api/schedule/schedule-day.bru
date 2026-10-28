@@ -1,0 +1,36 @@
+meta {
+  name: schedule-day
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/schedule/day?date={{SCHEDULE_DATE}}
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Cookie: jwt={{JWT_MANAGER}}
+}
+
+script:pre-request {
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const iso = tomorrow.toISOString().slice(0, 10);
+  bru.setEnvVar('SCHEDULE_DATE', iso);
+}
+
+tests {
+  test("manager day schedule responds 200 with one column per active bay", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().dealershipId).to.equal("00000000-0000-0000-0000-000000000001");
+    expect(res.getBody().date).to.equal(bru.getEnvVar('SCHEDULE_DATE'));
+    expect(res.getBody().bays).to.be.an('array');
+    expect(res.getBody().bays.length).to.be.greaterThan(0);
+    const bay = res.getBody().bays[0];
+    expect(bay.bayId).to.be.a('string');
+    expect(bay.bayName).to.be.a('string');
+    expect(bay.jobs).to.be.an('array');
+  });
+}

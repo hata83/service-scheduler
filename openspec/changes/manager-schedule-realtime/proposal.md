@@ -24,8 +24,11 @@ define these capabilities. This change implements the designed manager slice.
 - Extend `GET /api/v1/appointments/{id}` for staff access inside the role scope. The staff detail
   response adds the customer contact profile, vehicle info, per-job booking notes, estimate cost
   against final cost, and the communication log list.
+- Add the `notes` text column to `service_jobs` (V5 migration) and implement
+  `POST /api/v1/jobs/{id}/notes` from SYSTEM_DESIGN 14.1. Technicians append inspection notes.
+  Notes surface as feedback data in the staff detail view.
 - Feedback requirement decision: feedback data is the per-job booking notes plus estimate versus
-  final cost. No new feedback table. User decision recorded 2026-10-28.
+  final cost. User decisions recorded 2026-10-28. Notes storage and the notes endpoint are in scope.
 - Schedule access decision: roles MANAGER and ADMIN open the schedule, history, detail, and board.
   User decision recorded 2026-10-28.
 - Add a Playwright E2E spec for concurrent bookings at the same time on different bays. The manager

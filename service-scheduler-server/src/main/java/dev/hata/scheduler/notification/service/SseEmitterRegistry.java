@@ -1,6 +1,9 @@
 package dev.hata.scheduler.notification.service;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -21,10 +24,26 @@ public class SseEmitterRegistry {
 
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
 
+    private final Map<String, UUID> staffDealerships = new ConcurrentHashMap<>();
+
+    private final Set<String> globalStaffPhones = ConcurrentHashMap.newKeySet();
+
     /**
      * Registers an SSE emitter for the given phone number, evicting any existing emitter.
      */
     public SseEmitter register(String phone) {
+        return register(phone, null, false);
+    }
+
+    /**
+     * Registers a staff SSE emitter for the given phone number and dealership scope.
+     * A null dealership scope marks a global ADMIN session that receives every dealership event.
+     */
+    public SseEmitter registerStaff(String phone, UUID dealershipId) {
+        return register(phone, dealershipId, true);
+    }
+
+    private SseEmitter register(String phone, UUID dealershipId, boolean staff) {
         if (phone == null || phone.isBlank()) {
             throw new IllegalArgumentException("Phone must not be blank");
         }
@@ -38,20 +57,43 @@ public class SseEmitterRegistry {
             }
         }
 
+        if (staff) {
+            if (dealershipId == null) {
+                globalStaffPhones.add(phone);
+                staffDealerships.remove(phone);
+            } else {
+                globalStaffPhones.remove(phone);
+                staffDealerships.put(phone, dealershipId);
+            }
+        } else {
+            globalStaffPhones.remove(phone);
+            staffDealerships.remove(phone);
+        }
+
         emitter.onCompletion(() -> {
             emitters.remove(phone, emitter);
+            globalStaffPhones.remove(phone);
+            staffDealerships.remove(phone);
             log.debug("SSE emitter completed for phone: {}", maskPhone(phone));
         });
         emitter.onTimeout(() -> {
             emitters.remove(phone, emitter);
+            globalStaffPhones.remove(phone);
+            staffDealerships.remove(phone);
             log.debug("SSE emitter timed out for phone: {}", maskPhone(phone));
         });
         emitter.onError(e -> {
             emitters.remove(phone, emitter);
+            globalStaffPhones.remove(phone);
+            staffDealerships.remove(phone);
             log.debug("SSE emitter error for phone: {}", maskPhone(phone), e);
         });
 
-        log.info("Registered SSE emitter for phone: {}. Active count: {}", maskPhone(phone), emitters.size());
+        log.info(
+                "Registered SSE emitter for phone: {}. Active count: {}. Staff scope: {}",
+                maskPhone(phone),
+                emitters.size(),
+                staff ? (dealershipId == null ? "GLOBAL" : dealershipId.toString()) : "none");
         return emitter;
     }
 
@@ -79,6 +121,36 @@ public class SseEmitterRegistry {
     }
 
     /**
+     * Dispatches a named event with payload data to every staff session of one dealership.
+     * Global ADMIN sessions receive the event for every dealership.
+     *
+     * @return the delivery result per staff phone number
+     */
+    public Map<String, Boolean> sendToDealershipStaff(UUID dealershipId, String eventName, Object data) {
+        Map<String, Boolean> results = new LinkedHashMap<>();
+        for (String phone : globalStaffPhones) {
+            results.put(phone, send(phone, eventName, data));
+        }
+        for (Map.Entry<String, UUID> entry : staffDealerships.entrySet()) {
+            if (!entry.getValue().equals(dealershipId)) {
+                continue;
+            }
+            results.put(entry.getKey(), send(entry.getKey(), eventName, data));
+        }
+        return results;
+    }
+
+    /**
+     * Returns the staff session count of one dealership. Global ADMIN sessions count for all.
+     */
+    public int getStaffSessionCount(UUID dealershipId) {
+        int scoped = (int) staffDealerships.entrySet().stream()
+                .filter(entry -> entry.getValue().equals(dealershipId))
+                .count();
+        return scoped + globalStaffPhones.size();
+    }
+
+    /**
      * Emits a comment ping to all registered clients to prevent idle connection termination.
      */
     @Scheduled(fixedRate = 25000)
@@ -102,6 +174,8 @@ public class SseEmitterRegistry {
         if (phone == null) {
             return;
         }
+        staffDealerships.remove(phone);
+        globalStaffPhones.remove(phone);
         SseEmitter emitter = emitters.remove(phone);
         if (emitter != null) {
             try {

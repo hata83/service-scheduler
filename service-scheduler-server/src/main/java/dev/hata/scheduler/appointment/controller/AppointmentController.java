@@ -10,6 +10,7 @@ import dev.hata.scheduler.appointment.service.AppointmentService;
 import dev.hata.scheduler.common.exception.ApiProblem;
 import dev.hata.scheduler.common.filter.AuthFilter;
 import dev.hata.scheduler.common.security.AuthPrincipal;
+import dev.hata.scheduler.common.security.StaffScope;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -42,6 +43,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/v1/appointments")
 public class AppointmentController {
+
+    private static final String ROLE_CUSTOMER = "CUSTOMER";
 
     private final AppointmentService appointmentService;
 
@@ -109,7 +112,7 @@ public class AppointmentController {
         if (principal == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
-        if (!"CUSTOMER".equals(principal.role())) {
+        if (!ROLE_CUSTOMER.equals(principal.role())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only customer accounts can book appointments");
         }
         if (idempotencyKeyHeader == null || idempotencyKeyHeader.isBlank()) {
@@ -159,7 +162,7 @@ public class AppointmentController {
         if (principal == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
-        if (!"CUSTOMER".equals(principal.role())) {
+        if (!ROLE_CUSTOMER.equals(principal.role())) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN, "Only customer accounts can access appointment history");
         }
@@ -198,16 +201,21 @@ public class AppointmentController {
     @GetMapping(
             value = "/{id}",
             produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_PROBLEM_JSON_VALUE})
-    public ResponseEntity<AppointmentResponse> getAppointmentById(
+    public ResponseEntity<?> getAppointmentById(
             @PathVariable("id") UUID id,
             @RequestAttribute(name = AuthFilter.PRINCIPAL_ATTRIBUTE, required = false) AuthPrincipal principal) {
         if (principal == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
-        if (!"CUSTOMER".equals(principal.role())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only customer accounts can access appointments");
+        if (ROLE_CUSTOMER.equals(principal.role())) {
+            return ResponseEntity.ok(appointmentService.findAppointmentById(id, principal.userId()));
         }
-        return ResponseEntity.ok(appointmentService.findAppointmentById(id, principal.userId()));
+        if (!StaffScope.isStaffRole(principal.role())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Only customer, manager, and admin accounts can access appointments");
+        }
+        UUID scope = StaffScope.dealershipScope(principal, null);
+        return ResponseEntity.ok(appointmentService.findStaffAppointment(id, scope));
     }
 
     /**
@@ -263,7 +271,7 @@ public class AppointmentController {
         if (principal == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
-        if (!"CUSTOMER".equals(principal.role())) {
+        if (!ROLE_CUSTOMER.equals(principal.role())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only customer accounts can cancel appointments");
         }
         return ResponseEntity.ok(appointmentService.cancelAppointment(id, principal.userId(), principal.phone()));

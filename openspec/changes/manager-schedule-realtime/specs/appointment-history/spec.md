@@ -38,8 +38,9 @@ reads return the same HTTP 404 Problem Details as customer cross-access.
 
 ### Requirement: Feedback data in staff detail
 
-The system SHALL surface feedback data in the staff detail view from per-job booking notes and from
-the estimate cost versus final cost comparison. No separate feedback table exists.
+The system SHALL surface feedback data in the staff detail view from per-job inspection notes and
+from the estimate cost versus final cost comparison. Notes live in the `notes` column of
+`service_jobs`.
 
 #### Scenario: Detail shows completed job feedback
 - **WHEN** a MANAGER reads the detail of an appointment with a DONE job that holds notes and final

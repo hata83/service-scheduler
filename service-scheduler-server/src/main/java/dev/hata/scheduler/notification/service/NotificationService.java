@@ -2,6 +2,7 @@ package dev.hata.scheduler.notification.service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import dev.hata.scheduler.common.event.NotificationDispatchEvent;
@@ -50,6 +51,18 @@ public class NotificationService {
         return communicationLogs.findByCustomerIdOrderByDispatchedAtDesc(customerId).stream()
                 .map(CommunicationLogResponse::from)
                 .toList();
+    }
+
+    /**
+     * Returns communication logs for staff. A MANAGER reads the logs of its dealership.
+     * An ADMIN reads the logs of every dealership. A null scope reads all dealerships.
+     */
+    @Transactional(readOnly = true)
+    public List<CommunicationLogResponse> findStaffLogs(UUID dealershipId) {
+        List<CommunicationLog> logs = dealershipId == null
+                ? communicationLogs.findAllByOrderByDispatchedAtDesc()
+                : communicationLogs.findByDealershipIdOrderByDispatchedAtDesc(dealershipId);
+        return logs.stream().map(CommunicationLogResponse::from).toList();
     }
 
     /**
@@ -105,6 +118,43 @@ public class NotificationService {
                 sent ? null : "No active SSE connection for recipient",
                 Instant.now());
         communicationLogs.save(commLog);
+
+        dispatchToDealershipStaff(event);
+    }
+
+    /**
+     * Fans the domain event out to every staff session of the dealership.
+     * Each delivery writes its own audit record so the staff notification list matches the stream.
+     */
+    private void dispatchToDealershipStaff(NotificationDispatchEvent event) {
+        Map<String, Boolean> deliveries =
+                emitterRegistry.sendToDealershipStaff(event.dealershipId(), event.eventType(), event.payload());
+        log.info(
+                "Staff fan-out for {} to dealership {} reached {} staff sessions",
+                event.eventType(),
+                event.dealershipId(),
+                deliveries.size());
+        if (deliveries.isEmpty()) {
+            return;
+        }
+
+        Instant dispatchedAt = Instant.now();
+        for (Map.Entry<String, Boolean> delivery : deliveries.entrySet()) {
+            boolean delivered = Boolean.TRUE.equals(delivery.getValue());
+            CommunicationLog staffLog = new CommunicationLog(
+                    UUID.randomUUID(),
+                    event.dealershipId(),
+                    event.appointmentId(),
+                    event.customerId(),
+                    "SSE",
+                    delivery.getKey(),
+                    event.eventType(),
+                    event.payload(),
+                    delivered ? "DELIVERED" : "UNDELIVERED",
+                    delivered ? null : "No active SSE connection for recipient",
+                    dispatchedAt);
+            communicationLogs.save(staffLog);
+        }
     }
 
     private static String maskPhone(String phone) {

@@ -1,0 +1,39 @@
+meta {
+  name: appointment-get-staff
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/appointments/44444444-0000-0000-0000-000000000001
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Cookie: jwt={{JWT_MANAGER}}
+}
+
+script:post-response {
+  if (res.getStatus() === 200 && res.getBody() && res.getBody().staffView) {
+    const jobs = res.getBody().staffView.jobs || [];
+    if (jobs.length > 0) {
+      bru.setEnvVar('STAFF_JOB_ID', jobs[0].jobId);
+    }
+  }
+}
+
+tests {
+  test("manager appointment detail responds 200 with the staff view", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().id).to.equal("44444444-0000-0000-0000-000000000001");
+    expect(res.getBody().staffView).to.be.an('object');
+    expect(res.getBody().staffView.customerName).to.be.a('string');
+    expect(res.getBody().staffView.customerPhone).to.be.a('string');
+    expect(res.getBody().staffView.vehicleVin).to.be.a('string');
+    expect(res.getBody().staffView.vehicleCategory).to.be.a('string');
+    expect(res.getBody().staffView.jobs).to.be.an('array');
+    expect(res.getBody().staffView.communicationLogs).to.be.an('array');
+  });
+}

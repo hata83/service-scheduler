@@ -5,6 +5,7 @@ import java.util.List;
 import dev.hata.scheduler.common.exception.ApiProblem;
 import dev.hata.scheduler.common.filter.AuthFilter;
 import dev.hata.scheduler.common.security.AuthPrincipal;
+import dev.hata.scheduler.common.security.StaffScope;
 import dev.hata.scheduler.notification.dto.CommunicationLogResponse;
 import dev.hata.scheduler.notification.service.NotificationService;
 import dev.hata.scheduler.notification.service.SseEmitterRegistry;
@@ -40,6 +41,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class NotificationController {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationController.class);
+    private static final String ROLE_CUSTOMER = "CUSTOMER";
 
     private final NotificationService notificationService;
     private final SseEmitterRegistry sseEmitterRegistry;
@@ -92,7 +94,15 @@ public class NotificationController {
             }
             return standalone;
         }
+
+        if (isEmployeeRole(principal.role())) {
+            return sseEmitterRegistry.registerStaff(principal.phone(), principal.dealershipId());
+        }
         return sseEmitterRegistry.register(principal.phone());
+    }
+
+    private static boolean isEmployeeRole(String role) {
+        return "MANAGER".equals(role) || "ADMIN".equals(role) || "TECHNICIAN".equals(role);
     }
 
     private static String maskPhone(String phone) {
@@ -134,6 +144,16 @@ public class NotificationController {
         if (principal == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
         }
-        return ResponseEntity.ok(notificationService.findCustomerLogs(principal.userId()));
+        if (ROLE_CUSTOMER.equals(principal.role())) {
+            return ResponseEntity.ok(notificationService.findCustomerLogs(principal.userId()));
+        }
+        if (StaffScope.ROLE_MANAGER.equals(principal.role())) {
+            return ResponseEntity.ok(notificationService.findStaffLogs(principal.dealershipId()));
+        }
+        if (StaffScope.ROLE_ADMIN.equals(principal.role())) {
+            return ResponseEntity.ok(notificationService.findStaffLogs(null));
+        }
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN, "Only customer, manager, and admin accounts can read notifications");
     }
 }

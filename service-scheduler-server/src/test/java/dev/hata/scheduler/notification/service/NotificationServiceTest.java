@@ -1,11 +1,14 @@
 package dev.hata.scheduler.notification.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -256,5 +259,124 @@ class NotificationServiceTest {
         List<CommunicationLogResponse> responses = notificationService.findCustomerLogs(customerId);
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).eventType()).isEqualTo("appointment.confirmed");
+    }
+
+    @Test
+    void handleAfterCommitFansOutToDealershipStaffAndLogsEachDelivery() {
+        UUID dealershipId = UUID.randomUUID();
+        UUID appointmentId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        NotificationDispatchEvent event = new NotificationDispatchEvent(
+                dealershipId,
+                appointmentId,
+                customerId,
+                "+84900000004",
+                "appointment.requested",
+                "APPOINTMENT",
+                appointmentId,
+                "{\"status\":\"REQUESTED\"}");
+
+        when(emitterRegistry.send("+84900000004", "appointment.requested", "{\"status\":\"REQUESTED\"}"))
+                .thenReturn(true);
+        when(emitterRegistry.sendToDealershipStaff(dealershipId, "appointment.requested", "{\"status\":\"REQUESTED\"}"))
+                .thenReturn(Map.of("+84900000002", true, "+84900000003", false));
+
+        notificationService.handleAfterCommit(event);
+
+        ArgumentCaptor<CommunicationLog> captor = ArgumentCaptor.forClass(CommunicationLog.class);
+        verify(communicationLogs, times(3)).save(captor.capture());
+        List<CommunicationLog> logs = captor.getAllValues();
+
+        CommunicationLog customerLog = logs.stream()
+                .filter(log -> "+84900000004".equals(log.getRecipient()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(customerLog.getDeliveryStatus()).isEqualTo("DELIVERED");
+
+        CommunicationLog managerLog = logs.stream()
+                .filter(log -> "+84900000002".equals(log.getRecipient()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(managerLog.getDeliveryStatus()).isEqualTo("DELIVERED");
+        assertThat(managerLog.getEventType()).isEqualTo("appointment.requested");
+        assertThat(managerLog.getAppointmentId()).isEqualTo(appointmentId);
+        assertThat(managerLog.getDealershipId()).isEqualTo(dealershipId);
+        assertThat(managerLog.getCustomerId()).isEqualTo(customerId);
+
+        CommunicationLog technicianLog = logs.stream()
+                .filter(log -> "+84900000003".equals(log.getRecipient()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(technicianLog.getDeliveryStatus()).isEqualTo("UNDELIVERED");
+    }
+
+    @Test
+    void handleAfterCommitSkipsStaffLoggingWhenNoStaffSessionExists() {
+        UUID dealershipId = UUID.randomUUID();
+        NotificationDispatchEvent event = new NotificationDispatchEvent(
+                dealershipId,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "+84900000004",
+                "appointment.cancelled",
+                "APPOINTMENT",
+                UUID.randomUUID(),
+                "{}");
+
+        when(emitterRegistry.send("+84900000004", "appointment.cancelled", "{}"))
+                .thenReturn(true);
+        when(emitterRegistry.sendToDealershipStaff(dealershipId, "appointment.cancelled", "{}"))
+                .thenReturn(Map.of());
+
+        notificationService.handleAfterCommit(event);
+
+        verify(communicationLogs, times(1)).save(any(CommunicationLog.class));
+    }
+
+    @Test
+    void findStaffLogsReturnsDealershipRows() {
+        UUID dealershipId = UUID.randomUUID();
+        CommunicationLog log = new CommunicationLog(
+                UUID.randomUUID(),
+                dealershipId,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "SSE",
+                "+84900000002",
+                "appointment.requested",
+                "{}",
+                "DELIVERED",
+                null,
+                Instant.now());
+
+        when(communicationLogs.findByDealershipIdOrderByDispatchedAtDesc(dealershipId))
+                .thenReturn(List.of(log));
+
+        List<CommunicationLogResponse> responses = notificationService.findStaffLogs(dealershipId);
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).recipient()).isEqualTo("+84900000002");
+        assertThat(responses.get(0).eventType()).isEqualTo("appointment.requested");
+    }
+
+    @Test
+    void findStaffLogsReturnsAllRowsForAdminScope() {
+        CommunicationLog log = new CommunicationLog(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "SSE",
+                "+84900000001",
+                "appointment.cancelled",
+                "{}",
+                "DELIVERED",
+                null,
+                Instant.now());
+
+        when(communicationLogs.findAllByOrderByDispatchedAtDesc()).thenReturn(List.of(log));
+
+        List<CommunicationLogResponse> responses = notificationService.findStaffLogs(null);
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).recipient()).isEqualTo("+84900000001");
     }
 }

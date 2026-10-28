@@ -57,6 +57,7 @@ export interface ServiceJobMock {
   status: string;
   baseMinutes: number;
   estimateCost: number;
+  notes?: string | null;
 }
 
 export interface AppointmentMock {
@@ -82,6 +83,46 @@ export interface CommunicationLogMock {
   eventType: string;
   payload: Record<string, unknown>;
   createdAt: string;
+}
+
+export interface ScheduleJobBlockMock {
+  jobId: string;
+  appointmentId: string;
+  status: string;
+  startTime: string;
+  endTime: string;
+  customerName: string;
+  customerPhone: string;
+  vehicleVin: string;
+  serviceName: string;
+}
+
+export interface ScheduleBayColumnMock {
+  bayId: string;
+  bayName: string;
+  bayTypes: string[];
+  active: boolean;
+  jobs: ScheduleJobBlockMock[];
+}
+
+export interface ScheduleDayMock {
+  dealershipId: string;
+  date: string;
+  bays: ScheduleBayColumnMock[];
+}
+
+export interface ScheduleHistoryItemMock {
+  id: string;
+  dealershipId: string;
+  customerId: string;
+  customerPhone: string;
+  customerName: string;
+  vehicleVin: string;
+  status: string;
+  startTime: string;
+  endTime: string;
+  estimateCost: number;
+  totalCost?: number;
 }
 
 export const DEMO_DEALERSHIP_ID = '00000000-0000-0000-0000-000000000001';
@@ -215,6 +256,64 @@ export const mockCommunicationLogs: CommunicationLogMock[] = [
       status: 'CONFIRMED'
     },
     createdAt: new Date().toISOString()
+  }
+];
+
+export const mockScheduleBays: ScheduleBayColumnMock[] = [
+  {
+    bayId: '33333333-0000-0000-0000-000000000001',
+    bayName: 'Bay 1 - Express Lube',
+    bayTypes: ['QUICK_LUBE'],
+    active: true,
+    jobs: [
+      {
+        jobId: '66666666-0000-0000-0000-000000000001',
+        appointmentId: '44444444-0000-0000-0000-000000000001',
+        status: 'CONFIRMED',
+        startTime: '2026-11-20T08:00:00Z',
+        endTime: '2026-11-20T09:00:00Z',
+        customerName: 'Demo Customer',
+        customerPhone: '+84900000004',
+        vehicleVin: '1HGCR2F83HA000001',
+        serviceName: 'OIL-CHANGE'
+      }
+    ]
+  },
+  {
+    bayId: '33333333-0000-0000-0000-000000000002',
+    bayName: 'Bay 2 - Standard Service',
+    bayTypes: ['STANDARD'],
+    active: true,
+    jobs: []
+  }
+];
+
+export const mockScheduleHistory: ScheduleHistoryItemMock[] = [
+  {
+    id: '44444444-0000-0000-0000-000000000001',
+    dealershipId: DEMO_DEALERSHIP_ID,
+    customerId: '00000000-0000-0000-0000-000000000005',
+    customerPhone: '+84900000004',
+    customerName: 'Demo Customer',
+    vehicleVin: '1HGCR2F83HA000001',
+    status: 'CONFIRMED',
+    startTime: '2026-11-20T08:00:00Z',
+    endTime: '2026-11-20T09:00:00Z',
+    estimateCost: 150.0,
+    totalCost: 150.0
+  },
+  {
+    id: '44444444-0000-0000-0000-000000000004',
+    dealershipId: DEMO_DEALERSHIP_ID,
+    customerId: '00000000-0000-0000-0000-000000000005',
+    customerPhone: '+84900000004',
+    customerName: 'Demo Customer',
+    vehicleVin: '1HGCR2F83HA000004',
+    status: 'CHECKED_IN',
+    startTime: '2026-11-24T11:00:00Z',
+    endTime: '2026-11-24T12:00:00Z',
+    estimateCost: 150.0,
+    totalCost: 150.0
   }
 ];
 
@@ -450,5 +549,47 @@ export const handlers = [
 
   http.get('/api/v1/notifications/my', () => {
     return HttpResponse.json(mockCommunicationLogs);
+  }),
+
+  http.get('/api/v1/schedule/day', ({ request }) => {
+    const url = new URL(request.url);
+    const date = url.searchParams.get('date');
+    if (!date) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Bad Request', status: 400, detail: 'date is required for the day schedule' },
+        { status: 400 }
+      );
+    }
+    const schedule: ScheduleDayMock = {
+      dealershipId: DEMO_DEALERSHIP_ID,
+      date,
+      bays: mockScheduleBays
+    };
+    return HttpResponse.json(schedule);
+  }),
+
+  http.get('/api/v1/schedule/history', ({ request }) => {
+    const url = new URL(request.url);
+    const status = url.searchParams.get('status');
+    const customerPhone = url.searchParams.get('customerPhone');
+    const items = mockScheduleHistory.filter(
+      (item) =>
+        (!status || item.status === status) && (!customerPhone || item.customerPhone === customerPhone)
+    );
+    return HttpResponse.json(items);
+  }),
+
+  http.post('/api/v1/jobs/:id/notes', async ({ params, request }) => {
+    const body = (await request.json()) as { note?: string };
+    if (!body?.note || body.note.trim() === '') {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Bad Request', status: 400, detail: 'note must not be blank' },
+        { status: 400 }
+      );
+    }
+    return HttpResponse.json({
+      jobId: params.id,
+      notes: body.note
+    });
   })
 ];

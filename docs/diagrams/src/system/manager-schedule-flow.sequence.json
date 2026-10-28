@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Manager Schedule Flow: Customer to Manager",
+    "subtitle": "Real-time dealership board without a page refresh",
+    "output": "manager-schedule-flow.html",
+    "viewBox": [1600, 1010],
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    { "id": "customer", "type": "external", "label": "Customer" },
+    { "id": "portal", "type": "frontend", "label": "Portal" },
+    { "id": "api", "type": "backend", "label": "Booking API" },
+    { "id": "service", "type": "backend", "label": "Booking" },
+    { "id": "db", "type": "database", "label": "PostgreSQL" },
+    { "id": "outbox", "type": "messagebus", "label": "Outbox Relay" },
+    { "id": "sse", "type": "messagebus", "label": "SSE Registry" },
+    { "id": "manager", "type": "external", "label": "Manager" },
+    { "id": "board", "type": "frontend", "label": "Manager Board" }
+  ],
+  "segments": [
+    { "from": 150, "to": 360, "label": "Manager opens the schedule board and the stream" },
+    { "from": 380, "to": 550, "label": "Customer books at the same time on different bays" },
+    { "from": 570, "to": 710, "label": "Committed event reaches the board without refresh" },
+    { "from": 730, "to": 900, "label": "Cancellation removes the block" }
+  ],
+  "messages": [
+    { "id": "board-open", "from": "manager", "to": "board", "y": 165, "label": "open schedule view", "variant": "default" },
+    { "id": "day-request", "from": "board", "to": "api", "y": 195, "label": "GET /api/v1/schedule/day", "variant": "emphasis" },
+    { "id": "day-query", "from": "api", "to": "db", "y": 225, "label": "bays and jobs of the day", "variant": "default" },
+    { "id": "day-rows", "from": "db", "to": "api", "y": 255, "label": "rows by bay", "variant": "return" },
+    { "id": "day-response", "from": "api", "to": "board", "y": 285, "label": "200 schedule grid", "variant": "return" },
+    { "id": "board-render", "from": "board", "to": "manager", "y": 315, "label": "render bay columns", "variant": "return" },
+    { "id": "stream-open", "from": "board", "to": "api", "y": 345, "label": "GET /notifications/stream", "variant": "emphasis" },
+
+    { "id": "staff-register", "from": "api", "to": "sse", "y": 385, "label": "register staff session", "variant": "security" },
+    { "id": "customer-book", "from": "customer", "to": "portal", "y": 420, "label": "book two vehicles at one hour", "variant": "default" },
+    { "id": "book-request", "from": "portal", "to": "api", "y": 450, "label": "POST /api/v1/appointments", "variant": "emphasis" },
+    { "id": "book-service", "from": "api", "to": "service", "y": 480, "label": "book bay 1 and bay 2", "variant": "default" },
+    { "id": "book-save", "from": "service", "to": "db", "y": 510, "label": "insert appointment and job", "variant": "default" },
+    { "id": "book-outbox", "from": "service", "to": "db", "y": 540, "label": "insert outbox_events row", "variant": "default" },
+
+    { "id": "commit", "from": "db", "to": "outbox", "y": 575, "label": "transaction commits", "variant": "dashed" },
+    { "id": "relay-publish", "from": "outbox", "to": "sse", "y": 605, "label": "publish appointment event", "variant": "default" },
+    { "id": "push", "from": "sse", "to": "board", "y": 635, "label": "SSE push: appointment.confirmed", "variant": "emphasis" },
+    { "id": "manager-sees", "from": "board", "to": "manager", "y": 665, "label": "new booking visible", "variant": "return" },
+    { "id": "write-log", "from": "outbox", "to": "db", "y": 695, "label": "write communication_logs row", "variant": "dashed" },
+
+    { "id": "cancel-request", "from": "customer", "to": "portal", "y": 735, "label": "cancel the booking", "variant": "default" },
+    { "id": "cancel-api", "from": "portal", "to": "api", "y": 765, "label": "DELETE /appointments/{id}", "variant": "emphasis" },
+    { "id": "cancel-service", "from": "api", "to": "service", "y": 795, "label": "status becomes CANCELLED", "variant": "default" },
+    { "id": "cancel-outbox", "from": "service", "to": "outbox", "y": 825, "label": "stage appointment.cancelled", "variant": "default" },
+    { "id": "cancel-push", "from": "outbox", "to": "board", "y": 855, "label": "SSE push: appointment.cancelled", "variant": "emphasis" },
+    { "id": "drop-block", "from": "board", "to": "manager", "y": 885, "label": "block removed", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "board", "from": 160, "to": 320, "type": "frontend" },
+    { "participant": "api", "from": 190, "to": 300, "type": "backend" },
+    { "participant": "db", "from": 220, "to": 260, "type": "database" },
+    { "participant": "sse", "from": 380, "to": 640, "type": "messagebus" },
+    { "participant": "portal", "from": 415, "to": 455, "type": "frontend" },
+    { "participant": "api", "from": 445, "to": 545, "type": "backend" },
+    { "participant": "service", "from": 475, "to": 545, "type": "backend" },
+    { "participant": "db", "from": 505, "to": 580, "type": "database" },
+    { "participant": "outbox", "from": 570, "to": 700, "type": "messagebus" },
+    { "participant": "sse", "from": 600, "to": 640, "type": "messagebus" },
+    { "participant": "board", "from": 630, "to": 890, "type": "frontend" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Real-time board",
+      "items": [
+        "The manager stream stays open with the httpOnly JWT cookie",
+        "The fan-out keeps the staff sessions of the dealership",
+        "The frontend patches the grid by appointmentId, so no reload happens"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Concurrent bookings",
+      "items": [
+        "Two bookings at the same hour on bay 1 and bay 2 both commit",
+        "The no_bay_overlap exclusion constraint only blocks one bay twice",
+        "Both events reach the board, so every booking shows up"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Cancellation",
+      "items": [
+        "The customer cancels from REQUESTED or CONFIRMED only",
+        "The cancelled event removes the block from the board",
+        "Every staff delivery writes a communication_logs row for the notification list"
+      ]
+    }
+  ]
+}

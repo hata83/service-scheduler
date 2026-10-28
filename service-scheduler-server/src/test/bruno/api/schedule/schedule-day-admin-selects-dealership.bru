@@ -1,0 +1,29 @@
+meta {
+  name: schedule-day-admin-selects-dealership
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/schedule/day?date={{SCHEDULE_DATE}}&dealershipId=00000000-0000-0000-0000-000000000001
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Cookie: jwt={{JWT_ADMIN}}
+}
+
+script:pre-request {
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  bru.setEnvVar('SCHEDULE_DATE', tomorrow.toISOString().slice(0, 10));
+}
+
+tests {
+  test("admin day schedule responds 200 for the selected dealership", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().dealershipId).to.equal("00000000-0000-0000-0000-000000000001");
+    expect(res.getBody().bays).to.be.an('array');
+  });
+}

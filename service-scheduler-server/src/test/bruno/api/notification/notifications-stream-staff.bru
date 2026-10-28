@@ -1,0 +1,25 @@
+meta {
+  name: notifications-stream-staff
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/notifications/stream?closeAfterInitial=true
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: text/event-stream
+  Cookie: jwt={{JWT_MANAGER}}
+}
+
+tests {
+  test("manager stream responds 200 with text/event-stream", function() {
+    expect(res.getStatus()).to.equal(200);
+    const contentType = res.getHeader('content-type') || '';
+    expect(contentType).to.include("text/event-stream");
+    expect(res.getHeader('cache-control') || '').to.equal('no-cache');
+  });
+}

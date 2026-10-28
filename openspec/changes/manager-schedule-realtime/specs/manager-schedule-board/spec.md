@@ -14,6 +14,7 @@ filtered lists, and full booking details for staff roles MANAGER and ADMIN.
 | `/api/v1/schedule/day` | GET | `service-scheduler-server/src/test/bruno/api/schedule/schedule-day.bru` | Full day schedule by bay |
 | `/api/v1/schedule/history` | GET | `service-scheduler-server/src/test/bruno/api/schedule/schedule-history.bru` | Filtered appointment history |
 | `/api/v1/appointments/{id}` | GET | `service-scheduler-server/src/test/bruno/api/appointment/appointment-get-staff.bru` | Staff enriched detail |
+| `/api/v1/jobs/{id}/notes` | POST | `service-scheduler-server/src/test/bruno/api/schedule/job-notes.bru` | Technician appends inspection note |
 
 ### Capacity Mapping
 
@@ -22,6 +23,7 @@ filtered lists, and full booking details for staff roles MANAGER and ADMIN.
 | Day schedule view | `service-scheduler-ui/tests/e2e/manager-realtime-board.spec.ts` | `docs/diagrams/system/manager-schedule-flow.html` |
 | Filtered history list | `service-scheduler-ui/tests/e2e/manager-realtime-board.spec.ts` | `docs/diagrams/system/manager-schedule-flow.html` |
 | Staff booking detail | `service-scheduler-ui/tests/e2e/manager-realtime-board.spec.ts` | `docs/diagrams/system/manager-schedule-flow.html` |
+| Job inspection notes | `service-scheduler-ui/tests/e2e/manager-realtime-board.spec.ts` | `docs/diagrams/system/manager-schedule-flow.html` |
 | Role scope enforcement | `service-scheduler-ui/tests/e2e/manager-realtime-board.spec.ts` | `docs/diagrams/system/manager-schedule-flow.html` |
 
 ## ADDED Requirements
@@ -83,3 +85,17 @@ notes, estimate cost and final cost, and communication log records.
 - **WHEN** a MANAGER requests `GET /api/v1/appointments/{id}` for an appointment of another
   dealership
 - **THEN** response status is 404 Not Found with an `application/problem+json` body
+
+### Requirement: Job inspection notes
+
+The system SHALL provide `POST /api/v1/jobs/{id}/notes` for the TECHNICIAN role to append an
+inspection note to its assigned service job. The note text SHALL be stored in the `notes` column of
+`service_jobs` and SHALL appear in the staff detail view.
+
+#### Scenario: Technician appends an inspection note
+- **WHEN** a TECHNICIAN posts a note to `POST /api/v1/jobs/{id}/notes` for an assigned job
+- **THEN** response status is 200 OK and the note text is appended to the job notes column
+
+#### Scenario: Customer cannot append notes
+- **WHEN** a CUSTOMER posts a note to `POST /api/v1/jobs/{id}/notes`
+- **THEN** response status is 403 Forbidden with an `application/problem+json` body

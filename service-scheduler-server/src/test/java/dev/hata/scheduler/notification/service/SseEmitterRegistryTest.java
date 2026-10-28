@@ -3,6 +3,7 @@ package dev.hata.scheduler.notification.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,6 +68,70 @@ class SseEmitterRegistryTest {
 
         // Safe no-op when not found
         registry.remove("+84900000001");
+    }
+
+    @Test
+    void sendToDealershipStaffReachesOnlyStaffOfThatDealership() {
+        UUID dealershipA = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID dealershipB = UUID.fromString("00000000-0000-0000-0000-000000000002");
+
+        registry.registerStaff("+84900000002", dealershipA);
+        registry.registerStaff("+84900000003", dealershipB);
+
+        Map<String, Boolean> deliveries =
+                registry.sendToDealershipStaff(dealershipA, "appointment.requested", Map.of("status", "REQUESTED"));
+
+        assertThat(deliveries).containsOnlyKeys("+84900000002");
+        assertThat(deliveries.get("+84900000002")).isTrue();
+    }
+
+    @Test
+    void sendToDealershipStaffReachesGlobalAdminSessions() {
+        UUID dealershipA = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
+        registry.registerStaff("+84900000001", null);
+
+        Map<String, Boolean> deliveries =
+                registry.sendToDealershipStaff(dealershipA, "appointment.cancelled", Map.of("status", "CANCELLED"));
+
+        assertThat(deliveries).containsOnlyKeys("+84900000001");
+        assertThat(deliveries.get("+84900000001")).isTrue();
+    }
+
+    @Test
+    void customerRegistrationClearsStaffScopeOfSamePhone() {
+        UUID dealershipA = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
+        registry.registerStaff("+84900000002", dealershipA);
+        registry.register("+84900000002");
+
+        Map<String, Boolean> deliveries =
+                registry.sendToDealershipStaff(dealershipA, "appointment.requested", Map.of("status", "REQUESTED"));
+
+        assertThat(deliveries).isEmpty();
+    }
+
+    @Test
+    void staffSessionCountCountsDealershipAndAdminSessions() {
+        UUID dealershipA = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID dealershipB = UUID.fromString("00000000-0000-0000-0000-000000000002");
+
+        registry.registerStaff("+84900000002", dealershipA);
+        registry.registerStaff("+84900000003", dealershipB);
+        registry.registerStaff("+84900000001", null);
+
+        assertThat(registry.getStaffSessionCount(dealershipA)).isEqualTo(2);
+        assertThat(registry.getStaffSessionCount(dealershipB)).isEqualTo(2);
+    }
+
+    @Test
+    void removeClearsStaffSessionScope() {
+        UUID dealershipA = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
+        registry.registerStaff("+84900000002", dealershipA);
+        registry.remove("+84900000002");
+
+        assertThat(registry.getStaffSessionCount(dealershipA)).isZero();
     }
 
     @Test

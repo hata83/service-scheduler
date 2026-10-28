@@ -1,0 +1,33 @@
+meta {
+  name: job-notes-technician
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/jobs/66666666-0000-0000-0000-000000000001/notes
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+  Cookie: jwt={{JWT_TECHNICIAN}}
+  X-Idempotency-Key: 6a000001-0000-0000-0000-000000000001
+}
+
+body:json {
+  {
+    "note": "Customer asked for a tire check"
+  }
+}
+
+tests {
+  test("assigned technician appends an inspection note and reads it back", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().jobId).to.equal("66666666-0000-0000-0000-000000000001");
+    expect(res.getBody().notes).to.be.an('array');
+    expect(res.getBody().notes.join(' ')).to.include('tire check');
+  });
+}
