@@ -9,9 +9,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -69,8 +71,13 @@ class SlotAvailabilityServiceTest {
         when(eviction.readGeneration(DEALERSHIP_ID, LocalDate.of(2026, 10, 28))).thenReturn("0:0");
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
+        // Fixed clock pinned to 2026-10-28T00:30Z so "today" is 2026-10-28 in
+        // the Asia/Ho_Chi_Minh config and every cached slot start (08:00+07 =
+        // 01:00Z) is still in the future when filterElapsed runs — avoiding the
+        // time-of-day flakiness that fired on CI after 01:00Z.
+        Clock clock = Clock.fixed(Instant.parse("2026-10-28T00:30:00Z"), ZoneOffset.UTC);
         service = new SlotAvailabilityService(
-                redis, mapper, dealershipConfigPort, serviceTypeRepository, gridCompute, eviction);
+                redis, mapper, dealershipConfigPort, serviceTypeRepository, gridCompute, eviction, clock);
     }
 
     // -------------------------------------------------------------------------

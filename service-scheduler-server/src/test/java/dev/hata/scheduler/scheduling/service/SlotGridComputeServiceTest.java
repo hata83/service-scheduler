@@ -451,6 +451,7 @@ class SlotGridComputeServiceTest {
         }
     }
 
+    @SuppressWarnings({"PMD.CloseResource", "PMD.ReplaceJavaUtilDate"})
     @Test
     void jobSpanRowMapperMapsResultSetColumnsToRecord() throws Exception {
         java.sql.ResultSet rs = org.mockito.Mockito.mock(java.sql.ResultSet.class);

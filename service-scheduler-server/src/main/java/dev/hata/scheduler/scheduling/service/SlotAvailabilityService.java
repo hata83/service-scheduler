@@ -1,5 +1,6 @@
 package dev.hata.scheduler.scheduling.service;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -62,6 +63,7 @@ public class SlotAvailabilityService {
     private final ServiceTypeRepository serviceTypeRepository;
     private final SlotGridComputeService gridCompute;
     private final SlotCacheEvictionService eviction;
+    private final Clock clock;
 
     public SlotAvailabilityService(
             StringRedisTemplate redis,
@@ -69,13 +71,15 @@ public class SlotAvailabilityService {
             DealershipConfigPort dealershipConfig,
             ServiceTypeRepository serviceTypeRepository,
             SlotGridComputeService gridCompute,
-            SlotCacheEvictionService eviction) {
+            SlotCacheEvictionService eviction,
+            Clock clock) {
         this.redis = redis;
         this.objectMapper = objectMapper;
         this.dealershipConfig = dealershipConfig;
         this.serviceTypeRepository = serviceTypeRepository;
         this.gridCompute = gridCompute;
         this.eviction = eviction;
+        this.clock = clock;
     }
 
     // -------------------------------------------------------------------------
@@ -109,7 +113,7 @@ public class SlotAvailabilityService {
             return Collections.emptyList();
         }
 
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         LocalDate today = now.atZone(java.time.ZoneId.of(config.timezone())).toLocalDate();
 
         if (date.isBefore(today)) {
@@ -195,7 +199,7 @@ public class SlotAvailabilityService {
      * midnight must not return slots for a date that is now in the past.
      */
     private List<SlotAvailabilityResponse> filterElapsed(List<SlotAvailabilityResponse> slots) {
-        java.time.OffsetDateTime now = java.time.Instant.now().atOffset(java.time.ZoneOffset.UTC);
+        java.time.OffsetDateTime now = java.time.Instant.now(clock).atOffset(java.time.ZoneOffset.UTC);
         return slots.stream().filter(s -> s.startTime().isAfter(now)).toList();
     }
 
