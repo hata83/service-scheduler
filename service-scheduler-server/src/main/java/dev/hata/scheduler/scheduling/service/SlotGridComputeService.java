@@ -256,24 +256,26 @@ public class SlotGridComputeService {
     private List<ServiceJobSpan> loadDayJobs(UUID dealershipId, LocalDate date, ZoneId zone) {
         ZonedDateTime zStart = date.atStartOfDay(zone);
         ZonedDateTime zEnd = zStart.plusDays(1);
-        Instant dayStart = zStart.toInstant();
-        Instant dayEnd = zEnd.toInstant();
+        // service_jobs links to appointments; appointent_id joins to the dealership.
+        // Bind day bounds as Timestamp to satisfy the PostgreSQL driver, which
+        // cannot infer the SQL type for a bare java.time.Instant (PGJDBC-1622).
+        java.sql.Timestamp dayStart = java.sql.Timestamp.from(zStart.toInstant());
+        java.sql.Timestamp dayEnd = java.sql.Timestamp.from(zEnd.toInstant());
         return jdbc.query(
                 """
-                SELECT id, bay_id, start_time, end_time
-                FROM service_jobs
-                WHERE dealership_id = ?
-                  AND status NOT IN ('CANCELLED', 'DONE')
-                  AND start_time < ?
-                  AND end_time > ?
+                SELECT sj.id, sj.bay_id, sj.start_time, sj.end_time
+                FROM service_jobs sj
+                JOIN appointments a ON a.id = sj.appointment_id
+                WHERE a.dealership_id = ?
+                  AND sj.status NOT IN ('CANCELLED', 'DONE')
+                  AND sj.start_time < ?
+                  AND sj.end_time > ?
                 """,
                 JOB_SPAN_ROW_MAPPER,
                 dealershipId,
                 dayEnd,
                 dayStart);
-    }
-
-    // --- Steps 3–5: technician gate with augmenting-path matching ---
+    } // --- Steps 3–5: technician gate with augmenting-path matching ---
 
     /**
      * Steps 3–5: Technician gate using augmenting-path bipartite matching.
