@@ -256,11 +256,11 @@ public class SlotGridComputeService {
     private List<ServiceJobSpan> loadDayJobs(UUID dealershipId, LocalDate date, ZoneId zone) {
         ZonedDateTime zStart = date.atStartOfDay(zone);
         ZonedDateTime zEnd = zStart.plusDays(1);
-        // service_jobs links to appointments; appointent_id joins to the dealership.
-        // Bind day bounds as Timestamp to satisfy the PostgreSQL driver, which
-        // cannot infer the SQL type for a bare java.time.Instant (PGJDBC-1622).
-        java.sql.Timestamp dayStart = java.sql.Timestamp.from(zStart.toInstant());
-        java.sql.Timestamp dayEnd = java.sql.Timestamp.from(zEnd.toInstant());
+        // service_jobs links to appointments; appointments carry the dealership.
+        // Bind day bounds as OffsetDateTime so pgjdbc maps them to TIMESTAMPTZ
+        // (pgjdbc cannot infer the SQL type for a bare java.time.Instant — PGJDBC-1622).
+        java.time.OffsetDateTime dayStart = zStart.toOffsetDateTime();
+        java.time.OffsetDateTime dayEnd = zEnd.toOffsetDateTime();
         return jdbc.query(
                 """
                 SELECT sj.id, sj.bay_id, sj.start_time, sj.end_time
