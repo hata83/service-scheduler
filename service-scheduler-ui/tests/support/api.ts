@@ -1,3 +1,5 @@
+import { randomInt } from "node:crypto";
+
 import {
   APIRequestContext,
   PlaywrightWorkerArgs,
@@ -24,16 +26,15 @@ let vinCounter = 100000;
  * Adds run-unique digits to the default VIN base. The process counter restarts
  * on every suite run, so the bare base would reuse the VINs of an earlier
  * run. A reused VIN that is already booked on the test date yields a vehicle
- * conflict the test does not target. The stamp comes from the wall clock in
- * base 36, so two runs less than 36 ms apart share a stamp. Valid VIN charset
- * is ^[A-HJ-NPR-Z0-9]{17}$, which excludes I, O, and Q.
+ * conflict the test does not target. The stamp is crypto-random, so two runs
+ * share a stamp with a chance of about 1 in 1.2 million. Valid VIN charset is
+ * ^[A-HJ-NPR-Z0-9]{17}$, which excludes I, O, and Q.
  */
-const VIN_RUN_STAMP = BigInt(Date.now())
-  .toString(36)
-  .toUpperCase()
-  .replace(/[^0-9A-HJ-NPR-Z]/g, "A")
-  .padStart(4, "A")
-  .slice(-4);
+const VIN_ALPHABET = "0123456789ABCDEFGHJKLMNPRSTUVWXYZ";
+const VIN_RUN_STAMP = Array.from(
+  { length: 4 },
+  () => VIN_ALPHABET[randomInt(VIN_ALPHABET.length)],
+).join("");
 
 /**
  * Builds a valid 17-character ISO VIN string conforming to ^[A-HJ-NPR-Z0-9]{17}$.

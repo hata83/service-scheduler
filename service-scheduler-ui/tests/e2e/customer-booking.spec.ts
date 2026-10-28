@@ -441,11 +441,17 @@ test.describe("Customer appointment booking", () => {
       expect(recoveredAppointment.status).toBe("CONFIRMED");
     } finally {
       // Cleanup: cancel every committed appointment so the probed windows
-      // stay open for the next run.
+      // stay open for the next run. Each response is checked and reported,
+      // and a failure never skips the remaining cancellations.
       for (const id of createdAppointments) {
-        await request.delete(`/api/v1/appointments/${id}`, {
+        const cleanupResp = await request.delete(`/api/v1/appointments/${id}`, {
           headers: { Cookie: `jwt=${cookie}` },
         });
+        if (cleanupResp.status() !== 200) {
+          console.warn(
+            `[cleanup] cancel ${id} answered ${cleanupResp.status()}`,
+          );
+        }
       }
     }
   });

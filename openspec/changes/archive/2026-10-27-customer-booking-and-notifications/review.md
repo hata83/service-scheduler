@@ -315,3 +315,30 @@ The following quality gates and test suites confirm all changes:
 4. **Bruno**: 72 requests passed, 84/84 tests.
 5. **Playwright E2E**: 48 passed; repeat run `--repeat-each=2` → 96 passed.
 6. **Database state after runs**: 0 active appointments for test-generated VINs (seed and manually fixed VIN rows excluded).
+
+---
+
+## 8. Round 5 — Qodo Threads on the Concurrency E2E (2026-10-28)
+
+### Metadata
+
+| Field | Value |
+|---|---|
+| Trigger | Qodo review of commit `9115f13` opened 3 threads on the new E2E code |
+| Open Threads | 3 (all Qodo, all on test-support and spec files) |
+| Reviewed | `ocr delegate preview` on the final diff; test files inspected by hand |
+| Verdict | **PASS** (all 3 threads fixed and resolved with commit `PENDING_SHA`) |
+
+### Findings, Fixes, and Proof
+
+| # | Thread | Severity | Finding | Fix |
+|---|---|---|---|---|
+| 1 | Qodo `_0py` | Medium | The 09:00 grid assertion cannot isolate the bay gate, because technician availability also hides the seeded window | Race winner already holds the window on the declared bay; a third booking on that occupied window now asserts the exact `Workshop bay conflict` title, which isolates the bay exclusion gate |
+| 2 | Qodo `_AHXX` | Medium | Clock-based VIN stamps wrap: the shared helper repeats after about 28 minutes and the race-test prefix after about 47 seconds | Both generators now draw 4 crypto-random characters from the 33-character VIN alphabet, so two runs share a stamp with a chance of about 1 in 1.2 million; the race spec reuses the shared `freshVin()` space instead of its own clock stamp |
+| 3 | Qodo `_AHXZ` | Medium | Cleanup loops ignored the DELETE status, so a failed cancellation looked like a clean run | Both cleanup paths check the response status and log a visible `[cleanup]` warning for a non-200 answer without skipping the remaining cancellations |
+
+### Round 5 Proofs
+
+1. **Playwright E2E**: full suite 48 passed after the fixes.
+2. **Database state after runs**: 0 active appointments for test-generated VINs.
+3. **CI**: all checks pass on the fix commit; threads replied and resolved.

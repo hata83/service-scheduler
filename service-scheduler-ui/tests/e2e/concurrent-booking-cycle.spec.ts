@@ -73,25 +73,6 @@ test.describe("Concurrent booking cycle - race, conflict, cancel, rebook", () =>
   }
 
   /**
-   * Builds a VIN unique to this spec run. The default freshVin() base restarts
-   * its counter per process, so a VIN booked by an earlier run can collide with
-   * a booking this spec does not target. The base embeds time-derived digits,
-   * so each run gets a disjoint VIN space.
-   */
-  function specVin(): string {
-    // Valid VIN charset is ^[A-HJ-NPR-Z0-9]{17}$.
-    const runStamp = BigInt(Date.now())
-      .toString(36)
-      .toUpperCase()
-      .replace(/[^0-9A-Z]/g, "");
-    const unique3 = (runStamp.slice(-3) + "000")
-      .slice(0, 3)
-      .replace(/[^0-9A-HJ-NPR-Z]/g, "A")
-      .padEnd(3, "A");
-    return freshVin(`WVWZZZ1KZ${unique3}`.slice(0, 11));
-  }
-
-  /**
    * Registers a fresh customer and returns the JWT session cookie.
    */
   async function registerCustomer(request: ApiContext): Promise<string> {
@@ -122,12 +103,16 @@ test.describe("Concurrent booking cycle - race, conflict, cancel, rebook", () =>
    * flow under test may already have cancelled it on the happy path.
    */
   async function cancelLeftover(leftover: Leftover): Promise<void> {
-    try {
-      await leftover.request.delete(`/api/v1/appointments/${leftover.id}`, {
+    const resp = await leftover.request.delete(
+      `/api/v1/appointments/${leftover.id}`,
+      {
         headers: { Cookie: `jwt=${leftover.cookie}` },
-      });
-    } catch {
-      // Best effort only: a cleanup failure must not mask the test result.
+      },
+    );
+    if (resp.status() !== 200) {
+      // Report without throwing: a cleanup failure must not mask the test
+      // result, but it must be visible in the output.
+      console.warn(`[cleanup] cancel ${leftover.id} answered ${resp.status()}`);
     }
   }
 
@@ -252,14 +237,14 @@ test.describe("Concurrent booking cycle - race, conflict, cancel, rebook", () =>
               Cookie: `jwt=${cookieA}`,
               "X-Idempotency-Key": randomUUID(),
             },
-            data: bodyFor(window, specVin()),
+            data: bodyFor(window, freshVin()),
           }),
           userB.post("/api/v1/appointments", {
             headers: {
               Cookie: `jwt=${cookieB}`,
               "X-Idempotency-Key": randomUUID(),
             },
-            data: bodyFor(window, specVin()),
+            data: bodyFor(window, freshVin()),
           }),
         ]);
 
@@ -341,7 +326,7 @@ test.describe("Concurrent booking cycle - race, conflict, cancel, rebook", () =>
           Cookie: `jwt=${loser.cookie}`,
           "X-Idempotency-Key": randomUUID(),
         },
-        data: bodyFor(racedSlot, specVin()),
+        data: bodyFor(racedSlot, freshVin()),
       });
       expect(bayProbeResp.status()).toBe(409);
       const bayProbeProblem = await bayProbeResp.json();
@@ -391,7 +376,7 @@ test.describe("Concurrent booking cycle - race, conflict, cancel, rebook", () =>
           Cookie: `jwt=${loser.cookie}`,
           "X-Idempotency-Key": randomUUID(),
         },
-        data: bodyFor(racedSlot, specVin()),
+        data: bodyFor(racedSlot, freshVin()),
       });
       expect(rebookResp.status(), await rebookResp.text()).toBe(201);
       const rebooked = (await rebookResp.json()) as {
