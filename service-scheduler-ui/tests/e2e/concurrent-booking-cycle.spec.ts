@@ -103,15 +103,21 @@ test.describe("Concurrent booking cycle - race, conflict, cancel, rebook", () =>
    * flow under test may already have cancelled it on the happy path.
    */
   async function cancelLeftover(leftover: Leftover): Promise<void> {
-    const resp = await leftover.request.delete(
-      `/api/v1/appointments/${leftover.id}`,
-      {
-        headers: { Cookie: `jwt=${leftover.cookie}` },
-      },
-    );
-    if (resp.status() !== 200) {
+    let resp;
+    try {
+      resp = await leftover.request.delete(
+        `/api/v1/appointments/${leftover.id}`,
+        {
+          headers: { Cookie: `jwt=${leftover.cookie}` },
+        },
+      );
+    } catch (error) {
       // Report without throwing: a cleanup failure must not mask the test
       // result, but it must be visible in the output.
+      console.warn(`[cleanup] cancel ${leftover.id} failed: ${error}`);
+      return;
+    }
+    if (resp.status() !== 200) {
       console.warn(`[cleanup] cancel ${leftover.id} answered ${resp.status()}`);
     }
   }

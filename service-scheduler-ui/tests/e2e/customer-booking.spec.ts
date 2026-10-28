@@ -444,9 +444,15 @@ test.describe("Customer appointment booking", () => {
       // stay open for the next run. Each response is checked and reported,
       // and a failure never skips the remaining cancellations.
       for (const id of createdAppointments) {
-        const cleanupResp = await request.delete(`/api/v1/appointments/${id}`, {
-          headers: { Cookie: `jwt=${cookie}` },
-        });
+        let cleanupResp;
+        try {
+          cleanupResp = await request.delete(`/api/v1/appointments/${id}`, {
+            headers: { Cookie: `jwt=${cookie}` },
+          });
+        } catch (error) {
+          console.warn(`[cleanup] cancel ${id} failed: ${error}`);
+          continue;
+        }
         if (cleanupResp.status() !== 200) {
           console.warn(
             `[cleanup] cancel ${id} answered ${cleanupResp.status()}`,
