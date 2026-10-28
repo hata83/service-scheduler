@@ -63,3 +63,11 @@ TASKS    16   done 16  open 0
 - [x] T14. OCR review delegate rounds recorded in `openspec/changes/manager-schedule-realtime/review.md`.
 - [x] T15. Full gate: `openspec validate manager-schedule-realtime --strict`, `./gradlew clean build`,
       Bruno suite, Playwright suite.
+
+--- PR Loop Update (State 11) ---
+- Fixed Qodo #11 (AppointmentService concurrent note append) + Kilo warnings.
+- Added UUID import to NotificationController.
+- Updated ScheduleServiceTest pagination, ServiceJobControllerTest, NotificationServiceTest.
+- Committed 11d07cb, pushed to PR #6.
+- ./gradlew test: 344 pass. Bruno: pass (83/83 previous). Playwright: connection refused (env, not code).
+- Waiting for PR #6 review comments before archive (State 12).

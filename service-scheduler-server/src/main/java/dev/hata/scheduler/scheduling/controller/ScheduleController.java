@@ -184,7 +184,7 @@ public class ScheduleController {
         } catch (java.time.format.DateTimeParseException ex) {
             try {
                 LocalDate date = java.time.LocalDate.parse(value);
-                ZoneId zone = timezone == null ? ZoneId.systemDefault() : ZoneId.of(timezone);
+                ZoneId zone = timezone == null ? ZoneId.of("UTC") : ZoneId.of(timezone);
                 return date.atStartOfDay(zone).toInstant();
             } catch (java.time.format.DateTimeParseException innerEx) {
                 throw new org.springframework.web.server.ResponseStatusException(
@@ -204,7 +204,7 @@ public class ScheduleController {
         } catch (java.time.format.DateTimeParseException ex) {
             try {
                 LocalDate date = java.time.LocalDate.parse(value);
-                ZoneId zone = timezone == null ? ZoneId.systemDefault() : ZoneId.of(timezone);
+                ZoneId zone = timezone == null ? ZoneId.of("UTC") : ZoneId.of(timezone);
                 return date.plusDays(1).atStartOfDay(zone).toInstant();
             } catch (java.time.format.DateTimeParseException innerEx) {
                 throw new org.springframework.web.server.ResponseStatusException(
