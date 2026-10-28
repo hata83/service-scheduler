@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { expect, test } from "@playwright/test";
+import { APIResponse, expect, test } from "@playwright/test";
 
 import { apiContext, freshVin, getCustomerSession } from "../support/api";
 
@@ -444,7 +444,7 @@ test.describe("Customer appointment booking", () => {
       // stay open for the next run. Each response is checked and reported,
       // and a failure never skips the remaining cancellations.
       for (const id of createdAppointments) {
-        let cleanupResp;
+        let cleanupResp: APIResponse;
         try {
           cleanupResp = await request.delete(`/api/v1/appointments/${id}`, {
             headers: { Cookie: `jwt=${cookie}` },

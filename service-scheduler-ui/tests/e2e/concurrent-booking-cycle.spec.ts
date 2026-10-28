@@ -1,6 +1,6 @@
 ﻿import { randomUUID } from "node:crypto";
 
-import { expect, test } from "@playwright/test";
+import { APIResponse, expect, test } from "@playwright/test";
 
 import {
   apiContext,
@@ -103,7 +103,7 @@ test.describe("Concurrent booking cycle - race, conflict, cancel, rebook", () =>
    * flow under test may already have cancelled it on the happy path.
    */
   async function cancelLeftover(leftover: Leftover): Promise<void> {
-    let resp;
+    let resp: APIResponse;
     try {
       resp = await leftover.request.delete(
         `/api/v1/appointments/${leftover.id}`,
