@@ -49,11 +49,15 @@ public class DealershipService implements DealershipValidationProvider, Dealersh
 
     /**
      * Returns the scheduling configuration for a dealership.
-     * Returns empty when the dealership is not found or is inactive.
+     * Returns empty when the dealership is not found or is inactive; results are
+     * cached for 15 minutes and never cache missing lookups (Qodo #11).
      */
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = "dealership-config", key = "#dealershipId.toString()")
+    // Spring unwraps the Optional in #result for the unless check: present
+    // configs evaluate non-null (cached), empty lookups evaluate null (never
+    // cached, Qodo #11).
+    @Cacheable(cacheNames = "dealership-config", key = "#dealershipId.toString()", unless = "#result == null")
     public Optional<DealershipConfig> findConfig(UUID dealershipId) {
         return dealerships
                 .findById(dealershipId)

@@ -309,7 +309,9 @@ public class AppointmentService {
         // Per-job dates on top of appointment-level dates so intermediate job spans
         // (multi-day bookings with jobs on non-terminal dates) evict every touched grid.
         Set<LocalDate> dates = extractAppointmentDates(saved.getDealershipId(), saved);
-        dates.addAll(extractJobDates(saved.getDealershipId(), saved.getServiceJobs()));
+        if (!saved.getServiceJobs().isEmpty()) {
+            dates.addAll(extractJobDates(saved.getDealershipId(), saved.getServiceJobs()));
+        }
         eventPublisher.publishEvent(new AppointmentSlotModifiedEvent(saved.getDealershipId(), dates));
 
         return new CancelAppointmentResponse(saved.getId(), AppointmentStatus.CANCELLED, Instant.now());

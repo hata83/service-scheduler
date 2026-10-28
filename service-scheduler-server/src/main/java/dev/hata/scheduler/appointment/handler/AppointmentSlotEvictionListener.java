@@ -5,7 +5,6 @@ import java.time.LocalDate;
 import dev.hata.scheduler.common.event.AppointmentSlotModifiedEvent;
 import dev.hata.scheduler.common.provider.SlotCacheEvictionProvider;
 
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -22,7 +21,6 @@ public class AppointmentSlotEvictionListener {
         this.slotCacheEviction = slotCacheEviction;
     }
 
-    @CacheEvict(cacheNames = "slot-grids", allEntries = true)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onAppointmentSlotModified(AppointmentSlotModifiedEvent event) {
         for (LocalDate date : event.dates()) {

@@ -227,3 +227,42 @@ The following quality gates and test suites confirm all changes:
    - `docs/diagrams/system/booking-and-notification-flow.html`: Finalized (quality: showcase, browser-check: pass).
    - `docs/diagrams/system/appointment-lifecycle.html`: Finalized (quality: showcase, browser-check: pass).
    - `docs/diagrams/system/sse-notification.html`: Finalized (quality: showcase, browser-check: pass).
+
+---
+
+## 6. PR Review Round 3 — Cache Hardening Threads (2026-10-28)
+
+### Metadata
+
+| Field | Value |
+|---|---|
+| Trigger | Review bots flagged the Spring cache layer introduced in commit `5a20c9c` |
+| Open Threads | 8 (2 Kilo, 6 Qodo) |
+| Reviewed | OCR delegate preview: 6 total files, 5 reviewable, all 5 inspected |
+| Verdict | **PASS** (0 unresolved findings; all 8 threads addressed before push) |
+
+### Findings, Fixes, and Proof
+
+| # | Thread | Severity | Finding | Fix |
+|---|---|---|---|---|
+| 1 | Qodo `8DU #1` `CacheConfig` | High | Cache `@Cacheable`/`@CacheEvict` calls propagate Redis failures as 500s | `CachingConfigurer.errorHandler()` returns `FailOpenCacheErrorHandler`; get errors behave as miss, put/evict/clear errors are logged and swallowed (`CacheConfig.java`) |
+| 2 | Qodo `8Db #2` `SlotAvailabilityService` | High | Outer `slot-grids` Spring cache double-caches grids with unscoped keys and stale eviction races | Outer `@Cacheable("slot-grids")` layer removed entirely; generation-stamped manual Redis cache remains the single source of cached grids (`SlotAvailabilityService.java`) |
+| 3 | Qodo `8Dd #3` `SlotAvailabilityService` | High | `@CacheEvict(allEntries)` on eviction methods discards unrelated slots and still races writers | `@CacheEvict` annotations removed from `evictSlotsByDate`/`evictSlotsByDealership`/`evictSlots`; scripted key-scoped eviction in `SlotCacheEvictionService` handles invalidation |
+| 4 | Qodo `8DX #10` `AppointmentSlotEvictionListener` | Medium | Listener `@CacheEvict(allEntries)` nukes the whole cache per appointment event | `@CacheEvict` removed from the listener; the provider call evicts only appointment-touched dates after commit |
+| 5 | Qodo `8Di #12` + Kilo `6yC` `CacheConfig:49` | High | `enableUnsafeDefaultTyping()` allows deserialization gadget attacks from a compromised Redis | Replaced with `enableDefaultTyping` restricted by `BasicPolymorphicTypeValidator` allow-list (`dev.hata.scheduler.`, `java.util.`) |
+| 6 | Qodo `8Df #11` `DealershipService` | Medium | `dealership-config` cached forever, empty lookups cached, never evicted on dealership-wide changes | TTL cut to 15 min, `unless = "#result == null"` skips empty lookups, `@CacheEvict"dealership-config"` added on `evictSlotsByDealership` |
+| 7 | Kilo `61X` `AppointmentService:312` | Low | Cancellation eviction iterates `serviceJobs()` without a null/empty guard | Guard `if (!saved.getServiceJobs().isEmpty())` wraps `extractJobDates(...)` call |
+| 8 | Review record | Gate | `review.md` must record coverage per OCR gate | This section records thread list, fix diffs, and proofs for `verifyCodeReviewDelegate` |
+
+### Regression Proof Note
+
+- First integration pass after fix (a) hit 6 Playwright failures with `SpelEvaluationException: Method isPresent() cannot be found` on `DealershipConfig`. Root cause: `unless = "!#result.isPresent()"` is wrong because Spring unwraps `Optional` in `#result`; the plain `DealershipConfig` has no `isPresent()`. Fix: `unless = "#result == null"`. The failing Playwright run reproduces the bug without the fix; the passing run proves the fix.
+- `CacheConfigTest` added: covers fail-open semantics for all four `CacheErrorHandler` methods.
+
+### Round 3 Proofs
+
+1. **Full build gate**: `./gradlew clean build` → BUILD SUCCESSFUL (Spotless, Checkstyle, PMD, ArchUnit, JaCoCo verification, `verifyCodeReviewDelegate` all pass).
+2. **OCR delegate**: `ocr delegate preview --format json` → 6 total files, 5 reviewable, 1 excluded; diff of all 5 inspected; no unresolved critical/high findings.
+3. **Bruno**: 72 requests passed, 84/84 tests pass (`bruno-results.xml`).
+4. **Playwright E2E**: 47 passed (was 41 pass / 6 fail before the `unless` fix).
+5. **JaCoCo**: `@Service` classes at 100%; overall above the 80% gate.

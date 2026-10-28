@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -102,9 +101,6 @@ public class SlotAvailabilityService implements SlotCacheEvictionProvider {
      * @return slot windows; only slots where both bay and technician gates pass
      * @throws SlotDateOutOfRangeException when date &gt; today + maxAdvanceBookingDays
      */
-    @Cacheable(
-            cacheNames = "slot-grids",
-            key = "#dealershipId.toString() + ':' + #date.toString() + ':' + #serviceTypeId.toString()")
     public List<SlotAvailabilityResponse> getCachedAvailableSlots(
             UUID dealershipId, UUID serviceTypeId, LocalDate date) {
 
@@ -229,7 +225,6 @@ public class SlotAvailabilityService implements SlotCacheEvictionProvider {
      * @param dealershipId the dealership scope
      * @param date         the date whose grids must be invalidated
      */
-    @CacheEvict(cacheNames = "slot-grids", allEntries = true)
     public void evictSlotsByDate(UUID dealershipId, LocalDate date) {
         eviction.evictByDate(dealershipId, date);
     }
@@ -246,7 +241,10 @@ public class SlotAvailabilityService implements SlotCacheEvictionProvider {
      *
      * @param dealershipId the dealership scope
      */
-    @CacheEvict(cacheNames = "slot-grids", allEntries = true)
+    // Qodo #11: dealership-config is evicted here so configuration or resource
+    // changes are never served stale; this is the documented hook for
+    // dealership-wide change events (bays, technicians, config).
+    @CacheEvict(cacheNames = "dealership-config", allEntries = true)
     public void evictSlotsByDealership(UUID dealershipId) {
         eviction.evictByDealership(dealershipId);
     }
@@ -300,7 +298,6 @@ public class SlotAvailabilityService implements SlotCacheEvictionProvider {
     }
 
     @Override
-    @CacheEvict(cacheNames = "slot-grids", allEntries = true)
     public void evictSlots(UUID dealershipId, LocalDate date) {
         evictSlotsByDate(dealershipId, date);
     }
