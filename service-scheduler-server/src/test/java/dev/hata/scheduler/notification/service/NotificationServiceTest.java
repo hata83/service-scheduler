@@ -374,7 +374,8 @@ class NotificationServiceTest {
                 null,
                 Instant.now());
 
-        when(communicationLogs.findTop200ByChannelOrderByDispatchedAtDesc("SSE_STAFF")).thenReturn(List.of(log));
+        when(communicationLogs.findTop200ByChannelOrderByDispatchedAtDesc("SSE_STAFF"))
+                .thenReturn(List.of(log));
 
         List<CommunicationLogResponse> responses = notificationService.findStaffLogs(null);
         assertThat(responses).hasSize(1);
