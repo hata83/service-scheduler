@@ -584,13 +584,13 @@ class AppointmentServiceTest {
         job.setNotes("   ");
 
         when(serviceJobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        when(serviceJobRepository.saveAndFlush(any(ServiceJob.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(serviceJobRepository.appendNoteAtomic(jobId, "new note")).thenReturn(1);
 
         AppointmentService.JobNoteResult result =
                 appointmentService.appendJobNote(jobId, UUID.randomUUID(), "new note", true);
 
         assertThat(result.appended()).isEqualTo("new note");
-        assertThat(job.getNotes()).isEqualTo("new note");
+        verify(serviceJobRepository).appendNoteAtomic(jobId, "new note");
     }
 
     @Test
@@ -611,14 +611,13 @@ class AppointmentServiceTest {
 
         when(jobTechnicianAssignmentRepository.findByJobId(jobId)).thenReturn(List.of(assignment));
         when(serviceJobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        when(serviceJobRepository.saveAndFlush(any(ServiceJob.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(serviceJobRepository.appendNoteAtomic(jobId, note)).thenReturn(1);
 
         AppointmentService.JobNoteResult result = appointmentService.appendJobNote(jobId, TECHNICIAN_ID, note);
 
         assertThat(result.jobId()).isEqualTo(jobId);
         assertThat(result.appended()).isEqualTo(note);
-        assertThat(job.getNotes()).contains("existing note").contains(note);
-        verify(serviceJobRepository).saveAndFlush(job);
+        verify(serviceJobRepository).appendNoteAtomic(jobId, note);
     }
 
     @Test
@@ -697,13 +696,13 @@ class AppointmentServiceTest {
         job.setId(jobId);
 
         when(serviceJobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        when(serviceJobRepository.saveAndFlush(any(ServiceJob.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(serviceJobRepository.appendNoteAtomic(jobId, "manager note")).thenReturn(1);
 
         AppointmentService.JobNoteResult result =
                 appointmentService.appendJobNote(jobId, UUID.randomUUID(), "manager note", true);
 
         assertThat(result.appended()).isEqualTo("manager note");
-        assertThat(job.getNotes()).contains("manager note");
+        verify(serviceJobRepository).appendNoteAtomic(jobId, "manager note");
     }
 
     @Test

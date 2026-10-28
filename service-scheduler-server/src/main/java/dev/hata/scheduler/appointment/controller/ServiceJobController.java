@@ -7,6 +7,7 @@ import dev.hata.scheduler.appointment.dto.JobNoteResponse;
 import dev.hata.scheduler.appointment.service.AppointmentService;
 import dev.hata.scheduler.common.filter.AuthFilter;
 import dev.hata.scheduler.common.security.AuthPrincipal;
+import dev.hata.scheduler.common.security.StaffScope;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -102,8 +103,13 @@ public class ServiceJobController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only technicians and managers may append notes");
         }
 
-        AppointmentService.JobNoteResult result =
-                appointmentService.appendJobNote(jobId, principal.userId(), request.note(), isManager);
+        UUID managerDealershipScope = null;
+        if ("MANAGER".equals(role)) {
+            managerDealershipScope = StaffScope.dealershipScope(principal, null);
+        }
+
+        AppointmentService.JobNoteResult result = appointmentService.appendJobNote(
+                jobId, principal.userId(), request.note(), isManager, managerDealershipScope);
         return ResponseEntity.ok(appointmentService.readJobNotes(result.jobId()));
     }
 }

@@ -301,7 +301,8 @@ class NotificationServiceTest {
         assertThat(managerLog.getEventType()).isEqualTo("appointment.requested");
         assertThat(managerLog.getAppointmentId()).isEqualTo(appointmentId);
         assertThat(managerLog.getDealershipId()).isEqualTo(dealershipId);
-        assertThat(managerLog.getCustomerId()).isEqualTo(customerId);
+        assertThat(managerLog.getCustomerId()).isNull();
+        assertThat(managerLog.getChannel()).isEqualTo("SSE_STAFF");
 
         CommunicationLog technicianLog = logs.stream()
                 .filter(log -> "+84900000003".equals(log.getRecipient()))
@@ -349,7 +350,7 @@ class NotificationServiceTest {
                 null,
                 Instant.now());
 
-        when(communicationLogs.findByDealershipIdOrderByDispatchedAtDesc(dealershipId))
+        when(communicationLogs.findTop200ByDealershipIdAndChannelOrderByDispatchedAtDesc(dealershipId, "SSE_STAFF"))
                 .thenReturn(List.of(log));
 
         List<CommunicationLogResponse> responses = notificationService.findStaffLogs(dealershipId);
@@ -373,7 +374,7 @@ class NotificationServiceTest {
                 null,
                 Instant.now());
 
-        when(communicationLogs.findAllByOrderByDispatchedAtDesc()).thenReturn(List.of(log));
+        when(communicationLogs.findTop200ByChannelOrderByDispatchedAtDesc("SSE_STAFF")).thenReturn(List.of(log));
 
         List<CommunicationLogResponse> responses = notificationService.findStaffLogs(null);
         assertThat(responses).hasSize(1);

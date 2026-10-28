@@ -97,7 +97,7 @@ public interface StaffAppointmentQueryRepository extends JpaRepository<Appointme
                    a.created_at AS createdAt,
                    u.phone AS customerPhone,
                    p.first_name || ' ' || p.last_name AS customerName,
-                   v.brand || ' ' || v.model AS vehicleCategory
+                    v.type AS vehicleCategory
             FROM appointments a
             JOIN users u ON u.id = a.customer_id
             JOIN profiles p ON p.user_id = a.customer_id
@@ -113,7 +113,7 @@ public interface StaffAppointmentQueryRepository extends JpaRepository<Appointme
     @Query(
             value =
                     """
-            SELECT j.id AS jobId, s.name AS serviceName, b.bay_name AS bayName, j.status AS status,
+            SELECT j.id AS jobId, s.code AS serviceName, b.bay_name AS bayName, j.status AS status,
                    j.start_time AS startTime, j.end_time AS endTime, j.notes AS notes,
                    j.estimate_cost AS estimateCost, j.final_cost AS finalCost
             FROM service_jobs j

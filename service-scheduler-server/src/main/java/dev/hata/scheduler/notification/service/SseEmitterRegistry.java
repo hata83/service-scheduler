@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,23 +71,19 @@ public class SseEmitterRegistry {
             staffDealerships.remove(phone);
         }
 
-        emitter.onCompletion(() -> {
-            emitters.remove(phone, emitter);
-            globalStaffPhones.remove(phone);
-            staffDealerships.remove(phone);
-            log.debug("SSE emitter completed for phone: {}", maskPhone(phone));
-        });
-        emitter.onTimeout(() -> {
-            emitters.remove(phone, emitter);
-            globalStaffPhones.remove(phone);
-            staffDealerships.remove(phone);
-            log.debug("SSE emitter timed out for phone: {}", maskPhone(phone));
-        });
+        Consumer<String> cleanup = reason -> {
+            if (emitters.remove(phone, emitter)) {
+                globalStaffPhones.remove(phone);
+                staffDealerships.remove(phone);
+                log.debug("SSE emitter {} for phone: {}", reason, maskPhone(phone));
+            }
+        };
+
+        emitter.onCompletion(() -> cleanup.accept("completed"));
+        emitter.onTimeout(() -> cleanup.accept("timed out"));
         emitter.onError(e -> {
-            emitters.remove(phone, emitter);
-            globalStaffPhones.remove(phone);
-            staffDealerships.remove(phone);
-            log.debug("SSE emitter error for phone: {}", maskPhone(phone), e);
+            cleanup.accept("error");
+            log.debug("SSE emitter error details for phone: {}", maskPhone(phone), e);
         });
 
         log.info(

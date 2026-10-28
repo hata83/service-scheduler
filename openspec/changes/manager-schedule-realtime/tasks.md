@@ -1,7 +1,7 @@
 # Tasks: Manager Real-Time Schedule Board
 
 CHANGE   manager-schedule-realtime     BRANCH   feature/manager-schedule-realtime
-STATES   14   done 9  current 1  next 1  skipped 0  failed 0  pending 4
+STATES   14   done 10  current 1  next 1  skipped 0  failed 0  pending 3
 TASKS    16   done 16  open 0
 
   #   state                     mark     proof
@@ -14,9 +14,9 @@ TASKS    16   done 16  open 0
   7   Review                    done     ocr delegate review.md recorded; 0 critical or high findings
   8   Verify                    done     openspec validate strict, clean build, Bruno (83/83), Playwright (50/50)
   9   Request approval          done     HIL-2 human gate: approved by human
- 10   Publish                   current  commit, push, open pull request
- 11   PR verify                 next     CI green, all review threads resolved
- 12   Archive                   pending  /opsx-archive, diagram moved to docs/diagrams
+ 10   Publish                   done     committed bdc614c, pushed origin, opened PR #6
+ 11   PR verify                 current  CI in progress, monitoring Qodo and Kilo reviews
+ 12   Archive                   next     /opsx-archive, diagram moved to docs/diagrams
  13   Review archive            pending  archive pushed to same pull request
  14   Merge                     pending  human answers how to proceed
 

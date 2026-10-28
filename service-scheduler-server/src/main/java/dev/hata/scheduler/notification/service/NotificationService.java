@@ -53,15 +53,19 @@ public class NotificationService {
                 .toList();
     }
 
+    private static final String STAFF_CHANNEL = "SSE_STAFF";
+
     /**
      * Returns communication logs for staff. A MANAGER reads the logs of its dealership.
      * An ADMIN reads the logs of every dealership. A null scope reads all dealerships.
+     * Capped at the 200 most recent records to prevent unbounded memory growth.
      */
     @Transactional(readOnly = true)
     public List<CommunicationLogResponse> findStaffLogs(UUID dealershipId) {
         List<CommunicationLog> logs = dealershipId == null
-                ? communicationLogs.findAllByOrderByDispatchedAtDesc()
-                : communicationLogs.findByDealershipIdOrderByDispatchedAtDesc(dealershipId);
+                ? communicationLogs.findTop200ByChannelOrderByDispatchedAtDesc(STAFF_CHANNEL)
+                : communicationLogs.findTop200ByDealershipIdAndChannelOrderByDispatchedAtDesc(
+                        dealershipId, STAFF_CHANNEL);
         return logs.stream().map(CommunicationLogResponse::from).toList();
     }
 
@@ -145,8 +149,8 @@ public class NotificationService {
                     UUID.randomUUID(),
                     event.dealershipId(),
                     event.appointmentId(),
-                    event.customerId(),
-                    "SSE",
+                    null,
+                    STAFF_CHANNEL,
                     delivery.getKey(),
                     event.eventType(),
                     event.payload(),

@@ -1,6 +1,7 @@
 package dev.hata.scheduler.notification.controller;
 
 import java.util.List;
+import java.util.UUID;
 
 import dev.hata.scheduler.common.exception.ApiProblem;
 import dev.hata.scheduler.common.filter.AuthFilter;
@@ -95,14 +96,10 @@ public class NotificationController {
             return standalone;
         }
 
-        if (isEmployeeRole(principal.role())) {
+        if (StaffScope.isStaffRole(principal.role())) {
             return sseEmitterRegistry.registerStaff(principal.phone(), principal.dealershipId());
         }
         return sseEmitterRegistry.register(principal.phone());
-    }
-
-    private static boolean isEmployeeRole(String role) {
-        return "MANAGER".equals(role) || "ADMIN".equals(role) || "TECHNICIAN".equals(role);
     }
 
     private static String maskPhone(String phone) {
@@ -148,7 +145,8 @@ public class NotificationController {
             return ResponseEntity.ok(notificationService.findCustomerLogs(principal.userId()));
         }
         if (StaffScope.ROLE_MANAGER.equals(principal.role())) {
-            return ResponseEntity.ok(notificationService.findStaffLogs(principal.dealershipId()));
+            UUID scope = StaffScope.dealershipScope(principal, null);
+            return ResponseEntity.ok(notificationService.findStaffLogs(scope));
         }
         if (StaffScope.ROLE_ADMIN.equals(principal.role())) {
             return ResponseEntity.ok(notificationService.findStaffLogs(null));

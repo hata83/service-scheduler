@@ -31,8 +31,6 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class ScheduleService {
 
-    private static final int MAX_HISTORY_ROWS = 200;
-
     private final ScheduleQueryRepository scheduleQueryRepository;
     private final DealershipValidationProvider dealershipValidation;
 
@@ -114,6 +112,8 @@ public class ScheduleService {
      */
     @Transactional(readOnly = true)
     public List<ScheduleHistoryItem> findHistory(ScheduleHistoryQuery query) {
+        int size = Math.min(Math.max(query.size(), 1), ScheduleHistoryQuery.MAX_SIZE);
+        int offset = Math.max(query.page(), ScheduleHistoryQuery.DEFAULT_PAGE) * size;
         List<HistoryRow> rows = scheduleQueryRepository.findHistoryRows(
                 query.dealershipId(),
                 query.status(),
@@ -121,7 +121,8 @@ public class ScheduleService {
                 query.to(),
                 query.bayId(),
                 query.customerPhone(),
-                MAX_HISTORY_ROWS);
+                offset,
+                size);
 
         return rows.stream()
                 .map(row -> new ScheduleHistoryItem(
@@ -150,6 +151,11 @@ public class ScheduleService {
         if (firstName == null && lastName == null) {
             return null;
         }
-        return (firstName == null ? "" : firstName) + " " + (lastName == null ? "" : lastName);
+        String first = firstName == null ? "" : firstName.trim();
+        String last = lastName == null ? "" : lastName.trim();
+        if (first.isEmpty() && last.isEmpty()) {
+            return null;
+        }
+        return first + " " + last;
     }
 }

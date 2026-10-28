@@ -136,3 +136,23 @@ Applied rules from `ocr delegate rule --format json service-scheduler-server/src
    `openspec validate manager-schedule-realtime --strict` -> **SUCCESS** (valid).
 5. **Code Review Gate**:
    `./gradlew :service-scheduler-server:verifyCodeReviewDelegate` -> **SUCCESS**.
+
+---
+
+## 5. PR Review Loop (State 11) — PR #6 Fixes
+
+### 5.1 Qodo Bugs Fixed / Verified
+
+- Bug #11 (AppointmentService.appendJobNote): Fixed by removing redundant job.setNotes(updated) + job.setUpdatedAt() before appendNoteAtomic, preventing double-concatenation from flushAutomatically = true. Atomic query handles concatenation and timestamp.
+- All other Qodo bugs (#1-#10, #12) and Kilo warnings verified OK (code already handles them).
+
+### 5.2 Fix Proof
+
+- Fix diff: AppointmentService.java (line 447): removed redundant in-memory update before atomic SQL update.
+- Verification: format/test/review steps applied.
+
+### 5.3 Updated State Block
+
+CHANGE manager-schedule-realtime BRANCH feature/manager-schedule-realtime
+STATES 14 done 10 current 11 next 11 skipped 0 failed 0 pending 3
+TASKS 16 done 16 open 0

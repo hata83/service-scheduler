@@ -57,7 +57,7 @@ class ServiceJobControllerTest {
                 UUID.fromString("00000000-0000-0000-0000-000000000001"),
                 "jti");
 
-        when(appointmentService.appendJobNote(jobId, technicianId, note, false))
+        when(appointmentService.appendJobNote(jobId, technicianId, note, false, null))
                 .thenReturn(new AppointmentService.JobNoteResult(jobId, note));
         when(appointmentService.readJobNotes(jobId)).thenReturn(new JobNoteResponse(jobId, List.of(note)));
 
@@ -79,7 +79,7 @@ class ServiceJobControllerTest {
         AuthPrincipal principal = new AuthPrincipal(
                 managerId, "MANAGER", "+84900000002", UUID.fromString("00000000-0000-0000-0000-000000000001"), "jti");
 
-        when(appointmentService.appendJobNote(jobId, managerId, note, true))
+        when(appointmentService.appendJobNote(jobId, managerId, note, true, UUID.fromString("00000000-0000-0000-0000-000000000001")))
                 .thenReturn(new AppointmentService.JobNoteResult(jobId, note));
         when(appointmentService.readJobNotes(jobId)).thenReturn(new JobNoteResponse(jobId, List.of(note)));
 

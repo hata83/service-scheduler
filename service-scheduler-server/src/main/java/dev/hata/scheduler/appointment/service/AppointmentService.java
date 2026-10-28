@@ -405,7 +405,7 @@ public class AppointmentService {
      */
     @Transactional
     public JobNoteResult appendJobNote(UUID jobId, UUID callerId, String note) {
-        return appendJobNote(jobId, callerId, note, false);
+        return appendJobNote(jobId, callerId, note, false, null);
     }
 
     /**
@@ -414,10 +414,27 @@ public class AppointmentService {
      */
     @Transactional
     public JobNoteResult appendJobNote(UUID jobId, UUID callerId, String note, boolean isManager) {
+        return appendJobNote(jobId, callerId, note, isManager, null);
+    }
+
+    /**
+     * Appends an inspection note to a service job when the caller is permitted.
+     * Enforces dealership scope for manager callers to prevent cross-dealership modifications.
+     * Performs an atomic native update to prevent concurrent note appends from dropping notes.
+     */
+    @Transactional
+    public JobNoteResult appendJobNote(
+            UUID jobId, UUID callerId, String note, boolean isManager, UUID managerDealershipScope) {
         ServiceJob job = serviceJobRepository
                 .findById(jobId)
                 .orElseThrow(
                         () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service job not found: " + jobId));
+
+        if (isManager && managerDealershipScope != null) {
+            if (!managerDealershipScope.equals(job.getAppointment().getDealershipId())) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Service job not found: " + jobId);
+            }
+        }
 
         boolean assigned = jobTechnicianAssignmentRepository.findByJobId(jobId).stream()
                 .anyMatch(a -> a.getTechnicianId().equals(callerId));
@@ -427,11 +444,7 @@ public class AppointmentService {
                     HttpStatus.FORBIDDEN, "Only the assigned technician may append notes to job " + jobId);
         }
 
-        String current = job.getNotes();
-        String updated = current == null || current.isBlank() ? note : current + "\n" + note;
-        job.setNotes(updated);
-        job.setUpdatedAt(Instant.now());
-        serviceJobRepository.saveAndFlush(job);
+        serviceJobRepository.appendNoteAtomic(jobId, note);
 
         return new JobNoteResult(jobId, note);
     }

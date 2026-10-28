@@ -164,11 +164,11 @@ class ScheduleServiceTest {
         UUID appointmentId = UUID.fromString("11111111-1111-1111-1111-111111111111");
         HistoryRow row = mockHistoryRow(appointmentId);
         List<HistoryRow> rows = List.of(row);
-        when(scheduleQueryRepository.findHistoryRows(any(), any(), any(), any(), any(), any(), anyInt()))
+        when(scheduleQueryRepository.findHistoryRows(any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(rows);
 
         List<ScheduleHistoryItem> items = scheduleService.findHistory(
-                new ScheduleHistoryQuery(DEALERSHIP_ID, "CANCELLED", null, null, null, null));
+                new ScheduleHistoryQuery(DEALERSHIP_ID, "CANCELLED", null, null, null, null, 0, 50));
 
         assertThat(items).hasSize(1);
         assertThat(items.get(0).id()).isEqualTo(appointmentId);

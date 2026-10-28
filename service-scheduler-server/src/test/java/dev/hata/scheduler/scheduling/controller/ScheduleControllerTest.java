@@ -3,6 +3,7 @@ package dev.hata.scheduler.scheduling.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -10,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.LocalDate;
 import java.util.List;
+
 import java.util.UUID;
 
 import dev.hata.scheduler.common.filter.AuthFilter;
@@ -17,11 +19,13 @@ import dev.hata.scheduler.common.security.AuthPrincipal;
 import dev.hata.scheduler.scheduling.dto.ScheduleBayColumn;
 import dev.hata.scheduler.scheduling.dto.ScheduleDayResponse;
 import dev.hata.scheduler.scheduling.dto.ScheduleHistoryItem;
+import dev.hata.scheduler.scheduling.dto.ScheduleHistoryQuery;
 import dev.hata.scheduler.scheduling.service.ScheduleService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
@@ -178,6 +182,26 @@ class ScheduleControllerTest {
                         .param("from", "yesterday")
                         .requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void historyAcceptsDateOnlyFromFilter() throws Exception {
+        AuthPrincipal principal = new AuthPrincipal(UUID.randomUUID(), "MANAGER", "+84900000002", DEALERSHIP_ID, "jti");
+
+        when(scheduleService.findHistory(any())).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/schedule/history")
+                        .param("from", "2026-10-01")
+                        .param("to", "2026-10-28")
+                        .requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<ScheduleHistoryQuery> captor = ArgumentCaptor.forClass(ScheduleHistoryQuery.class);
+        verify(scheduleService).findHistory(captor.capture());
+        ScheduleHistoryQuery query = captor.getValue();
+        assertThat(query.from()).isNotNull();
+        assertThat(query.to()).isNotNull();
+        assertThat(query.to()).isAfter(query.from());
     }
 
     @Test

@@ -65,8 +65,8 @@ public interface ScheduleQueryRepository extends JpaRepository<WorkshopBay, UUID
                    u.phone AS phone, a.vehicle_vin AS vehicleVin, st.name AS serviceTypeName
             FROM workshop_bays b
             LEFT JOIN service_jobs j ON j.bay_id = b.id
-                AND j.start_time >= :startOfDay
                 AND j.start_time < :endOfDay
+                AND j.end_time >= :startOfDay
                 AND j.status <> 'CANCELLED'
             LEFT JOIN appointments a ON a.id = j.appointment_id
             LEFT JOIN users u ON u.id = a.customer_id
@@ -125,17 +125,17 @@ public interface ScheduleQueryRepository extends JpaRepository<WorkshopBay, UUID
             FROM appointments a
             JOIN users u ON u.id = a.customer_id
             JOIN profiles p ON p.user_id = a.customer_id
-            WHERE (CAST(:dealershipId AS UUID) IS NULL OR a.dealership_id = CAST(:dealershipId AS UUID))
-              AND (CAST(:status AS VARCHAR) IS NULL OR a.status = CAST(:status AS VARCHAR))
-              AND (CAST(:from AS TIMESTAMPTZ) IS NULL OR a.start_time >= CAST(:from AS TIMESTAMPTZ))
-              AND (CAST(:to AS TIMESTAMPTZ) IS NULL OR a.end_time <= CAST(:to AS TIMESTAMPTZ))
-              AND (CAST(:customerPhone AS VARCHAR) IS NULL OR u.phone = CAST(:customerPhone AS VARCHAR))
-              AND (CAST(:bayId AS UUID) IS NULL OR EXISTS (
-                    SELECT 1 FROM service_jobs j
-                    WHERE j.appointment_id = a.id AND j.bay_id = CAST(:bayId AS UUID)))
-            ORDER BY a.start_time DESC
-            LIMIT :maxRows
-            """,
+             WHERE (CAST(:dealershipId AS UUID) IS NULL OR a.dealership_id = CAST(:dealershipId AS UUID))
+               AND (CAST(:status AS VARCHAR) IS NULL OR a.status = CAST(:status AS VARCHAR))
+               AND (CAST(:from AS TIMESTAMPTZ) IS NULL OR a.start_time >= CAST(:from AS TIMESTAMPTZ))
+                AND (CAST(:to AS TIMESTAMPTZ) IS NULL OR a.start_time < CAST(:to AS TIMESTAMPTZ))
+               AND (CAST(:customerPhone AS VARCHAR) IS NULL OR u.phone = CAST(:customerPhone AS VARCHAR))
+               AND (CAST(:bayId AS UUID) IS NULL OR EXISTS (
+                     SELECT 1 FROM service_jobs j
+                     WHERE j.appointment_id = a.id AND j.bay_id = CAST(:bayId AS UUID)))
+             ORDER BY a.start_time DESC
+             LIMIT :size OFFSET :offset
+             """,
             nativeQuery = true)
     List<HistoryRow> findHistoryRows(
             @Param("dealershipId") UUID dealershipId,
@@ -144,5 +144,6 @@ public interface ScheduleQueryRepository extends JpaRepository<WorkshopBay, UUID
             @Param("to") Instant to,
             @Param("bayId") UUID bayId,
             @Param("customerPhone") String customerPhone,
-            @Param("maxRows") int maxRows);
+            @Param("offset") int offset,
+            @Param("size") int size);
 }

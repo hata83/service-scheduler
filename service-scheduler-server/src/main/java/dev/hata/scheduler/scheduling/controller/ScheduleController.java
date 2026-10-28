@@ -141,14 +141,24 @@ public class ScheduleController {
             @RequestParam(name = "to", required = false) String to,
             @RequestParam(name = "bayId", required = false) UUID bayId,
             @RequestParam(name = "customerPhone", required = false) String customerPhone,
+            @RequestParam(name = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(name = "size", required = false, defaultValue = "50") int size,
             @RequestParam(name = "dealershipId", required = false) UUID dealershipId) {
         if (principal == null) {
             throw new org.springframework.web.server.ResponseStatusException(
                     HttpStatus.UNAUTHORIZED, "Authentication required");
         }
         UUID scope = StaffScope.dealershipScope(principal, dealershipId);
-        ScheduleHistoryQuery query =
-                new ScheduleHistoryQuery(scope, status, parseInstant(from), parseInstant(to), bayId, customerPhone);
+        String timezone = scope == null ? null : dealershipTimezone(scope);
+        ScheduleHistoryQuery query = new ScheduleHistoryQuery(
+                scope,
+                status,
+                parseInstant(from, timezone),
+                parseInstantExclusive(to, timezone),
+                bayId,
+                customerPhone,
+                page,
+                size);
         return ResponseEntity.ok(scheduleService.findHistory(query));
     }
 
@@ -165,15 +175,43 @@ public class ScheduleController {
         }
     }
 
-    private static java.time.Instant parseInstant(String value) {
+    private static java.time.Instant parseInstant(String value, String timezone) {
         if (value == null || value.isBlank()) {
             return null;
         }
         try {
             return java.time.Instant.parse(value);
         } catch (java.time.format.DateTimeParseException ex) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "filter must use the ISO-8601 instant format: " + value, ex);
+            try {
+                LocalDate date = java.time.LocalDate.parse(value);
+                ZoneId zone = timezone == null ? ZoneId.systemDefault() : ZoneId.of(timezone);
+                return date.atStartOfDay(zone).toInstant();
+            } catch (java.time.format.DateTimeParseException innerEx) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "filter must use the ISO-8601 instant or yyyy-MM-dd format: " + value,
+                        ex);
+            }
+        }
+    }
+
+    private static java.time.Instant parseInstantExclusive(String value, String timezone) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return java.time.Instant.parse(value);
+        } catch (java.time.format.DateTimeParseException ex) {
+            try {
+                LocalDate date = java.time.LocalDate.parse(value);
+                ZoneId zone = timezone == null ? ZoneId.systemDefault() : ZoneId.of(timezone);
+                return date.plusDays(1).atStartOfDay(zone).toInstant();
+            } catch (java.time.format.DateTimeParseException innerEx) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "filter must use the ISO-8601 instant or yyyy-MM-dd format: " + value,
+                        ex);
+            }
         }
     }
 }
