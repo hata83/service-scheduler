@@ -3,6 +3,7 @@ package dev.hata.scheduler.notification.controller;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -56,7 +57,8 @@ class NotificationControllerTest {
         when(sseEmitterRegistry.register("+84900000004")).thenReturn(emitter);
 
         mockMvc.perform(get("/api/v1/notifications/stream").requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-cache"));
 
         verify(sseEmitterRegistry).register("+84900000004");
     }

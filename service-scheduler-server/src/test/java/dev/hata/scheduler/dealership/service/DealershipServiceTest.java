@@ -12,6 +12,7 @@ import java.util.UUID;
 import dev.hata.scheduler.common.provider.DealershipConfigPort.DealershipConfig;
 import dev.hata.scheduler.dealership.dto.DealershipResponse;
 import dev.hata.scheduler.dealership.model.Dealership;
+import dev.hata.scheduler.dealership.repository.DealershipBayRepository;
 import dev.hata.scheduler.dealership.repository.DealershipRepository;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -19,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class DealershipServiceTest {
@@ -30,13 +30,13 @@ class DealershipServiceTest {
     private DealershipRepository repository;
 
     @Mock
-    private JdbcTemplate jdbcTemplate;
+    private DealershipBayRepository dealershipBayRepository;
 
     private DealershipService service;
 
     @BeforeEach
     void setUp() {
-        service = new DealershipService(repository, jdbcTemplate);
+        service = new DealershipService(repository, dealershipBayRepository);
     }
 
     @Test
@@ -154,12 +154,8 @@ class DealershipServiceTest {
     @Test
     void existsActiveBayChecksWorkshopBays() {
         UUID bayId = UUID.randomUUID();
-        when(jdbcTemplate.queryForObject(
-                        org.mockito.ArgumentMatchers.anyString(),
-                        org.mockito.ArgumentMatchers.eq(Boolean.class),
-                        org.mockito.ArgumentMatchers.eq(bayId),
-                        org.mockito.ArgumentMatchers.eq(DEALERSHIP_ID)))
-                .thenReturn(Boolean.TRUE);
+        when(dealershipBayRepository.existsByIdAndDealershipIdAndActiveTrue(bayId, DEALERSHIP_ID))
+                .thenReturn(true);
 
         assertThat(service.existsActiveBay(DEALERSHIP_ID, bayId)).isTrue();
     }

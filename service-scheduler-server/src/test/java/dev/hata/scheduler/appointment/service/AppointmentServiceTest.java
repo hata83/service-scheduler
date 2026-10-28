@@ -3,6 +3,8 @@ package dev.hata.scheduler.appointment.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,6 +14,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import dev.hata.scheduler.appointment.dto.AppointmentResponse;
@@ -35,6 +38,7 @@ import dev.hata.scheduler.common.provider.VehicleCategoryValidationProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -343,6 +347,69 @@ class AppointmentServiceTest {
         verify(jobTechnicianAssignmentRepository).deleteByJobIdIn(any());
         verify(eventPublisher).publishEvent(any(AppointmentSlotModifiedEvent.class));
         verify(eventPublisher).publishEvent(any(NotificationDispatchEvent.class));
+    }
+
+    @Test
+    void cancelAppointmentPublishesPerJobDatesIncludingMiddleOvernightJob() {
+        UUID id = UUID.randomUUID();
+        Appointment a = new Appointment();
+        a.setId(id);
+        a.setDealershipId(DEALERSHIP_ID);
+        a.setCustomerId(CUSTOMER_ID);
+        a.setStatus(AppointmentStatus.CONFIRMED);
+        a.setStartTime(Instant.parse("2026-10-29T18:00:00Z"));
+        a.setEndTime(Instant.parse("2026-11-01T18:00:00Z"));
+
+        ServiceJob booking = new ServiceJob();
+        booking.setStatus(JobStatus.PENDING);
+        a.addServiceJob(booking);
+
+        ServiceJob middle = new ServiceJob();
+        middle.setStatus(JobStatus.PENDING);
+        middle.setStartTime(Instant.parse("2026-10-30T07:00:00Z"));
+        middle.setEndTime(Instant.parse("2026-10-30T19:00:00Z"));
+        a.addServiceJob(middle);
+
+        when(appointmentRepository.findWithJobsByIdAndCustomerId(id, CUSTOMER_ID))
+                .thenReturn(Optional.of(a));
+        when(dealershipValidation.getDealershipTimezone(DEALERSHIP_ID)).thenReturn("Asia/Ho_Chi_Minh");
+        when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        appointmentService.cancelAppointment(id, CUSTOMER_ID, CUSTOMER_PHONE);
+
+        ArgumentCaptor<AppointmentSlotModifiedEvent> eventCaptor =
+                ArgumentCaptor.forClass(AppointmentSlotModifiedEvent.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(eventCaptor.capture());
+        Set<LocalDate> evictedDates = eventCaptor.getValue().dates();
+        assertThat(evictedDates)
+                .contains(LocalDate.of(2026, 10, 31), LocalDate.of(2026, 11, 2), LocalDate.of(2026, 10, 30));
+    }
+
+    @Test
+    void cancelAppointmentWithoutJobsPublishesAppointmentLevelDatesOnly() {
+        UUID id = UUID.randomUUID();
+        Appointment a = new Appointment();
+        a.setId(id);
+        a.setDealershipId(DEALERSHIP_ID);
+        a.setCustomerId(CUSTOMER_ID);
+        a.setStatus(AppointmentStatus.CONFIRMED);
+        a.setStartTime(Instant.parse("2026-10-28T01:00:00Z"));
+        a.setEndTime(Instant.parse("2026-10-28T02:00:00Z"));
+
+        when(appointmentRepository.findWithJobsByIdAndCustomerId(id, CUSTOMER_ID))
+                .thenReturn(Optional.of(a));
+        when(dealershipValidation.getDealershipTimezone(DEALERSHIP_ID)).thenReturn("Asia/Ho_Chi_Minh");
+        when(appointmentRepository.saveAndFlush(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CancelAppointmentResponse response = appointmentService.cancelAppointment(id, CUSTOMER_ID, CUSTOMER_PHONE);
+
+        assertThat(response.status()).isEqualTo(AppointmentStatus.CANCELLED);
+        verify(jobTechnicianAssignmentRepository, never()).deleteByJobIdIn(any());
+        verify(eventPublisher).publishEvent(any(NotificationDispatchEvent.class));
+        ArgumentCaptor<AppointmentSlotModifiedEvent> eventCaptor =
+                ArgumentCaptor.forClass(AppointmentSlotModifiedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().dates()).containsExactly(LocalDate.of(2026, 10, 28));
     }
 
     @Test

@@ -8,9 +8,10 @@ import dev.hata.scheduler.common.provider.DealershipConfigPort;
 import dev.hata.scheduler.common.provider.DealershipValidationProvider;
 import dev.hata.scheduler.dealership.dto.DealershipResponse;
 import dev.hata.scheduler.dealership.model.Dealership;
+import dev.hata.scheduler.dealership.repository.DealershipBayRepository;
 import dev.hata.scheduler.dealership.repository.DealershipRepository;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,23 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DealershipService implements DealershipValidationProvider, DealershipConfigPort {
 
-    private static final String BAY_EXISTS_SQL =
-            """
-            SELECT EXISTS (
-                SELECT 1
-                FROM workshop_bays
-                WHERE id = ?
-                  AND dealership_id = ?
-                  AND is_active = true
-            )
-            """;
-
     private final DealershipRepository dealerships;
-    private final JdbcTemplate jdbcTemplate;
+    private final DealershipBayRepository dealershipBayRepository;
 
-    public DealershipService(DealershipRepository dealerships, JdbcTemplate jdbcTemplate) {
+    public DealershipService(DealershipRepository dealerships, DealershipBayRepository dealershipBayRepository) {
         this.dealerships = dealerships;
-        this.jdbcTemplate = jdbcTemplate;
+        this.dealershipBayRepository = dealershipBayRepository;
     }
 
     @Transactional(readOnly = true)
@@ -63,6 +53,7 @@ public class DealershipService implements DealershipValidationProvider, Dealersh
      */
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "dealership-config", key = "#dealershipId.toString()")
     public Optional<DealershipConfig> findConfig(UUID dealershipId) {
         return dealerships
                 .findById(dealershipId)
@@ -100,7 +91,6 @@ public class DealershipService implements DealershipValidationProvider, Dealersh
         if (dealershipId == null || bayId == null) {
             return false;
         }
-        Boolean exists = jdbcTemplate.queryForObject(BAY_EXISTS_SQL, Boolean.class, bayId, dealershipId);
-        return Boolean.TRUE.equals(exists);
+        return dealershipBayRepository.existsByIdAndDealershipIdAndActiveTrue(bayId, dealershipId);
     }
 }

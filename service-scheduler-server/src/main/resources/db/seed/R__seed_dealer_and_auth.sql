@@ -32,8 +32,7 @@ INSERT INTO dealerships (
   '00000000-0000-0000-0000-000000000002',
   '00000000-0000-0000-0000-000000000002'
 )
-ON CONFLICT (id) DO UPDATE SET
-  auto_confirm_appointments = EXCLUDED.auto_confirm_appointments;
+ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO employees (
   user_id, employee_id, role, dealership_id, created_by, updated_by

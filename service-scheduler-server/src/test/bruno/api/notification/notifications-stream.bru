@@ -20,5 +20,6 @@ tests {
     expect(res.getStatus()).to.equal(200);
     const contentType = res.getHeader('content-type') || '';
     expect(contentType).to.include("text/event-stream");
+    expect(res.getHeader('cache-control') || '').to.equal('no-cache');
   });
 }

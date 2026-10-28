@@ -305,8 +305,11 @@ public class AppointmentService {
                 saved.getId(),
                 payload));
 
-        // Declarative event-driven eviction after transaction commits (SYSTEM_DESIGN §12.1)
+        // Declarative event-driven eviction after transaction commits (SYSTEM_DESIGN §12.1).
+        // Per-job dates on top of appointment-level dates so intermediate job spans
+        // (multi-day bookings with jobs on non-terminal dates) evict every touched grid.
         Set<LocalDate> dates = extractAppointmentDates(saved.getDealershipId(), saved);
+        dates.addAll(extractJobDates(saved.getDealershipId(), saved.getServiceJobs()));
         eventPublisher.publishEvent(new AppointmentSlotModifiedEvent(saved.getDealershipId(), dates));
 
         return new CancelAppointmentResponse(saved.getId(), AppointmentStatus.CANCELLED, Instant.now());
@@ -332,6 +335,21 @@ public class AppointmentService {
         }
         if (appointment.getEndTime() != null) {
             dates.add(appointment.getEndTime().atZone(zone).toLocalDate());
+        }
+        return dates;
+    }
+
+    private Set<LocalDate> extractJobDates(UUID dealershipId, List<ServiceJob> jobs) {
+        String timezone = dealershipValidation.getDealershipTimezone(dealershipId);
+        ZoneId zone = ZoneId.of(timezone);
+        Set<LocalDate> dates = new HashSet<>();
+        for (ServiceJob job : jobs) {
+            if (job.getStartTime() != null) {
+                dates.add(job.getStartTime().atZone(zone).toLocalDate());
+            }
+            if (job.getEndTime() != null) {
+                dates.add(job.getEndTime().atZone(zone).toLocalDate());
+            }
         }
         return dates;
     }
