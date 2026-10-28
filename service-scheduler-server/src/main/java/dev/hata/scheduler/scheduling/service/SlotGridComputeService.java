@@ -17,11 +17,14 @@ import dev.hata.scheduler.common.provider.TechnicianAvailabilityPort;
 import dev.hata.scheduler.scheduling.dto.SlotAvailabilityResponse;
 import dev.hata.scheduler.scheduling.model.ServiceType;
 import dev.hata.scheduler.scheduling.model.ServiceTypeTechnicianRequirement;
+import dev.hata.scheduler.scheduling.model.WorkshopBay;
 import dev.hata.scheduler.scheduling.repository.ServiceTypeTechnicianRequirementRepository;
 import dev.hata.scheduler.scheduling.repository.WorkshopBayRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,14 +49,17 @@ public class SlotGridComputeService {
     private static final Logger log = LoggerFactory.getLogger(SlotGridComputeService.class);
 
     private final WorkshopBayRepository bayRepository;
+    private final JdbcTemplate jdbc;
     private final ServiceTypeTechnicianRequirementRepository requirementRepository;
     private final TechnicianAvailabilityPort technicianAvailability;
 
     public SlotGridComputeService(
             WorkshopBayRepository bayRepository,
+            JdbcTemplate jdbc,
             ServiceTypeTechnicianRequirementRepository requirementRepository,
             TechnicianAvailabilityPort technicianAvailability) {
         this.bayRepository = bayRepository;
+        this.jdbc = jdbc;
         this.requirementRepository = requirementRepository;
         this.technicianAvailability = technicianAvailability;
     }
@@ -86,9 +92,14 @@ public class SlotGridComputeService {
             return List.of();
         }
 
+        // Step 2 (single load): load active bays, the day's non-cancelled jobs,
+        // and the service-type requirements once. Bay overlap is then evaluated
+        // in memory per candidate slot instead of issuing a per-slot repository
+        // query (R-SLOT-NPLUS1).
+        List<WorkshopBay> allBays = bayRepository.findActiveByDealershipId(dealershipId);
+        List<ServiceJobSpan> dayJobs = loadDayJobs(dealershipId, date, zone);
         List<ServiceTypeTechnicianRequirement> requirements =
                 requirementRepository.findByServiceTypeIdOrderBySlotNumber(serviceType.getId());
-
         List<SlotAvailabilityResponse> result = new ArrayList<>();
 
         for (CandidateSlot slot : candidates) {
@@ -96,7 +107,7 @@ public class SlotGridComputeService {
             Instant slotEnd = slot.endZdt().toInstant();
 
             // Step 2: Bay gate — at least one compatible active bay must be free.
-            if (!isBayAvailable(dealershipId, serviceType, slotStart, slotEnd)) {
+            if (!isBayAvailable(serviceType, slotStart, slotEnd, allBays, dayJobs)) {
                 result.add(new SlotAvailabilityResponse(
                         slot.startZdt().toOffsetDateTime(), slot.endZdt().toOffsetDateTime(), false));
                 continue;
@@ -151,18 +162,29 @@ public class SlotGridComputeService {
                 break;
             }
 
+            // Skip the candidate if it would not advance (e.g. cursor stuck on a
+            // spring-forward gap slot) to guarantee loop termination.
+            if (slotEnd.isBefore(cursor)) {
+                break;
+            }
+
             // Skip lunch overlap.
             if (!isInLunch(cursor, slotEnd, lunchStart, lunchEnd)) {
                 // Skip past slots on today.
                 if (!isToday || cursor.isAfter(nowLocal)) {
-                    // When a service duration wraps past midnight (e.g. 22:00 + 120 min ->
-                    // 00:00), the candidate is invalid. Break out of the generation loop
-                    // instead of re-evaluating the same cursor indefinitely.
-                    if (slotEnd.isBefore(cursor)) {
-                        break;
-                    }
                     ZonedDateTime startZdt = ZonedDateTime.of(LocalDateTime.of(date, cursor), zone);
                     ZonedDateTime endZdt = ZonedDateTime.of(LocalDateTime.of(date, slotEnd), zone);
+                    // DST guard (R-SLOT-DST): a spring-forward gap shifts the end
+                    // instant so the slot is not exactly the service duration.
+                    long elapsedSeconds =
+                            java.time.Duration.between(startZdt, endZdt).getSeconds();
+                    if (elapsedSeconds
+                            != java.time.Duration.ofMinutes(durationMinutes).getSeconds()) {
+                        // Gap-affected candidate: do not emit, but advance the
+                        // cursor so the loop makes progress and terminates.
+                        cursor = cursor.plusMinutes(intervalMinutes);
+                        continue;
+                    }
                     slots.add(new CandidateSlot(startZdt, endZdt));
                 }
             }
@@ -185,18 +207,70 @@ public class SlotGridComputeService {
     }
 
     /**
-     * Step 2: Bay gate. At least one active bay with any of the allowed bay types
-     * must have no overlapping active service job.
+     * Step 2: Bay gate. At least one active bay supporting an allowed bay type
+     * must have no overlapping active service job. Evaluated in memory from the
+     * single per-grid load of bays and day jobs (R-SLOT-NPLUS1).
      */
-    private boolean isBayAvailable(UUID dealershipId, ServiceType serviceType, Instant slotStart, Instant slotEnd) {
-        for (String bayType : serviceType.getAllowedBayTypes()) {
-            if (!bayRepository
-                    .findAvailableBays(dealershipId, bayType, slotStart, slotEnd)
-                    .isEmpty()) {
+    private boolean isBayAvailable(
+            ServiceType serviceType,
+            Instant slotStart,
+            Instant slotEnd,
+            List<WorkshopBay> allBays,
+            List<ServiceJobSpan> dayJobs) {
+        for (WorkshopBay bay : allBays) {
+            if (bay.getBayTypes() == null
+                    || !bay.getBayTypes().stream().anyMatch(serviceType.getAllowedBayTypes()::contains)) {
+                continue;
+            }
+            boolean overlaps = false;
+            for (ServiceJobSpan job : dayJobs) {
+                if (job.bayId().equals(bay.getId())
+                        && job.startTime().isBefore(slotEnd)
+                        && job.endTime().isAfter(slotStart)) {
+                    overlaps = true;
+                    break;
+                }
+            }
+            if (!overlaps) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** RowMapper for {@link ServiceJobSpan}, extracted for testability (line coverage). */
+    static final RowMapper<ServiceJobSpan> JOB_SPAN_ROW_MAPPER = (rs, rowNum) -> new ServiceJobSpan(
+            (UUID) rs.getObject("id"),
+            (UUID) rs.getObject("bay_id"),
+            rs.getTimestamp("start_time").toInstant(),
+            rs.getTimestamp("end_time").toInstant());
+
+    /**
+     * Loads the day's active service job spans in a single query.
+     *
+     * @param dealershipId the dealership scope
+     * @param date         the calendar date
+     * @param zone         the dealership timezone
+     * @return non-cancelled, non-done jobs overlapping the day
+     */
+    private List<ServiceJobSpan> loadDayJobs(UUID dealershipId, LocalDate date, ZoneId zone) {
+        ZonedDateTime zStart = date.atStartOfDay(zone);
+        ZonedDateTime zEnd = zStart.plusDays(1);
+        Instant dayStart = zStart.toInstant();
+        Instant dayEnd = zEnd.toInstant();
+        return jdbc.query(
+                """
+                SELECT id, bay_id, start_time, end_time
+                FROM service_jobs
+                WHERE dealership_id = ?
+                  AND status NOT IN ('CANCELLED', 'DONE')
+                  AND start_time < ?
+                  AND end_time > ?
+                """,
+                JOB_SPAN_ROW_MAPPER,
+                dealershipId,
+                dayEnd,
+                dayStart);
     }
 
     // --- Steps 3–5: technician gate with augmenting-path matching ---
@@ -280,5 +354,9 @@ public class SlotGridComputeService {
 
     // --- Internal value types ---
 
+    /** A candidate time window for a slot, resolved in the dealership timezone. */
     private record CandidateSlot(ZonedDateTime startZdt, ZonedDateTime endZdt) {}
+
+    /** A day's active service-job span, for in-memory bay overlap checks. */
+    record ServiceJobSpan(UUID jobId, UUID bayId, Instant startTime, Instant endTime) {}
 }

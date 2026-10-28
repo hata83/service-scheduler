@@ -2,6 +2,7 @@ package dev.hata.scheduler.scheduling.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -25,8 +26,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class SlotGridComputeServiceTest {
 
     private static final UUID DEALERSHIP_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -35,6 +41,9 @@ class SlotGridComputeServiceTest {
 
     @Mock
     private WorkshopBayRepository bayRepository;
+
+    @Mock
+    private JdbcTemplate jdbc;
 
     @Mock
     private ServiceTypeTechnicianRequirementRepository requirementRepository;
@@ -48,7 +57,10 @@ class SlotGridComputeServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new SlotGridComputeService(bayRepository, requirementRepository, technicianAvailability);
+        service = new SlotGridComputeService(bayRepository, jdbc, requirementRepository, technicianAvailability);
+        // Default: no active jobs for the day, so the bay gate depends only on
+        // the bays stubbed per test.
+        when(jdbc.query(anyString(), any(RowMapper.class), any(), any(), any())).thenReturn(List.of());
         config = new DealershipConfig(
                 DEALERSHIP_ID,
                 "Asia/Ho_Chi_Minh",
@@ -84,8 +96,8 @@ class SlotGridComputeServiceTest {
 
         when(requirementRepository.findByServiceTypeIdOrderBySlotNumber(SERVICE_TYPE_ID))
                 .thenReturn(List.of());
-        when(bayRepository.findAvailableBays(eq(DEALERSHIP_ID), eq("STANDARD"), any(), any()))
-                .thenReturn(List.of()); // all bays occupied
+        when(bayRepository.findActiveByDealershipId(eq(DEALERSHIP_ID)))
+                .thenReturn(List.of()); // all bays occupied // no active bays
 
         List<SlotAvailabilityResponse> result = service.compute(config, st, tomorrow, now);
 
@@ -101,9 +113,8 @@ class SlotGridComputeServiceTest {
 
         when(requirementRepository.findByServiceTypeIdOrderBySlotNumber(SERVICE_TYPE_ID))
                 .thenReturn(List.of());
-        WorkshopBay bay = new WorkshopBay();
-        when(bayRepository.findAvailableBays(eq(DEALERSHIP_ID), eq("STANDARD"), any(), any()))
-                .thenReturn(List.of(bay));
+        WorkshopBay bay = buildBay(List.of("STANDARD"));
+        when(bayRepository.findActiveByDealershipId(eq(DEALERSHIP_ID))).thenReturn(List.of(bay));
 
         List<SlotAvailabilityResponse> result = service.compute(config, st, tomorrow, now);
 
@@ -111,7 +122,31 @@ class SlotGridComputeServiceTest {
         assertThat(result).allMatch(SlotAvailabilityResponse::available);
     }
 
-    // --- Technician gate ---
+    @Test
+    void computeReturnUnavailableWhenBayOccupiedByOverlappingJob() {
+        Instant now = Instant.parse("2026-10-27T01:00:00Z"); // 08:00 Ho_Chi_Minh
+        LocalDate tomorrow = LocalDate.of(2026, 10, 28);
+        ServiceType st = buildServiceType(60, List.of("STANDARD"));
+
+        WorkshopBay incompatibleBay = buildBay(List.of("EVS")); // skips type gate (L223)
+        WorkshopBay bay = buildBay(List.of("STANDARD"));
+        when(bayRepository.findActiveByDealershipId(eq(DEALERSHIP_ID))).thenReturn(List.of(incompatibleBay, bay));
+        when(requirementRepository.findByServiceTypeIdOrderBySlotNumber(SERVICE_TYPE_ID))
+                .thenReturn(List.of());
+        // An active job occupies the compatible bay for 08:00–09:00 (01:00–02:00 UTC),
+        // fully overlapping the candidate so the bay gate reports it unavailable.
+        UUID bayId = bay.getId();
+        java.time.Instant jobStart = java.time.Instant.parse("2026-10-28T01:00:00Z");
+        java.time.Instant jobEnd = java.time.Instant.parse("2026-10-28T02:00:00Z");
+        SlotGridComputeService.ServiceJobSpan overlap =
+                new SlotGridComputeService.ServiceJobSpan(UUID.randomUUID(), bayId, jobStart, jobEnd);
+        when(jdbc.query(anyString(), any(RowMapper.class), any(), any(), any())).thenReturn(List.of(overlap));
+
+        List<SlotAvailabilityResponse> result = service.compute(config, st, tomorrow, now);
+
+        assertThat(result).isNotEmpty();
+        assertThat(result).anyMatch(s -> !s.available());
+    }
 
     @Test
     void computeReturnUnavailableWhenNoTechnicianMeetsRequirement() {
@@ -122,9 +157,8 @@ class SlotGridComputeServiceTest {
         ServiceTypeTechnicianRequirement req = buildRequirement(SERVICE_TYPE_ID, 1, "BRAKES", "TECHNICIAN");
         when(requirementRepository.findByServiceTypeIdOrderBySlotNumber(SERVICE_TYPE_ID))
                 .thenReturn(List.of(req));
-        WorkshopBay bay = new WorkshopBay();
-        when(bayRepository.findAvailableBays(eq(DEALERSHIP_ID), eq("STANDARD"), any(), any()))
-                .thenReturn(List.of(bay));
+        WorkshopBay bay = buildBay(List.of("STANDARD"));
+        when(bayRepository.findActiveByDealershipId(eq(DEALERSHIP_ID))).thenReturn(List.of(bay));
         when(technicianAvailability.findAvailableTechnicianIds(
                         eq(DEALERSHIP_ID), eq("BRAKES"), eq("TECHNICIAN"), any(), any()))
                 .thenReturn(List.of()); // no technician available
@@ -144,9 +178,8 @@ class SlotGridComputeServiceTest {
         ServiceTypeTechnicianRequirement req = buildRequirement(SERVICE_TYPE_ID, 1, "BRAKES", "TECHNICIAN");
         when(requirementRepository.findByServiceTypeIdOrderBySlotNumber(SERVICE_TYPE_ID))
                 .thenReturn(List.of(req));
-        WorkshopBay bay = new WorkshopBay();
-        when(bayRepository.findAvailableBays(eq(DEALERSHIP_ID), eq("STANDARD"), any(), any()))
-                .thenReturn(List.of(bay));
+        WorkshopBay bay = buildBay(List.of("STANDARD"));
+        when(bayRepository.findActiveByDealershipId(eq(DEALERSHIP_ID))).thenReturn(List.of(bay));
         when(technicianAvailability.findAvailableTechnicianIds(
                         eq(DEALERSHIP_ID), eq("BRAKES"), eq("TECHNICIAN"), any(), any()))
                 .thenReturn(List.of(TECH_A));
@@ -179,9 +212,8 @@ class SlotGridComputeServiceTest {
         ServiceTypeTechnicianRequirement slot2 = buildRequirement(SERVICE_TYPE_ID, 2, "ENGINE", "SENIOR");
         when(requirementRepository.findByServiceTypeIdOrderBySlotNumber(SERVICE_TYPE_ID))
                 .thenReturn(List.of(slot1, slot2));
-        WorkshopBay bay = new WorkshopBay();
-        when(bayRepository.findAvailableBays(eq(DEALERSHIP_ID), eq("HEAVY_LINE"), any(), any()))
-                .thenReturn(List.of(bay));
+        WorkshopBay bay = buildBay(List.of("HEAVY_LINE"));
+        when(bayRepository.findActiveByDealershipId(eq(DEALERSHIP_ID))).thenReturn(List.of(bay));
         // Only one technician available for both slots.
         when(technicianAvailability.findAvailableTechnicianIds(
                         eq(DEALERSHIP_ID), eq("ENGINE"), eq("MASTER"), any(), any()))
@@ -217,9 +249,8 @@ class SlotGridComputeServiceTest {
         ServiceTypeTechnicianRequirement slot2 = buildRequirement(SERVICE_TYPE_ID, 2, "ENGINE", "SENIOR");
         when(requirementRepository.findByServiceTypeIdOrderBySlotNumber(SERVICE_TYPE_ID))
                 .thenReturn(List.of(slot1, slot2));
-        WorkshopBay bay = new WorkshopBay();
-        when(bayRepository.findAvailableBays(eq(DEALERSHIP_ID), eq("HEAVY_LINE"), any(), any()))
-                .thenReturn(List.of(bay));
+        WorkshopBay bay = buildBay(List.of("HEAVY_LINE"));
+        when(bayRepository.findActiveByDealershipId(eq(DEALERSHIP_ID))).thenReturn(List.of(bay));
         when(technicianAvailability.findAvailableTechnicianIds(
                         eq(DEALERSHIP_ID), eq("ENGINE"), eq("MASTER"), any(), any()))
                 .thenReturn(List.of(TECH_A));
@@ -243,9 +274,8 @@ class SlotGridComputeServiceTest {
 
         when(requirementRepository.findByServiceTypeIdOrderBySlotNumber(SERVICE_TYPE_ID))
                 .thenReturn(List.of());
-        WorkshopBay bay = new WorkshopBay();
-        when(bayRepository.findAvailableBays(eq(DEALERSHIP_ID), eq("STANDARD"), any(), any()))
-                .thenReturn(List.of(bay));
+        WorkshopBay bay = buildBay(List.of("STANDARD"));
+        when(bayRepository.findActiveByDealershipId(eq(DEALERSHIP_ID))).thenReturn(List.of(bay));
 
         List<SlotAvailabilityResponse> result = service.compute(config, st, tomorrow, now);
 
@@ -267,9 +297,8 @@ class SlotGridComputeServiceTest {
 
         when(requirementRepository.findByServiceTypeIdOrderBySlotNumber(SERVICE_TYPE_ID))
                 .thenReturn(List.of());
-        WorkshopBay bay = new WorkshopBay();
-        when(bayRepository.findAvailableBays(eq(DEALERSHIP_ID), eq("STANDARD"), any(), any()))
-                .thenReturn(List.of(bay));
+        WorkshopBay bay = buildBay(List.of("STANDARD"));
+        when(bayRepository.findActiveByDealershipId(eq(DEALERSHIP_ID))).thenReturn(List.of(bay));
 
         List<SlotAvailabilityResponse> result = service.compute(config, st, tomorrow, now);
 
@@ -293,9 +322,8 @@ class SlotGridComputeServiceTest {
 
         when(requirementRepository.findByServiceTypeIdOrderBySlotNumber(SERVICE_TYPE_ID))
                 .thenReturn(List.of());
-        WorkshopBay bay = new WorkshopBay();
-        when(bayRepository.findAvailableBays(eq(DEALERSHIP_ID), eq("STANDARD"), any(), any()))
-                .thenReturn(List.of(bay));
+        WorkshopBay bay = buildBay(List.of("STANDARD"));
+        when(bayRepository.findActiveByDealershipId(eq(DEALERSHIP_ID))).thenReturn(List.of(bay));
 
         List<SlotAvailabilityResponse> result = service.compute(noLunch, st, tomorrow, now);
 
@@ -318,9 +346,8 @@ class SlotGridComputeServiceTest {
 
         when(requirementRepository.findByServiceTypeIdOrderBySlotNumber(SERVICE_TYPE_ID))
                 .thenReturn(List.of());
-        WorkshopBay bay = new WorkshopBay();
-        when(bayRepository.findAvailableBays(eq(DEALERSHIP_ID), eq("STANDARD"), any(), any()))
-                .thenReturn(List.of(bay));
+        WorkshopBay bay = buildBay(List.of("STANDARD"));
+        when(bayRepository.findActiveByDealershipId(eq(DEALERSHIP_ID))).thenReturn(List.of(bay));
 
         List<SlotAvailabilityResponse> result = service.compute(tight, st, tomorrow, now);
 
@@ -398,7 +425,66 @@ class SlotGridComputeServiceTest {
         }
     }
 
+    // --- DST: a spring-forward gap must not emit a zero-length skew slot ---
+
+    @Test
+    void computeSkipsSlotWhoseElapsedDurationDiffersAcrossDSTSpringForward() {
+        // Europe/Brussels springs forward 2026-03-29 at 02:00 -> 03:00 (gap).
+        // A 30-minute slot starting at 01:30 resolves end to 03:00 (gap skipped),
+        // so its elapsed duration (90 min) differs from the service duration (30).
+        DealershipConfig dstConfig = new DealershipConfig(
+                DEALERSHIP_ID, "Europe/Brussels", 30, LocalTime.of(0, 0), LocalTime.of(4, 0), null, null, 7, 3600);
+        Instant now = Instant.parse("2026-03-28T23:00:00Z"); // 00:00 Brussels
+        LocalDate dstDate = LocalDate.of(2026, 3, 29);
+        ServiceType st = buildServiceType(30, List.of("STANDARD"));
+        WorkshopBay bay = buildBay(List.of("STANDARD"));
+        when(bayRepository.findActiveByDealershipId(eq(DEALERSHIP_ID))).thenReturn(List.of(bay));
+
+        List<SlotAvailabilityResponse> result = service.compute(dstConfig, st, dstDate, now);
+
+        // The 01:30 candidate (end 02:00 -> gap -> 03:00, 90 min elapsed) must be
+        // excluded; remaining slots must have the exact service duration.
+        for (SlotAvailabilityResponse s : result) {
+            long elapsed =
+                    java.time.Duration.between(s.startTime(), s.endTime()).toMinutes();
+            assertThat(elapsed).isEqualTo(30L);
+        }
+    }
+
+    @Test
+    void jobSpanRowMapperMapsResultSetColumnsToRecord() throws Exception {
+        java.sql.ResultSet rs = org.mockito.Mockito.mock(java.sql.ResultSet.class);
+        UUID jobId = UUID.randomUUID();
+        UUID bayId = UUID.randomUUID();
+        java.sql.Timestamp startTs = java.sql.Timestamp.from(java.time.Instant.parse("2026-10-28T01:00:00Z"));
+        java.sql.Timestamp endTs = java.sql.Timestamp.from(java.time.Instant.parse("2026-10-28T02:00:00Z"));
+        when(rs.getObject("id")).thenReturn(jobId);
+        when(rs.getObject("bay_id")).thenReturn(bayId);
+        when(rs.getTimestamp("start_time")).thenReturn(startTs);
+        when(rs.getTimestamp("end_time")).thenReturn(endTs);
+
+        SlotGridComputeService.ServiceJobSpan span = SlotGridComputeService.JOB_SPAN_ROW_MAPPER.mapRow(rs, 0);
+
+        assertThat(span.jobId()).isEqualTo(jobId);
+        assertThat(span.bayId()).isEqualTo(bayId);
+        assertThat(span.startTime()).isEqualTo(startTs.toInstant());
+        assertThat(span.endTime()).isEqualTo(endTs.toInstant());
+    }
+
     // --- Builders ---
+
+    private WorkshopBay buildBay(List<String> bayTypes) {
+        try {
+            WorkshopBay bay = new WorkshopBay();
+            set(bay, "id", UUID.fromString("00000000-0000-0000-0000-000000000003"));
+            set(bay, "dealershipId", DEALERSHIP_ID);
+            set(bay, "active", true);
+            set(bay, "bayTypes", new java.util.ArrayList<>(bayTypes));
+            return bay;
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to build test bay", ex);
+        }
+    }
 
     private ServiceType buildServiceType(int durationMinutes, List<String> allowedBayTypes) {
         try {

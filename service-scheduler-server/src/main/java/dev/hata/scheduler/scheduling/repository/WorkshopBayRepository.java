@@ -51,4 +51,23 @@ public interface WorkshopBayRepository extends JpaRepository<WorkshopBay, UUID> 
             @Param("bayType") String bayType,
             @Param("slotStart") java.time.Instant slotStart,
             @Param("slotEnd") java.time.Instant slotEnd);
+
+    /**
+     * Loads all active bays for a dealership in a single query. The slot grid
+     * compute algorithm then checks per-slot bay overlap in memory.
+     *
+     * @param dealershipId the dealership scope
+     * @return active bays ordered by {@code last_used_at ASC NULLS FIRST, bay_name ASC}
+     */
+    @Query(
+            value =
+                    """
+            SELECT b.*
+            FROM workshop_bays b
+            WHERE b.dealership_id = :dealershipId
+              AND b.is_active = true
+            ORDER BY b.last_used_at ASC NULLS FIRST, b.bay_name ASC
+            """,
+            nativeQuery = true)
+    List<WorkshopBay> findActiveByDealershipId(@Param("dealershipId") UUID dealershipId);
 }
