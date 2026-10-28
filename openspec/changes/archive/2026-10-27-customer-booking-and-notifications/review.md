@@ -266,3 +266,52 @@ The following quality gates and test suites confirm all changes:
 3. **Bruno**: 72 requests passed, 84/84 tests pass (`bruno-results.xml`).
 4. **Playwright E2E**: 47 passed (was 41 pass / 6 fail before the `unless` fix).
 5. **JaCoCo**: `@Service` classes at 100%; overall above the 80% gate.
+
+---
+
+## 7. Round 4 — Concurrency E2E and Deadlock 409 Fix (2026-10-28)
+
+### Metadata
+
+| Field | Value |
+|---|---|
+| Trigger | New two-user concurrent booking E2E scenario exposed a production defect |
+| Open Threads | 0 new bot threads |
+| Reviewed | `ocr delegate preview`: 5 total files, 2 reviewable, both inspected; excluded tests reviewed by hand |
+| Verdict | **PASS** (1 production fix proven by the mapping tests; no unresolved findings) |
+
+### Finding 1 (High, production defect)
+
+| Field | Value |
+|---|---|
+| Where | `POST /api/v1/appointments` under concurrent load |
+| Symptom | Server log shows PostgreSQL `40P01 deadlock detected` on `service_jobs`; Spring mapped `CannotAcquireLockException` to HTTP 500 |
+| Root cause | Two bookings race for the same bay and technician. Each transaction inserts then checks the `no_bay_overlap` and `no_technician_overlap` exclusion indexes in a different order. PostgreSQL aborts one victim with a deadlock |
+| Contract | SYSTEM_DESIGN 5.4: the concurrent loser answers a retryable RFC 7807 conflict, not 500 |
+
+**Fix**: `@ExceptionHandler(CannotAcquireLockException.class)` added in `GlobalExceptionHandler`. It logs a warning and returns HTTP 409 with title `Concurrent request conflict` and a retry hint. Handler precedence stays correct because Spring resolves the most specific type match.
+
+**TDD proof**: `GlobalExceptionHandlerTest.handlesADeadlockVictimAsARequestableConflict` and `aLockAcquireFailureOutlinesTheRetry` first failed to compile (`cannot find symbol handleConcurrentLock`) and then passed after the fix.
+
+### Finding 2 (Medium, test hardening)
+
+| Field | Value |
+|---|---|
+| Where | E2E suite replay |
+| Symptom | Two `customer-booking.spec.ts` tests 409ed on replay because `freshVin()` restarts its counter per process and the tests leaked CONFIRMED bookings on fixed dates |
+| Fix 1 | `freshVin()` default base embeds a 4-digit wall-clock stamp in base 36, so every suite run owns a disjoint VIN space |
+| Fix 2 | `customer-booking.spec.ts` tests cancel the appointments they create, so fixed date windows stay open for the next run |
+| Proof | Two full-suite runs back to back pass 48 then 96 tests (`--repeat-each=2`); zero leftover active test appointments in the database after runs |
+
+### New E2E Spec
+
+`concurrent-booking-cycle.spec.ts` covers the full user cycle: two registrations, shared grid view that excludes the bay's booked window, concurrent booking with one 201 and one 409, winner cancellation, cache eviction, loser re-check and rebook, self-cleanup. Grid reports a window available when any compatible bay is free, so the spec probes candidate windows until the declared bay yields the 201/409 race.
+
+### Round 4 Proofs
+
+1. **Full build gate**: `./gradlew clean build` → BUILD SUCCESSFUL (Spotless, Checkstyle, PMD, ArchUnit, JaCoCo, `verifyCodeReviewDelegate` pass). `./gradlew build` re-run after final import tweak → exit 0.
+2. **OCR delegate**: 2 reviewable files inspected by rule set; file delegated rules fetched; grouped file rule checked missing-boundary-condition and concurrency criteria. One maintainability refinement applied (import instead of inline FQCN). No critical or high findings remain.
+3. **Lint gates**: `spotlessApply`, `checkstyleMain`, `pmdMain`, `test` → exit 0.
+4. **Bruno**: 72 requests passed, 84/84 tests.
+5. **Playwright E2E**: 48 passed; repeat run `--repeat-each=2` → 96 passed.
+6. **Database state after runs**: 0 active appointments for test-generated VINs (seed and manually fixed VIN rows excluded).

@@ -106,6 +106,12 @@ test.describe('Customer appointment booking', () => {
     expect(replayResp.status()).toBe(201);
     const replayed = await replayResp.json();
     expect(replayed.id).toBe(appt.id);
+
+    // Cleanup: cancel so the fixed date windows stay open for the next run.
+    const cleanupResp = await request.delete(`/api/v1/appointments/${appt.id}`, {
+      headers: { 'Cookie': `jwt=${cookie}` }
+    });
+    expect(cleanupResp.status()).toBe(200);
   });
 
   test('booking rejects service job duration exceeding base duration with 400 Bad Request', async ({ playwright, baseURL }) => {
@@ -378,5 +384,13 @@ test.describe('Customer appointment booking', () => {
     const recoveredAppointment = await recoveredBookResp.json();
     expect(recoveredAppointment.id).toBeTruthy();
     expect(recoveredAppointment.status).toBe('CONFIRMED');
+
+    // Cleanup: cancel so the probed windows stay open for the next run.
+    for (const id of [happyAppointment.id, recoveredAppointment.id]) {
+      const cleanupResp = await request.delete(`/api/v1/appointments/${id}`, {
+        headers: { 'Cookie': `jwt=${cookie}` }
+      });
+      expect(cleanupResp.status(), `cancel ${id}`).toBe(200);
+    }
   });
 });

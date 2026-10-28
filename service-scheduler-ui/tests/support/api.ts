@@ -17,9 +17,24 @@ let clientCounter = 0;
 let vinCounter = 100000;
 
 /**
+ * Adds run-unique digits to the default VIN base. The process counter restarts
+ * on every suite run, so the bare base would reuse the VINs of an earlier
+ * run. A reused VIN that is already booked on the test date yields a vehicle
+ * conflict the test does not target. The stamp comes from the wall clock in
+ * base 36, so two runs less than 36 ms apart share a stamp. Valid VIN charset
+ * is ^[A-HJ-NPR-Z0-9]{17}$, which excludes I, O, and Q.
+ */
+const VIN_RUN_STAMP = BigInt(Date.now())
+  .toString(36)
+  .toUpperCase()
+  .replace(/[^0-9A-HJ-NPR-Z]/g, 'A')
+  .padStart(4, 'A')
+  .slice(-4);
+
+/**
  * Builds a valid 17-character ISO VIN string conforming to ^[A-HJ-NPR-Z0-9]{17}$.
  */
-export function freshVin(prefix = '1HGCR2F83HA'): string {
+export function freshVin(prefix = `1HGCR2F${VIN_RUN_STAMP}`): string {
   vinCounter += 1;
   const suffix = String(vinCounter).padStart(6, '0');
   return `${prefix}${suffix}`;

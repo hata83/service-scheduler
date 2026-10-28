@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.TypeMismatchException;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -107,6 +108,23 @@ public class GlobalExceptionHandler {
                 HttpStatus.CONFLICT,
                 "Concurrent modification conflict",
                 "The requested resource was modified concurrently. Please reload and try again.",
+                request);
+    }
+
+    /**
+     * Maps lock deadlocks and lock-wait failures to a conflict. Two bookings
+     * that race for the same bay and technician interleave their exclusion
+     * constraint checks; PostgreSQL aborts one transaction. The customer sees
+     * a retryable conflict instead of a 500 (SYSTEM_DESIGN 5.4).
+     */
+    @ExceptionHandler(CannotAcquireLockException.class)
+    public ResponseEntity<ApiProblem> handleConcurrentLock(CannotAcquireLockException ex, HttpServletRequest request) {
+        log.warn(
+                "Lock acquisition failure on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return build(
+                HttpStatus.CONFLICT,
+                "Concurrent request conflict",
+                "The request raced another request for the same resource. Please retry.",
                 request);
     }
 
