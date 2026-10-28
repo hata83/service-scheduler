@@ -37,8 +37,8 @@ scope and pass it to services as typed DTO values.
     {
       "bayId": "33333333-3333-3333-3333-333333333301",
       "bayName": "Bay 1",
-      "bayType": "QUICK_LUBE",
-      "status": "ACTIVE",
+      "bayTypes": ["QUICK_LUBE"],
+      "active": true,
       "jobs": [
         {
           "jobId": "99999999-0000-0000-0000-000000000001",

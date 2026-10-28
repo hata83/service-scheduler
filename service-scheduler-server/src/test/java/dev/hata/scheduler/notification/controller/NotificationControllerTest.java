@@ -118,7 +118,7 @@ class NotificationControllerTest {
                 "appointment.requested",
                 "DELIVERED",
                 Instant.now());
-        when(notificationService.findStaffLogs(dealershipId)).thenReturn(List.of(logResp));
+        when(notificationService.findStaffLogs(dealershipId, "+84900000002")).thenReturn(List.of(logResp));
 
         mockMvc.perform(get("/api/v1/notifications/my")
                         .requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal)
@@ -127,21 +127,21 @@ class NotificationControllerTest {
                 .andExpect(jsonPath("$[0].eventType").value("appointment.requested"))
                 .andExpect(jsonPath("$[0].recipient").value("+84900000002"));
 
-        verify(notificationService).findStaffLogs(dealershipId);
+        verify(notificationService).findStaffLogs(dealershipId, "+84900000002");
     }
 
     @Test
     void myReturnsAllLogsForAdmin() throws Exception {
         UUID userId = UUID.randomUUID();
         AuthPrincipal principal = new AuthPrincipal(userId, "ADMIN", "+84900000001", null, "jti-1");
-        when(notificationService.findStaffLogs(null)).thenReturn(List.of());
+        when(notificationService.findStaffLogs(null, "+84900000001")).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/notifications/my")
                         .requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
 
-        verify(notificationService).findStaffLogs(null);
+        verify(notificationService).findStaffLogs(null, "+84900000001");
     }
 
     @Test

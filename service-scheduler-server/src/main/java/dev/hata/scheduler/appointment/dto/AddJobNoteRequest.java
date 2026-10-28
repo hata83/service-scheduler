@@ -10,4 +10,7 @@ import jakarta.validation.constraints.Size;
 public record AddJobNoteRequest(
         @NotBlank(message = "note must not be blank") //
                 @Size(max = 4000, message = "note must be at most 4000 characters") //
+                @jakarta.validation.constraints.Pattern(
+                        regexp = "^[^\\n\\r]*$",
+                        message = "note must not contain newlines") //
                 String note) {}

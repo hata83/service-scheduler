@@ -66,7 +66,7 @@ public interface ScheduleQueryRepository extends JpaRepository<WorkshopBay, UUID
             FROM workshop_bays b
             LEFT JOIN service_jobs j ON j.bay_id = b.id
                 AND j.start_time < :endOfDay
-                AND j.end_time >= :startOfDay
+                AND j.end_time > :startOfDay
                 AND j.status <> 'CANCELLED'
             LEFT JOIN appointments a ON a.id = j.appointment_id
             LEFT JOIN users u ON u.id = a.customer_id

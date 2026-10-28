@@ -61,11 +61,12 @@ public class NotificationService {
      * Capped at the 200 most recent records to prevent unbounded memory growth.
      */
     @Transactional(readOnly = true)
-    public List<CommunicationLogResponse> findStaffLogs(UUID dealershipId) {
+    public List<CommunicationLogResponse> findStaffLogs(UUID dealershipId, String recipientPhone) {
         List<CommunicationLog> logs = dealershipId == null
-                ? communicationLogs.findTop200ByChannelOrderByDispatchedAtDesc(STAFF_CHANNEL)
-                : communicationLogs.findTop200ByDealershipIdAndChannelOrderByDispatchedAtDesc(
-                        dealershipId, STAFF_CHANNEL);
+                ? communicationLogs.findTop200ByRecipientAndChannelOrderByDispatchedAtDesc(
+                        recipientPhone, STAFF_CHANNEL)
+                : communicationLogs.findTop200ByDealershipIdAndRecipientAndChannelOrderByDispatchedAtDesc(
+                        dealershipId, recipientPhone, STAFF_CHANNEL);
         return logs.stream().map(CommunicationLogResponse::from).toList();
     }
 

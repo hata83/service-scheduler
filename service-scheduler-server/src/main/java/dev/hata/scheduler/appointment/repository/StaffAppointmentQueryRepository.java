@@ -135,6 +135,7 @@ public interface StaffAppointmentQueryRepository extends JpaRepository<Appointme
                    delivery_status AS deliveryStatus, dispatched_at AS dispatchedAt
             FROM communication_logs
             WHERE appointment_id = :appointmentId
+              AND channel <> 'SSE_STAFF'
             ORDER BY dispatched_at DESC
             """,
             nativeQuery = true)

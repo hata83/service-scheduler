@@ -342,7 +342,7 @@ class NotificationServiceTest {
                 dealershipId,
                 UUID.randomUUID(),
                 UUID.randomUUID(),
-                "SSE",
+                "SSE_STAFF",
                 "+84900000002",
                 "appointment.requested",
                 "{}",
@@ -350,10 +350,11 @@ class NotificationServiceTest {
                 null,
                 Instant.now());
 
-        when(communicationLogs.findTop200ByDealershipIdAndChannelOrderByDispatchedAtDesc(dealershipId, "SSE_STAFF"))
+        when(communicationLogs.findTop200ByDealershipIdAndRecipientAndChannelOrderByDispatchedAtDesc(
+                        dealershipId, "+84900000002", "SSE_STAFF"))
                 .thenReturn(List.of(log));
 
-        List<CommunicationLogResponse> responses = notificationService.findStaffLogs(dealershipId);
+        List<CommunicationLogResponse> responses = notificationService.findStaffLogs(dealershipId, "+84900000002");
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).recipient()).isEqualTo("+84900000002");
         assertThat(responses.get(0).eventType()).isEqualTo("appointment.requested");
@@ -366,7 +367,7 @@ class NotificationServiceTest {
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 UUID.randomUUID(),
-                "SSE",
+                "SSE_STAFF",
                 "+84900000001",
                 "appointment.cancelled",
                 "{}",
@@ -374,10 +375,10 @@ class NotificationServiceTest {
                 null,
                 Instant.now());
 
-        when(communicationLogs.findTop200ByChannelOrderByDispatchedAtDesc("SSE_STAFF"))
+        when(communicationLogs.findTop200ByRecipientAndChannelOrderByDispatchedAtDesc("+84900000001", "SSE_STAFF"))
                 .thenReturn(List.of(log));
 
-        List<CommunicationLogResponse> responses = notificationService.findStaffLogs(null);
+        List<CommunicationLogResponse> responses = notificationService.findStaffLogs(null, "+84900000001");
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).recipient()).isEqualTo("+84900000001");
     }

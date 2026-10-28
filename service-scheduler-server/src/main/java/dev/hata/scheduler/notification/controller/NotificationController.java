@@ -146,10 +146,10 @@ public class NotificationController {
         }
         if (StaffScope.ROLE_MANAGER.equals(principal.role())) {
             UUID scope = StaffScope.dealershipScope(principal, null);
-            return ResponseEntity.ok(notificationService.findStaffLogs(scope));
+            return ResponseEntity.ok(notificationService.findStaffLogs(scope, principal.phone()));
         }
         if (StaffScope.ROLE_ADMIN.equals(principal.role())) {
-            return ResponseEntity.ok(notificationService.findStaffLogs(null));
+            return ResponseEntity.ok(notificationService.findStaffLogs(null, principal.phone()));
         }
         throw new ResponseStatusException(
                 HttpStatus.FORBIDDEN, "Only customer, manager, and admin accounts can read notifications");

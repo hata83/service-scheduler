@@ -46,7 +46,8 @@ one column per bay and every service job of that bay as a block.
 
 The system SHALL scope every schedule read to the staff role. A MANAGER reads only its
 `dealershipId` claim. An ADMIN may pass a `dealershipId` parameter and otherwise reads all
-dealerships.
+dealerships. The day schedule endpoint (`GET /api/v1/schedule/day`) requires a `dealershipId`
+for ADMIN; a global all-dealership day board is not supported.
 
 #### Scenario: Manager reads only its own dealership
 - **WHEN** a MANAGER of dealership A requests `GET /api/v1/schedule/history` for dealership B

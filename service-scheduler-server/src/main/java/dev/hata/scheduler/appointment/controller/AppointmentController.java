@@ -6,6 +6,7 @@ import java.util.UUID;
 import dev.hata.scheduler.appointment.dto.AppointmentResponse;
 import dev.hata.scheduler.appointment.dto.CancelAppointmentResponse;
 import dev.hata.scheduler.appointment.dto.CreateAppointmentRequest;
+import dev.hata.scheduler.appointment.dto.StaffAppointmentResponse;
 import dev.hata.scheduler.appointment.service.AppointmentService;
 import dev.hata.scheduler.common.exception.ApiProblem;
 import dev.hata.scheduler.common.filter.AuthFilter;
@@ -178,11 +179,18 @@ public class AppointmentController {
     @ApiResponses({
         @ApiResponse(
                 responseCode = "200",
-                description = "Appointment details retrieved successfully",
+                description = "Appointment details retrieved successfully (customer view)",
                 content =
                         @Content(
                                 mediaType = "application/json",
                                 schema = @Schema(implementation = AppointmentResponse.class))),
+        @ApiResponse(
+                responseCode = "200",
+                description = "Appointment details retrieved successfully (staff view)",
+                content =
+                        @Content(
+                                mediaType = "application/json",
+                                schema = @Schema(implementation = StaffAppointmentResponse.class))),
         @ApiResponse(
                 responseCode = "401",
                 description = "Unauthorized - authentication required",
