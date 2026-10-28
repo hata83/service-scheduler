@@ -327,7 +327,7 @@ The following quality gates and test suites confirm all changes:
 | Trigger | Qodo review of commit `9115f13` opened 3 threads on the new E2E code |
 | Open Threads | 3 (all Qodo, all on test-support and spec files) |
 | Reviewed | `ocr delegate preview` on the final diff; test files inspected by hand |
-| Verdict | **PASS** (all 3 threads fixed and resolved with commit `PENDING_SHA`) |
+| Verdict | **PASS** (all 3 threads fixed and resolved with commits `5c4398d` and `16110c0`) |
 
 ### Findings, Fixes, and Proof
 
@@ -341,4 +341,32 @@ The following quality gates and test suites confirm all changes:
 
 1. **Playwright E2E**: full suite 48 passed after the fixes.
 2. **Database state after runs**: 0 active appointments for test-generated VINs.
-3. **CI**: all checks pass on the fix commit; threads replied and resolved.
+3. **CI**: all checks pass on commit `16110c0`; threads replied and resolved.
+
+---
+
+## 9. Round 6 — Kilo Threads on Cleanup Robustness (2026-10-28)
+
+### Metadata
+
+| Field | Value |
+|---|---|
+| Trigger | Kilo review of commits `16110c0` and `99bc34d` opened 4 threads |
+| Open Threads | 4 Kilo warnings on the cleanup paths |
+| Verdict | **PASS** (all 4 threads fixed and resolved with commits `c6ccf55` and `99bc34d`) |
+
+### Findings, Fixes, and Proof
+
+| # | Thread | Severity | Finding | Fix |
+|---|---|---|---|---|
+| 1 | Kilo `6xAWH1` | Warning | `cancelLeftover` awaits DELETE unguarded, so a transport error aborts the cleanup loop and masks the test failure | The await sits in try/catch; a thrown error is logged as `[cleanup]` and returns, so the caller loop continues (`concurrent-booking-cycle.spec.ts` `c6ccf55`) |
+| 2 | Kilo `6xAWH6` | Warning | The booking-flow finally loop awaits DELETE unguarded | Same guard: catch logs and continues to the next appointment (`customer-booking.spec.ts` `c6ccf55`) |
+| 3 | Kilo `6xAjsT` | Warning | `let resp;` is implicit any and fails `tsc` under `strict: true` | Annotated `let resp: APIResponse`; `npm run typecheck` passes (`99bc34d`) |
+| 4 | Kilo `6xAjsZ` | Warning | `let cleanupResp;` is implicit any | Annotated `let cleanupResp: APIResponse`; `npm run typecheck` passes (`99bc34d`) |
+
+### Round 6 Proofs
+
+1. **TypeScript**: `npm run typecheck` (tsc --noEmit, strict) → exit 0.
+2. **Playwright E2E**: full suite 48 passed after each fix.
+3. **CI on `99bc34d`**: all checks pass.
+4. **Threads**: 4 replied with commit hash and mechanism, then resolved; 0 open threads on the PR.
