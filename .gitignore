@@ -77,9 +77,7 @@ Desktop.ini
 # validated by ci.yml. Only openspec/archive/ content is travel-neutral.
 
 # ─── OpenWiki generated output ────────────────────────────────────────────────
-# openwiki/ is generated — do not commit
-# Uncomment if you want to commit the wiki:
-# !openwiki/
+openwiki/
 
 # ─── Logs ─────────────────────────────────────────────────────────────────────
 *.log

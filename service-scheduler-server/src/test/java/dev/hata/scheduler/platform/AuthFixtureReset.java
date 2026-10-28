@@ -63,7 +63,26 @@ public final class AuthFixtureReset {
                 + TECH_ID
                 + "', '"
                 + CUSTOMER_ID
-                + "');";
+                + "'); "
+                + "DELETE FROM job_technician_assignments WHERE job_id NOT IN ("
+                + "'66666666-0000-0000-0000-000000000001', "
+                + "'66666666-0000-0000-0000-000000000002', "
+                + "'66666666-0000-0000-0000-000000000003'); "
+                + "DELETE FROM service_jobs WHERE appointment_id NOT IN ("
+                + "'44444444-0000-0000-0000-000000000001', "
+                + "'44444444-0000-0000-0000-000000000002', "
+                + "'44444444-0000-0000-0000-000000000003'); "
+                + "DELETE FROM appointments WHERE id NOT IN ("
+                + "'44444444-0000-0000-0000-000000000001', "
+                + "'44444444-0000-0000-0000-000000000002', "
+                + "'44444444-0000-0000-0000-000000000003'); "
+                + "DELETE FROM communication_logs; "
+                + "DELETE FROM outbox_events; "
+                + "UPDATE appointments SET status = 'CONFIRMED' WHERE id IN ("
+                + "'44444444-0000-0000-0000-000000000001', "
+                + "'44444444-0000-0000-0000-000000000002'); "
+                + "UPDATE appointments SET status = 'CHECKED_IN' WHERE id = "
+                + "'44444444-0000-0000-0000-000000000003';";
         try (Connection connection = DriverManager.getConnection(url, user, password);
                 Statement statement = connection.createStatement()) {
             statement.execute(sql);
@@ -75,7 +94,8 @@ public final class AuthFixtureReset {
         factory.afterPropertiesSet();
         StringRedisTemplate template = new StringRedisTemplate(factory);
         template.afterPropertiesSet();
-        for (String pattern : Set.of("idempotency:*", "ratelimit:*", "otp:*", "slot:grid:*")) {
+        for (String pattern :
+                Set.of("idempotency:*", "*idempotency*", "ratelimit:*", "otp:*", "session:*", "slot:grid:*")) {
             Set<String> keys = template.keys(pattern);
             if (keys != null && !keys.isEmpty()) {
                 template.delete(keys);

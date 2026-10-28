@@ -39,11 +39,15 @@ public interface IdempotencyStore {
     void store(String slot, CachedResponse response);
 
     /**
-     * The response snapshot a replay returns (status, content type, and body).
+     * The response snapshot a replay returns (status, content type, body, and set cookies).
      */
-    record CachedResponse(int status, String body, String contentType) {
+    record CachedResponse(int status, String body, String contentType, java.util.List<String> setCookies) {
+        public CachedResponse(int status, String body, String contentType) {
+            this(status, body, contentType, java.util.List.of());
+        }
+
         public CachedResponse(int status, String body) {
-            this(status, body, "application/json;charset=UTF-8");
+            this(status, body, "application/json;charset=UTF-8", java.util.List.of());
         }
     }
 }

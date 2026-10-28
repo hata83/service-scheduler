@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import dev.hata.scheduler.common.provider.DealershipConfigPort;
 import dev.hata.scheduler.common.provider.DealershipConfigPort.DealershipConfig;
+import dev.hata.scheduler.common.provider.SlotCacheEvictionProvider;
 import dev.hata.scheduler.scheduling.dto.SlotAvailabilityResponse;
 import dev.hata.scheduler.scheduling.model.ServiceType;
 import dev.hata.scheduler.scheduling.repository.ServiceTypeRepository;
@@ -52,7 +53,7 @@ import org.springframework.stereotype.Service;
  * importing the dealership package (ArchUnit ADR-009).
  */
 @Service
-public class SlotAvailabilityService {
+public class SlotAvailabilityService implements SlotCacheEvictionProvider {
 
     private static final Logger log = LoggerFactory.getLogger(SlotAvailabilityService.class);
     private static final String SLOT_GRID_KEY_PREFIX = "slot:grid:";
@@ -289,6 +290,11 @@ public class SlotAvailabilityService {
         } catch (Exception ex) {
             log.warn("Failed to write slot grid to cache key {}: {}", key, ex);
         }
+    }
+
+    @Override
+    public void evictSlots(UUID dealershipId, LocalDate date) {
+        evictSlotsByDate(dealershipId, date);
     }
 
     /**

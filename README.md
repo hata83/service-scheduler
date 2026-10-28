@@ -6,6 +6,31 @@
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-blue.svg)](http://localhost:8080/swagger-ui.html)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
+## OpenWiki (Code Wiki)
+
+This repository uses [OpenWiki](https://github.com/langchain-ai/openwiki) to maintain a searchable, versioned code wiki. See `.agents/skills/openwiki/openwiki/quickstart.md` for the quickstart, and `.agents/skills/openwiki/` for the local skill bundle.
+
+- Initialize or update: follow the OpenWiki CLI (`openwiki`) workflow (`init`, `update`, `archive`).
+- Source evidence lives in versioned repository files; generated wiki outputs go to `openwiki/`.
+- For host-driven generation (coding-agent integrations), refer to `.agents/skills/openwiki/openwiki/integrations/coding-agents.md`.
+
+## AI Agent Onboarding
+
+New AI agents should read these onboarding documents in order:
+
+1. `AGENTS.md` — Agentic SDLC, skills, verification ladder, and architecture rules (non-negotiables).
+2. `docs/SYSTEM_DESIGN.md` — Design source of truth.
+3. `.agents/skills/openwiki/openwiki/quickstart.md` — OpenWiki orientation and task-routing map.
+4. `.agents/skills/openwiki/openwiki/workflows/repository-generation.md` — Resumable page-job lifecycle.
+5. `.agents/skills/openwiki/openwiki/integrations/coding-agents.md` — Host-driven generation and MCP operations.
+6. Skill bundles (`.agents/skills/`): `asd-ste100-skill`, `springboot-patterns`, `java-coding-standards`, `open-code-review-delegate`, `archify`, `karpathy-ponytail`, `vue-patterns`, `e2e-testing`, `verification-loop`.
+
+Always load `AGENTS.md` and initialize OpenSpec (`openspec init`) before proposing changes.
+
+## OpenWiki Auto-Update
+
+The OpenWiki documentation agent runs through `openwiki --update`. For scheduled self-updates in CI, see `.agents/skills/openwiki/openwiki/operations/ci-scheduling.md` and `.agents/skills/openwiki/openwiki/integrations/coding-agents.md`. Automatic updates open a docs PR; archive (`/opsx-archive`) only after all checks and PR comments resolve.
+
 An enterprise automotive dealership service scheduling platform built for modern workshop capacity management.
 
 This system gives dealership service advisors, managers, and technicians the tools to match incoming service demand to available workshop capacity in real time.

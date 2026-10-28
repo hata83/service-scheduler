@@ -48,6 +48,42 @@ export interface SlotAvailabilityMock {
   bookedCount: number;
 }
 
+export interface ServiceJobMock {
+  id: string;
+  serviceTypeId: string;
+  bayId: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  baseMinutes: number;
+  estimateCost: number;
+}
+
+export interface AppointmentMock {
+  id: string;
+  dealershipId: string;
+  customerId: string;
+  vehicleCategoryId: string;
+  vehicleVin: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  estimateCost: number;
+  totalCost?: number;
+  idempotencyKey: string;
+  serviceJobs: ServiceJobMock[];
+}
+
+export interface CommunicationLogMock {
+  id: string;
+  customerId: string;
+  phone: string;
+  channel: string;
+  eventType: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+}
+
 export const DEMO_DEALERSHIP_ID = '00000000-0000-0000-0000-000000000001';
 
 export const mockDealerships: DealershipMock[] = [
@@ -111,6 +147,74 @@ export const mockServiceTypes: ServiceTypeMock[] = [
     description: 'Pad wear check, rotor resurfacing, hydraulic brake fluid flush',
     estimatedMinutes: 90,
     allowedBayTypes: ['GENERAL', 'HEAVY_DUTY']
+  }
+];
+
+export const mockAppointments: AppointmentMock[] = [
+  {
+    id: '44444444-0000-0000-0000-000000000001',
+    dealershipId: DEMO_DEALERSHIP_ID,
+    customerId: '00000000-0000-0000-0000-000000000005',
+    vehicleCategoryId: '00000000-0000-0000-0000-000000000101',
+    vehicleVin: '1HGCR2F83HA000001',
+    startTime: '2026-11-20T08:00:00Z',
+    endTime: '2026-11-20T09:00:00Z',
+    status: 'CONFIRMED',
+    estimateCost: 150.0,
+    totalCost: 150.0,
+    idempotencyKey: '44444444-0000-0000-0000-100000000001',
+    serviceJobs: [
+      {
+        id: '66666666-0000-0000-0000-000000000001',
+        serviceTypeId: '00000000-0000-0000-0000-000000000301',
+        bayId: '33333333-0000-0000-0000-000000000001',
+        startTime: '2026-11-20T08:00:00Z',
+        endTime: '2026-11-20T09:00:00Z',
+        status: 'PENDING',
+        baseMinutes: 60,
+        estimateCost: 150.0
+      }
+    ]
+  },
+  {
+    id: '44444444-0000-0000-0000-000000000004',
+    dealershipId: DEMO_DEALERSHIP_ID,
+    customerId: '00000000-0000-0000-0000-000000000005',
+    vehicleCategoryId: '00000000-0000-0000-0000-000000000101',
+    vehicleVin: '1HGCR2F83HA000004',
+    startTime: '2026-11-24T11:00:00Z',
+    endTime: '2026-11-24T12:00:00Z',
+    status: 'CHECKED_IN',
+    estimateCost: 150.0,
+    totalCost: 150.0,
+    idempotencyKey: '44444444-0000-0000-0000-100000000004',
+    serviceJobs: [
+      {
+        id: '66666666-0000-0000-0000-000000000004',
+        serviceTypeId: '00000000-0000-0000-0000-000000000301',
+        bayId: '33333333-0000-0000-0000-000000000001',
+        startTime: '2026-11-24T11:00:00Z',
+        endTime: '2026-11-24T12:00:00Z',
+        status: 'IN_PROGRESS',
+        baseMinutes: 60,
+        estimateCost: 150.0
+      }
+    ]
+  }
+];
+
+export const mockCommunicationLogs: CommunicationLogMock[] = [
+  {
+    id: '88888888-0000-0000-0000-000000000001',
+    customerId: '00000000-0000-0000-0000-000000000005',
+    phone: '+84900000004',
+    channel: 'SSE',
+    eventType: 'APPOINTMENT_CONFIRMED',
+    payload: {
+      appointmentId: '44444444-0000-0000-0000-000000000001',
+      status: 'CONFIRMED'
+    },
+    createdAt: new Date().toISOString()
   }
 ];
 
@@ -200,5 +304,151 @@ export const handlers = [
     ];
 
     return HttpResponse.json(slots);
+  }),
+
+  http.post('/api/v1/appointments', async ({ request }) => {
+    const idempotencyKey = request.headers.get('X-Idempotency-Key');
+    if (!idempotencyKey) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Bad Request', status: 400, detail: 'X-Idempotency-Key header is required' },
+        { status: 400 }
+      );
+    }
+
+    const body = (await request.json()) as any;
+    if (!body || !body.dealershipId || !body.vehicleCategoryId || !body.vehicleVin || !body.serviceJobs) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Bad Request', status: 400, detail: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
+
+    // Check duplicate key
+    const existing = mockAppointments.find((a) => a.idempotencyKey === idempotencyKey);
+    if (existing) {
+      return HttpResponse.json(existing, { status: 201 });
+    }
+
+    const jobs = body.serviceJobs as Array<{ serviceTypeId: string; bayId: string; startTime: string; endTime: string }>;
+    // Duration check: if > 60 min for standard service
+    for (const job of jobs) {
+      const dur = (new Date(job.endTime).getTime() - new Date(job.startTime).getTime()) / 60000;
+      if (dur > 60) {
+        return HttpResponse.json(
+          { type: 'about:blank', title: 'Bad Request', status: 400, detail: 'Service job duration exceeds base duration' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Intra-job overlap check
+    const sorted = [...jobs].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (new Date(sorted[i].endTime) > new Date(sorted[i + 1].startTime)) {
+        return HttpResponse.json(
+          { type: 'about:blank', title: 'Bad Request', status: 400, detail: 'Service job slots overlap within appointment' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Concurrency conflict check
+    const vinConflict = mockAppointments.some(
+      (a) =>
+        a.vehicleVin === body.vehicleVin &&
+        a.status !== 'CANCELLED' &&
+        new Date(sorted[0].startTime) < new Date(a.endTime) &&
+        new Date(sorted[sorted.length - 1].endTime) > new Date(a.startTime)
+    );
+    if (vinConflict) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Vehicle schedule conflict', status: 409, detail: 'A booking already exists for this vehicle' },
+        { status: 409 }
+      );
+    }
+
+    const newAppt: AppointmentMock = {
+      id: `44444444-0000-0000-0000-${String(mockAppointments.length + 1).padStart(12, '0')}`,
+      dealershipId: body.dealershipId,
+      customerId: '00000000-0000-0000-0000-000000000005',
+      vehicleCategoryId: body.vehicleCategoryId,
+      vehicleVin: body.vehicleVin,
+      startTime: sorted[0].startTime,
+      endTime: sorted[sorted.length - 1].endTime,
+      status: 'CONFIRMED',
+      estimateCost: jobs.length * 60.0,
+      totalCost: jobs.length * 60.0,
+      idempotencyKey,
+      serviceJobs: jobs.map((j, idx) => ({
+        id: `66666666-0000-0000-0000-${String(idx + 1).padStart(12, '0')}`,
+        serviceTypeId: j.serviceTypeId,
+        bayId: j.bayId,
+        startTime: j.startTime,
+        endTime: j.endTime,
+        status: 'PENDING',
+        baseMinutes: 30,
+        estimateCost: 60.0
+      }))
+    };
+    mockAppointments.push(newAppt);
+    return HttpResponse.json(newAppt, { status: 201 });
+  }),
+
+  http.get('/api/v1/appointments', () => {
+    return HttpResponse.json(mockAppointments);
+  }),
+
+  http.get('/api/v1/appointments/:id', ({ params }) => {
+    const appt = mockAppointments.find((a) => a.id === params.id);
+    if (!appt) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Appointment not found' },
+        { status: 404 }
+      );
+    }
+    return HttpResponse.json(appt);
+  }),
+
+  http.delete('/api/v1/appointments/:id', ({ params }) => {
+    const appt = mockAppointments.find((a) => a.id === params.id);
+    if (!appt) {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Appointment not found' },
+        { status: 404 }
+      );
+    }
+    if (appt.status === 'CHECKED_IN') {
+      return HttpResponse.json(
+        {
+          type: 'about:blank',
+          title: 'Unprocessable Content',
+          status: 422,
+          detail: 'Cannot cancel appointment in status CHECKED_IN. Cancellation permitted prior to check-in only.'
+        },
+        { status: 422 }
+      );
+    }
+    if (appt.status === 'CANCELLED') {
+      return HttpResponse.json(
+        { type: 'about:blank', title: 'Bad Request', status: 400, detail: 'Appointment is already in terminal state CANCELLED' },
+        { status: 400 }
+      );
+    }
+    appt.status = 'CANCELLED';
+    return HttpResponse.json({ id: appt.id, status: 'CANCELLED' });
+  }),
+
+  http.get('/api/v1/notifications/stream', () => {
+    return new HttpResponse(': ping\n\n', {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      }
+    });
+  }),
+
+  http.get('/api/v1/notifications/my', () => {
+    return HttpResponse.json(mockCommunicationLogs);
   })
 ];

@@ -160,6 +160,15 @@ jobs:
           SPRING_DATA_REDIS_HOST: localhost
           SPRING_DATA_REDIS_PORT: "6379"
 
+      - name: Reset fixtures before Bruno tests
+        run: ./gradlew :service-scheduler-server:resetAuthFixtures
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/scheduler_test
+          SPRING_DATASOURCE_USERNAME: scheduler
+          SPRING_DATASOURCE_PASSWORD: scheduler
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: "6379"
+
       - name: Bruno API contract tests
         working-directory: service-scheduler-server/src/test/bruno
         run: |

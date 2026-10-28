@@ -73,6 +73,7 @@ class SchemaMigrationTest {
                 .contains(
                         "platform and auth schema",
                         "workshop metadata and appointments schema",
+                        "outbox and communication logs schema",
                         "seed dealer and auth",
                         "seed metadata fixtures",
                         "seed schedule and appointments");
@@ -161,6 +162,14 @@ class SchemaMigrationTest {
 
         assertThat(userTypes).containsExactly("EMPLOYEE", "EMPLOYEE", "EMPLOYEE", "CUSTOMER");
         assertThat(employeeRoles).containsExactly("ADMIN", "MANAGER", "TECHNICIAN");
+    }
+
+    @Test
+    void outboxAndCommunicationLogsTablesExist() {
+        Integer outboxCount = jdbc.queryForObject("SELECT count(*) FROM outbox_events", Integer.class);
+        Integer commLogsCount = jdbc.queryForObject("SELECT count(*) FROM communication_logs", Integer.class);
+        assertThat(outboxCount).isZero();
+        assertThat(commLogsCount).isZero();
     }
 
     private record BeginSchemaHistoryRow(String version, String description, boolean success) {}

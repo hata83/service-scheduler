@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "receiptId": "a700e38b-8209-480d-82ce-3aea20dd0758",
+  "receiptId": "ce511e35-65ec-40fe-9933-196e1101b38b",
   "status": "current",
   "command": "deliver",
   "type": "lifecycle",
   "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\appointment-lifecycle.lifecycle.json",
   "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\appointment-lifecycle.html",
   "specification": {
-    "sha256": "e18aa397e3ec3113d4171247872c29c9b5325bbadb28048370f396afa51a5894",
-    "bytes": 5147
+    "sha256": "233d8b023f7160b140115fdcd9fc7e276e8d6075deaf0c750dd7a46c01d5728c",
+    "bytes": 4930
   },
   "artifact": {
     "sha256": "8170e939d27d1c83a7b2841be7304d1bc4d5ba77cb9b403bcf2b5b81fa5305ae",

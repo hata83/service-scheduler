@@ -9,6 +9,7 @@ import dev.hata.scheduler.common.provider.DealershipValidationProvider;
 import dev.hata.scheduler.dealership.dto.DealershipResponse;
 import dev.hata.scheduler.dealership.model.Dealership;
 import dev.hata.scheduler.dealership.repository.DealershipRepository;
+import dev.hata.scheduler.dealership.repository.WorkshopBayRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,9 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class DealershipService implements DealershipValidationProvider, DealershipConfigPort {
 
     private final DealershipRepository dealerships;
+    private final WorkshopBayRepository workshopBays;
 
-    public DealershipService(DealershipRepository dealerships) {
+    public DealershipService(DealershipRepository dealerships, WorkshopBayRepository workshopBays) {
         this.dealerships = dealerships;
+        this.workshopBays = workshopBays;
     }
 
     @Transactional(readOnly = true)
@@ -63,5 +66,28 @@ public class DealershipService implements DealershipValidationProvider, Dealersh
                         d.getLunchEnd(),
                         d.getMaxAdvanceBookingDays(),
                         d.getSlotCacheTtlSeconds()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isAutoConfirmEnabled(UUID dealershipId) {
+        return dealerships
+                .findById(dealershipId)
+                .map(Dealership::isAutoConfirmAppointments)
+                .orElse(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String getDealershipTimezone(UUID dealershipId) {
+        return dealerships.findById(dealershipId).map(Dealership::getTimezone).orElse("Asia/Ho_Chi_Minh");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsActiveBay(UUID dealershipId, UUID bayId) {
+        return workshopBays
+                .findByIdAndDealershipIdAndActiveTrue(bayId, dealershipId)
+                .isPresent();
     }
 }

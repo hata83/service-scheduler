@@ -33,7 +33,7 @@ app:
     policies:
       otp-send-phone:
         limit: 5
-        window: 10s
+        window: 2s
       otp-send-ip:
         limit: 50
         window: 10s
@@ -48,4 +48,4 @@ app:
         window: 10s
       register-ip:
         limit: 3
-        window: 10s
+        window: 2s

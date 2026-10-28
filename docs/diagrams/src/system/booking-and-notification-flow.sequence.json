@@ -1,0 +1,243 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Booking and Real-Time Notification Flow",
+    "output": "booking-and-notification-flow.html",
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    {
+      "id": "client",
+      "type": "external",
+      "label": "Client",
+      "sublabel": "customer app"
+    },
+    {
+      "id": "sseApi",
+      "type": "backend",
+      "label": "SSE Stream",
+      "sublabel": "NotificationController"
+    },
+    {
+      "id": "bookingApi",
+      "type": "backend",
+      "label": "Booking API",
+      "sublabel": "AppointmentController"
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "GIST exclusion"
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis Cache",
+      "sublabel": "slot availability"
+    },
+    {
+      "id": "listener",
+      "type": "messagebus",
+      "label": "Outbox Relay",
+      "sublabel": "AFTER_COMMIT"
+    },
+    {
+      "id": "sseRegistry",
+      "type": "backend",
+      "label": "SSE Registry",
+      "sublabel": "active emitters"
+    }
+  ],
+  "segments": [
+    {
+      "from": 140,
+      "to": 260,
+      "label": "1. SSE Subscription"
+    },
+    {
+      "from": 280,
+      "to": 450,
+      "label": "2. Booking and Durable Outbox"
+    },
+    {
+      "from": 470,
+      "to": 630,
+      "label": "3. Cache Invalidation and Real-Time Push"
+    }
+  ],
+  "messages": [
+    {
+      "id": "sub-sse",
+      "from": "client",
+      "to": "sseApi",
+      "y": 160,
+      "label": "GET /notifications/stream",
+      "variant": "emphasis"
+    },
+    {
+      "id": "reg-emitter",
+      "from": "sseApi",
+      "to": "sseRegistry",
+      "y": 190,
+      "label": "register emitter by phone",
+      "variant": "default"
+    },
+    {
+      "id": "sse-open",
+      "from": "sseRegistry",
+      "to": "client",
+      "y": 230,
+      "label": "200 event stream connected",
+      "variant": "return"
+    },
+    {
+      "id": "post-book",
+      "from": "client",
+      "to": "bookingApi",
+      "y": 300,
+      "label": "POST /appointments (2 jobs)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "insert-appt",
+      "from": "bookingApi",
+      "to": "db",
+      "y": 340,
+      "label": "insert appointment & jobs",
+      "variant": "emphasis"
+    },
+    {
+      "id": "insert-outbox",
+      "from": "bookingApi",
+      "to": "db",
+      "y": 380,
+      "label": "insert outbox event (CONFIRMED)",
+      "variant": "default"
+    },
+    {
+      "id": "commit-tx",
+      "from": "db",
+      "to": "bookingApi",
+      "y": 420,
+      "label": "commit transaction",
+      "variant": "return"
+    },
+    {
+      "id": "evict-slot",
+      "from": "bookingApi",
+      "to": "redis",
+      "y": 480,
+      "label": "evict date slot cache",
+      "variant": "default"
+    },
+    {
+      "id": "return-201",
+      "from": "bookingApi",
+      "to": "client",
+      "y": 510,
+      "label": "201 Created (AppointmentResponse)",
+      "variant": "return"
+    },
+    {
+      "id": "after-commit",
+      "from": "bookingApi",
+      "to": "listener",
+      "y": 540,
+      "label": "after-commit event trigger",
+      "variant": "dashed"
+    },
+    {
+      "id": "dispatch-sse",
+      "from": "listener",
+      "to": "sseRegistry",
+      "y": 570,
+      "label": "send event to recipient",
+      "variant": "default"
+    },
+    {
+      "id": "sse-push",
+      "from": "sseRegistry",
+      "to": "client",
+      "y": 600,
+      "label": "SSE push appointment.confirmed",
+      "variant": "emphasis"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "client",
+      "from": 150,
+      "to": 615,
+      "type": "external"
+    },
+    {
+      "participant": "sseApi",
+      "from": 155,
+      "to": 200,
+      "type": "backend"
+    },
+    {
+      "participant": "bookingApi",
+      "from": 295,
+      "to": 550,
+      "type": "backend"
+    },
+    {
+      "participant": "db",
+      "from": 335,
+      "to": 430,
+      "type": "database"
+    },
+    {
+      "participant": "redis",
+      "from": 475,
+      "to": 490,
+      "type": "database"
+    },
+    {
+      "participant": "listener",
+      "from": 535,
+      "to": 580,
+      "type": "messagebus"
+    },
+    {
+      "participant": "sseRegistry",
+      "from": 185,
+      "to": 610,
+      "type": "backend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Transactional Outbox Guarantee",
+      "items": [
+        "The appointment, service jobs, and outbox event commit in one transaction",
+        "A database exclusion constraint rollback emits no outbox event",
+        "The client receives 201 Created only after transaction commit"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Real-Time Push Notification",
+      "items": [
+        "Clients connect via direct httpOnly JWT cookie authentication",
+        "One active SSE stream exists per user phone with reconnect eviction",
+        "The after-commit listener dispatches live event within 100 milliseconds"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Cache Invalidation Flow",
+      "items": [
+        "Redis slot availability grid is evicted for the affected date",
+        "Concurrent readers never see stale available capacity",
+        "Subsequent requests trigger fresh slot computation"
+      ]
+    }
+  ]
+}

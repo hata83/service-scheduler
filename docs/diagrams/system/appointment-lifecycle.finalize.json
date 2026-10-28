@@ -5,11 +5,11 @@
   "status": "pass",
   "type": "lifecycle",
   "quality": "showcase",
-  "startedAt": "2026-10-25T09:29:32.820Z",
+  "startedAt": "2026-10-27T14:06:18.651Z",
   "specification": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\appointment-lifecycle.lifecycle.json",
-    "sha256": "e18aa397e3ec3113d4171247872c29c9b5325bbadb28048370f396afa51a5894",
-    "bytes": 5147
+    "sha256": "233d8b023f7160b140115fdcd9fc7e276e8d6075deaf0c750dd7a46c01d5728c",
+    "bytes": 4930
   },
   "artifact": {
     "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\appointment-lifecycle.html",
@@ -38,8 +38,8 @@
         "ok": true,
         "command": "validate",
         "specification": {
-          "sha256": "e18aa397e3ec3113d4171247872c29c9b5325bbadb28048370f396afa51a5894",
-          "bytes": 5147
+          "sha256": "233d8b023f7160b140115fdcd9fc7e276e8d6075deaf0c750dd7a46c01d5728c",
+          "bytes": 4930
         },
         "validation": {
           "checksPassed": 9,
@@ -54,7 +54,7 @@
     "deliver": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 729,
+      "durationMs": 984,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
@@ -68,15 +68,15 @@
       ],
       "receipt": {
         "schemaVersion": 1,
-        "receiptId": "a700e38b-8209-480d-82ce-3aea20dd0758",
+        "receiptId": "ce511e35-65ec-40fe-9933-196e1101b38b",
         "ok": true,
         "command": "deliver",
         "type": "lifecycle",
         "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\appointment-lifecycle.lifecycle.json",
         "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\appointment-lifecycle.html",
         "specification": {
-          "sha256": "e18aa397e3ec3113d4171247872c29c9b5325bbadb28048370f396afa51a5894",
-          "bytes": 5147
+          "sha256": "233d8b023f7160b140115fdcd9fc7e276e8d6075deaf0c750dd7a46c01d5728c",
+          "bytes": 4930
         },
         "artifact": {
           "sha256": "8170e939d27d1c83a7b2841be7304d1bc4d5ba77cb9b403bcf2b5b81fa5305ae",
@@ -106,7 +106,7 @@
     "check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 189,
+      "durationMs": 249,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
@@ -236,13 +236,13 @@
           "issues": []
         },
         "provenance": "current",
-        "deliveryReceiptId": "a700e38b-8209-480d-82ce-3aea20dd0758"
+        "deliveryReceiptId": "ce511e35-65ec-40fe-9933-196e1101b38b"
       }
     },
     "browser-check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 2012,
+      "durationMs": 1852,
       "command": [
         "C:\\Users\\Hata\\AppData\\Local\\mise\\installs\\node\\26.9.0\\node.exe",
         "C:\\Users\\Hata\\workspace\\service-scheduler\\.agents\\skills\\archify\\archify\\bin\\archify.mjs",
@@ -260,7 +260,7 @@
         "status": "pass",
         "visualReview": "not-requested",
         "provenance": "current",
-        "deliveryReceiptId": "a700e38b-8209-480d-82ce-3aea20dd0758",
+        "deliveryReceiptId": "ce511e35-65ec-40fe-9933-196e1101b38b",
         "artifact": {
           "path": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\appointment-lifecycle.html",
           "sha256": "8170e939d27d1c83a7b2841be7304d1bc4d5ba77cb9b403bcf2b5b81fa5305ae",
@@ -962,14 +962,14 @@
     "browserCheckReceipt": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\appointment-lifecycle.browser-check.json"
   },
   "visualReview": "not-requested",
-  "finishedAt": "2026-10-25T09:29:36.549Z",
-  "durationMs": 3730,
+  "finishedAt": "2026-10-27T14:06:22.701Z",
+  "durationMs": 4050,
   "update": {
     "status": "current",
     "installedVersion": "3.2.0",
     "availableVersion": "3.2.0",
     "releaseNotes": null,
-    "checkedAt": "2026-10-25T09:29:22.168Z",
+    "checkedAt": "2026-10-27T08:39:03.150Z",
     "source": "cache",
     "noticeRequired": false,
     "noticeText": null

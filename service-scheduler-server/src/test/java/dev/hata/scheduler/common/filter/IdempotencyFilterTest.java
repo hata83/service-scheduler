@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import dev.hata.scheduler.common.idempotency.IdempotencyStore;
 
@@ -106,7 +107,14 @@ class IdempotencyFilterTest {
 
         assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_ACCEPTED);
         assertThat(response.getContentAsString()).contains("+84900000004");
-        verify(store).store(anyString(), eq(new IdempotencyStore.CachedResponse(202, "{\"phone\":\"+84900000004\"}")));
+        verify(store)
+                .store(
+                        anyString(),
+                        eq(new IdempotencyStore.CachedResponse(
+                                202,
+                                "{\"phone\":\"+84900000004\"}",
+                                "application/json;charset=UTF-8",
+                                List.of("jwt=tok; HttpOnly"))));
         verify(store).releaseClaim(anyString(), anyString());
 
         doThrow(new RuntimeException("redis down")).when(store).store(anyString(), any());
@@ -134,6 +142,26 @@ class IdempotencyFilterTest {
         assertThat(response.getContentType()).contains("application/json");
         assertThat(response.getContentAsString()).isEqualTo("{\"role\":\"CUSTOMER\"}");
         assertThat(response.getHeader("Set-Cookie")).isNull();
+        verify(chain, never()).doFilter(any(), any());
+    }
+
+    @Test
+    void replaysACachedResponseWithSetCookieHeader() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/register");
+        request.addHeader("X-Idempotency-Key", "key-replay-cookie");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        when(store.load(anyString()))
+                .thenReturn(new IdempotencyStore.CachedResponse(
+                        201,
+                        "{\"role\":\"CUSTOMER\"}",
+                        "application/json;charset=UTF-8",
+                        List.of("jwt=replayed-token; HttpOnly")));
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(201);
+        assertThat(response.getHeader("Set-Cookie")).isEqualTo("jwt=replayed-token; HttpOnly");
         verify(chain, never()).doFilter(any(), any());
     }
 

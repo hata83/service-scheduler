@@ -1,0 +1,23 @@
+meta {
+  name: notifications-my
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/notifications/my
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Cookie: jwt={{JWT_CUSTOMER}}
+}
+
+tests {
+  test("notifications my responds 200 with array of logs", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.be.an('array');
+  });
+}

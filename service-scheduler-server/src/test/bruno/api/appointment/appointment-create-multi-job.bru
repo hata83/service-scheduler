@@ -1,0 +1,53 @@
+meta {
+  name: appointment-create-multi-job
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/appointments
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+  Cookie: jwt={{JWT_CUSTOMER}}
+  X-Idempotency-Key: a0000001-0000-0000-0000-000000000002
+}
+
+body:json {
+  {
+    "dealershipId": "00000000-0000-0000-0000-000000000001",
+    "vehicleCategoryId": "11111111-0000-0000-0000-000000000001",
+    "vehicleVin": "1HGCR2F83HA999002",
+    "serviceJobs": [
+      {
+        "serviceTypeId": "22222222-0000-0000-0000-000000000001",
+        "bayId": "33333333-0000-0000-0000-000000000001",
+        "startTime": "2026-11-20T15:00:00Z",
+        "endTime": "2026-11-20T15:30:00Z"
+      },
+      {
+        "serviceTypeId": "22222222-0000-0000-0000-000000000002",
+        "bayId": "33333333-0000-0000-0000-000000000002",
+        "startTime": "2026-11-20T15:30:00Z",
+        "endTime": "2026-11-20T16:30:00Z"
+      }
+    ]
+  }
+}
+
+tests {
+  test("appointment create multi-job responds 201 Created", function() {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody().id).to.be.a('string');
+    expect(res.getBody().vehicleVin).to.equal("1HGCR2F83HA999002");
+    expect(res.getBody().status).to.equal("CONFIRMED");
+    expect(res.getBody().serviceJobs).to.be.an('array');
+    expect(res.getBody().serviceJobs.length).to.equal(2);
+    expect(res.getBody().startTime).to.equal("2026-11-20T15:00:00Z");
+    expect(res.getBody().endTime).to.equal("2026-11-20T16:30:00Z");
+  });
+}

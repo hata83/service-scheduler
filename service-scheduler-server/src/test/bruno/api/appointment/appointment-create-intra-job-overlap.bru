@@ -1,0 +1,48 @@
+meta {
+  name: appointment-create-intra-job-overlap
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/appointments
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/problem+json
+  Cookie: jwt={{JWT_CUSTOMER}}
+  X-Idempotency-Key: a0000001-0000-0000-0000-000000000004
+}
+
+body:json {
+  {
+    "dealershipId": "00000000-0000-0000-0000-000000000001",
+    "vehicleCategoryId": "11111111-0000-0000-0000-000000000001",
+    "vehicleVin": "1HGCR2F83HA999004",
+    "serviceJobs": [
+      {
+        "serviceTypeId": "22222222-0000-0000-0000-000000000001",
+        "bayId": "33333333-0000-0000-0000-000000000001",
+        "startTime": "2026-11-20T17:00:00Z",
+        "endTime": "2026-11-20T17:30:00Z"
+      },
+      {
+        "serviceTypeId": "22222222-0000-0000-0000-000000000002",
+        "bayId": "33333333-0000-0000-0000-000000000002",
+        "startTime": "2026-11-20T17:15:00Z",
+        "endTime": "2026-11-20T18:15:00Z"
+      }
+    ]
+  }
+}
+
+tests {
+  test("appointment create intra job overlap responds 400 Bad Request", function() {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getBody().status).to.equal(400);
+    expect(res.getBody().detail).to.contain("overlap");
+  });
+}

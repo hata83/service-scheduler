@@ -123,8 +123,11 @@ public class IdempotencyFilter extends OncePerRequestFilter {
                     if (contentType == null || contentType.isBlank()) {
                         contentType = "application/json;charset=UTF-8";
                     }
+                    java.util.List<String> setCookies =
+                            new java.util.ArrayList<>(wrappedResponse.getHeaders("Set-Cookie"));
                     try {
-                        store.store(slot, new IdempotencyStore.CachedResponse(status, respBody, contentType));
+                        store.store(
+                                slot, new IdempotencyStore.CachedResponse(status, respBody, contentType, setCookies));
                     } catch (RuntimeException ignored) {
                         // Cache store failure does not fail an already-completed request
                     }
@@ -161,6 +164,11 @@ public class IdempotencyFilter extends OncePerRequestFilter {
             contentType = "application/json;charset=UTF-8";
         }
         response.setContentType(contentType);
+        if (cached.setCookies() != null) {
+            for (String cookie : cached.setCookies()) {
+                response.addHeader("Set-Cookie", cookie);
+            }
+        }
         response.getWriter().write(cached.body());
     }
 

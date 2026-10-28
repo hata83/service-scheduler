@@ -1,9 +1,12 @@
 package dev.hata.scheduler.common.exception;
 
+import java.util.Locale;
+
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.TypeMismatchException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -47,6 +50,64 @@ public class GlobalExceptionHandler {
         String detail = "Invalid request parameter '" + paramName + "': "
                 + (ex.getValue() != null ? ex.getValue().toString() : "invalid value");
         return build(HttpStatus.BAD_REQUEST, "Invalid request parameter", detail, request);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiProblem> handleDataIntegrity(
+            DataIntegrityViolationException ex, HttpServletRequest request) {
+        String msg = ex.getMessage();
+        Throwable cause = ex.getRootCause();
+        String rootMsg = cause != null && cause.getMessage() != null ? cause.getMessage() : "";
+        String combined = (msg + " " + rootMsg).toLowerCase(Locale.ROOT);
+
+        if (combined.contains("no_vehicle_overlap")) {
+            return build(
+                    HttpStatus.CONFLICT,
+                    "Vehicle schedule conflict",
+                    "A booking already exists for this vehicle during the requested time window.",
+                    request);
+        }
+        if (combined.contains("no_bay_overlap")) {
+            return build(
+                    HttpStatus.CONFLICT,
+                    "Workshop bay conflict",
+                    "The selected workshop bay is already reserved during the requested time window.",
+                    request);
+        }
+        if (combined.contains("no_technician_overlap")) {
+            return build(
+                    HttpStatus.CONFLICT,
+                    "Technician schedule conflict",
+                    "The assigned technician is already booked during the requested time window.",
+                    request);
+        }
+        if (combined.contains("users_phone_key")) {
+            return build(
+                    HttpStatus.CONFLICT,
+                    "Phone already registered",
+                    "This phone already belongs to an account. Use the login flow instead.",
+                    request);
+        }
+        log.error("Data integrity failure on {} {}", request.getMethod(), request.getRequestURI(), ex);
+        return build(
+                HttpStatus.CONFLICT,
+                "Data integrity conflict",
+                "The request violates a database integrity constraint.",
+                request);
+    }
+
+    @ExceptionHandler({
+        org.springframework.orm.ObjectOptimisticLockingFailureException.class,
+        jakarta.persistence.OptimisticLockException.class
+    })
+    public ResponseEntity<ApiProblem> handleOptimisticLock(Exception ex, HttpServletRequest request) {
+        log.warn(
+                "Optimistic lock conflict on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+        return build(
+                HttpStatus.CONFLICT,
+                "Concurrent modification conflict",
+                "The requested resource was modified concurrently. Please reload and try again.",
+                request);
     }
 
     @ExceptionHandler(Exception.class)

@@ -1,5 +1,14 @@
 # AI Agent Guidelines — Unified Service Scheduler
 
+## Onboarding Reference (load first)
+
+1. This file (`AGENTS.md`) — Agentic SDLC, skills, verification ladder, architecture rules.
+2. `README.md` — OpenWiki and AI onboarding sections.
+3. `.agents/skills/openwiki/openwiki/quickstart.md` — OpenWiki orientation and task routing.
+4. `.agents/skills/openwiki/openwiki/integrations/coding-agents.md` — Host-driven generation.
+5. `docs/SYSTEM_DESIGN.md` — Design source of truth.
+6. Skill bundles (`.agents/skills/`): `asd-ste100-skill`, `springboot-patterns`, `java-coding-standards`, `open-code-review-delegate`, `archify`, `karpathy-ponytail`, `vue-patterns`, `e2e-testing`, `verification-loop`.
+
 You are an AI engineer working in this repository. Read the section that matches your task.
 
 Written to ASD-STE100 STE-flavored mode: active voice, ≤25 words per sentence, no semicolons.
@@ -498,14 +507,20 @@ npm run format
 ---
 
 <!-- OPENWIKI:START -->
+
 ## OpenWiki
 
-This repository has a generated `openwiki/` evidence index. Use it for just-in-time context.
+This repository has a generated `openwiki/` evidence index. It is optional just-in-time context, not required startup reading.
 
-- Do not preload wikis at task start.
-- Use `openwiki_search` when unfamiliar architecture or dependency behavior affects the task.
-- Use `openwiki_read` for complete relevant sections.
-- Treat source code and tests as authoritative. Wikis are supporting context.
+- Do not enumerate, preload, or search wikis at task start. Use retrieval when the user asks for it, when unfamiliar architecture or dependency behavior materially affects the task, or when source inspection leaves an important uncertainty. Stop once the question is grounded.
+- When those conditions apply and OpenWiki retrieval tools are available, use `openwiki_search` for just-in-time context and `openwiki_read` for the relevant complete sections. If search returns `workspace_required`, ask which listed workspace to use and retry with its ID.
+- Use `openwiki_list_workspaces` or `openwiki_list_wikis` when workspace membership itself needs to be discovered.
+- If the retrieval tools are unavailable, read `openwiki/quickstart.md` and follow its links to the relevant pages.
+- Treat source code and tests as authoritative. A brief's unknowns and review items are verification gaps, not automatic requirements.
+- Prefer the narrowest quiet validation that proves the changed behavior. Preserve complete failure output.
+
+The scheduled OpenWiki GitHub Actions workflow refreshes the repository wiki. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
+
 <!-- OPENWIKI:END -->
 
 ## AI Collaboration Narrative

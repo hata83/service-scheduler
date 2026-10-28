@@ -1,0 +1,52 @@
+meta {
+  name: appointment-create
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/appointments
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+  Cookie: jwt={{JWT_CUSTOMER}}
+  X-Idempotency-Key: a0000001-0000-0000-0000-000000000001
+}
+
+body:json {
+  {
+    "dealershipId": "00000000-0000-0000-0000-000000000001",
+    "vehicleCategoryId": "11111111-0000-0000-0000-000000000001",
+    "vehicleVin": "1HGCR2F83HA999001",
+    "serviceJobs": [
+      {
+        "serviceTypeId": "22222222-0000-0000-0000-000000000001",
+        "bayId": "33333333-0000-0000-0000-000000000001",
+        "startTime": "2026-11-20T14:00:00Z",
+        "endTime": "2026-11-20T14:30:00Z"
+      }
+    ]
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 201 && res.getBody() && res.getBody().id) {
+    bru.setEnvVar('CREATED_APPOINTMENT_ID', res.getBody().id);
+  }
+}
+
+tests {
+  test("appointment create responds 201 Created", function() {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody().id).to.be.a('string');
+    expect(res.getBody().dealershipId).to.equal("00000000-0000-0000-0000-000000000001");
+    expect(res.getBody().vehicleVin).to.equal("1HGCR2F83HA999001");
+    expect(res.getBody().status).to.equal("CONFIRMED");
+    expect(res.getBody().serviceJobs).to.be.an('array');
+    expect(res.getBody().serviceJobs.length).to.equal(1);
+  });
+}

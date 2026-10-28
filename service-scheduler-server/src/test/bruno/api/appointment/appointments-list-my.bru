@@ -1,0 +1,29 @@
+meta {
+  name: appointments-list-my
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/appointments
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Cookie: jwt={{JWT_CUSTOMER}}
+}
+
+tests {
+  test("appointments list my responds 200 with list of customer appointments", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.be.an('array');
+    expect(res.getBody().length).to.be.at.least(1);
+    const first = res.getBody()[0];
+    expect(first.id).to.be.a('string');
+    expect(first.dealershipId).to.be.a('string');
+    expect(first.status).to.be.a('string');
+    expect(first.serviceJobs).to.be.an('array');
+  });
+}

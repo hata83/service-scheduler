@@ -14,6 +14,17 @@ const RUN_ID = Math.random().toString(36).slice(2, 8);
 let callCounter = 0;
 let clientCounter = 0;
 
+let vinCounter = 100000;
+
+/**
+ * Builds a valid 17-character ISO VIN string conforming to ^[A-HJ-NPR-Z0-9]{17}$.
+ */
+export function freshVin(prefix = '1HGCR2F83HA'): string {
+  vinCounter += 1;
+  const suffix = String(vinCounter).padStart(6, '0');
+  return `${prefix}${suffix}`;
+}
+
 /**
  * Builds a fresh E.164 phone number. Each run uses its own number, so the
  * suite never depends on a clean database.
@@ -71,4 +82,24 @@ export function sessionCookie(response: Awaited<ReturnType<APIRequestContext['po
   const value = header.split(';')[0].replace(/^jwt=/, '');
   expect(value).not.toBe('');
   return value;
+}
+
+let cachedCustomerCookie: string | null = null;
+
+/**
+ * Returns a cached customer session JWT, obtaining one via OTP login if not yet cached.
+ */
+export async function getCustomerSession(request: APIRequestContext): Promise<string> {
+  if (cachedCustomerCookie) {
+    return cachedCustomerCookie;
+  }
+  const phone = '+84900000004';
+  const code = await sendOtp(request, phone, 'LOGIN');
+  const verifyResp = await request.post('/api/v1/auth/otp/verify', {
+    headers: { 'X-Idempotency-Key': idempotencyKey('shared-customer-login', phone) },
+    data: { phone, code }
+  });
+  expect(verifyResp.status()).toBe(200);
+  cachedCustomerCookie = sessionCookie(verifyResp);
+  return cachedCustomerCookie;
 }
