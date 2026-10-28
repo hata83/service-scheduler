@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "sequence",
   "meta": {
-    "title": "Availability Check Sequence",
+    "title": "Slot Availability Check — Dual Resource Gate",
     "output": "availability-check.html",
     "column_fit": "spread",
     "animation": "trace",
@@ -18,8 +18,8 @@
     {
       "id": "api",
       "type": "backend",
-      "label": "Slots API",
-      "sublabel": "GET available"
+      "label": "Slot API",
+      "sublabel": "SlotAvailabilityService"
     },
     {
       "id": "auth",
@@ -28,39 +28,22 @@
       "sublabel": "JWT cookie"
     },
     {
-      "id": "constraints",
-      "type": "backend",
-      "label": "Constraint",
-      "sublabel": "Java rules"
-    },
-    {
       "id": "redis",
       "type": "database",
       "label": "Redis",
-      "sublabel": "grid cache"
+      "sublabel": "slot:grid cache"
+    },
+    {
+      "id": "compute",
+      "type": "backend",
+      "label": "Grid Compute",
+      "sublabel": "SlotGridComputeService"
     },
     {
       "id": "pg",
       "type": "database",
       "label": "PostgreSQL",
-      "sublabel": "appointments"
-    }
-  ],
-  "segments": [
-    {
-      "from": 150,
-      "to": 270,
-      "label": "Request and rules"
-    },
-    {
-      "from": 290,
-      "to": 430,
-      "label": "Capacity search"
-    },
-    {
-      "from": 450,
-      "to": 580,
-      "label": "Return slots"
+      "sublabel": "bays + assignments"
     }
   ],
   "messages": [
@@ -68,7 +51,7 @@
       "id": "req",
       "from": "client",
       "to": "api",
-      "y": 170,
+      "y": 175,
       "label": "GET /slots/available",
       "variant": "emphasis"
     },
@@ -76,125 +59,181 @@
       "id": "verify",
       "from": "api",
       "to": "auth",
-      "y": 210,
+      "y": 205,
       "label": "validate JWT cookie",
       "variant": "security"
+    },
+    {
+      "id": "auth-ok",
+      "from": "auth",
+      "to": "api",
+      "y": 235,
+      "label": "principal + role",
+      "variant": "return"
     },
     {
       "id": "cache-read",
       "from": "api",
       "to": "redis",
-      "y": 250,
-      "label": "read slot grid cache",
-      "variant": "return"
-    },
-    {
-      "id": "rules",
-      "from": "api",
-      "to": "constraints",
-      "y": 320,
-      "label": "evaluate service code",
+      "y": 265,
+      "label": "GET slot:grid key",
       "variant": "default"
     },
     {
-      "id": "rule-result",
-      "from": "constraints",
+      "id": "cache-hit",
+      "from": "redis",
       "to": "api",
-      "y": 360,
-      "label": "bay types, skills, minutes",
+      "y": 295,
+      "label": "HIT → cached grid",
       "variant": "return"
     },
     {
-      "id": "overlap",
+      "id": "cache-miss-note",
+      "from": "redis",
+      "to": "api",
+      "y": 325,
+      "label": "MISS → compute from DB",
+      "variant": "dashed"
+    },
+    {
+      "id": "load-config",
       "from": "api",
+      "to": "compute",
+      "y": 355,
+      "label": "compute(config, service, date)",
+      "variant": "default"
+    },
+    {
+      "id": "bay-query",
+      "from": "compute",
       "to": "pg",
-      "y": 400,
-      "label": "query free bays and tech",
+      "y": 385,
+      "label": "Bay gate: free bays query",
       "variant": "default"
     },
     {
-      "id": "busy",
+      "id": "bay-result",
       "from": "pg",
-      "to": "api",
-      "y": 440,
-      "label": "dual capacity result",
+      "to": "compute",
+      "y": 415,
+      "label": "free bay list",
       "variant": "return"
     },
     {
-      "id": "write-cache",
+      "id": "tech-query",
+      "from": "compute",
+      "to": "pg",
+      "y": 445,
+      "label": "Tech gate: technicians query",
+      "variant": "default"
+    },
+    {
+      "id": "tech-result",
+      "from": "pg",
+      "to": "compute",
+      "y": 475,
+      "label": "candidate tech IDs",
+      "variant": "return"
+    },
+    {
+      "id": "compute-done",
+      "from": "compute",
+      "to": "api",
+      "y": 505,
+      "label": "available=true|false",
+      "variant": "return"
+    },
+    {
+      "id": "cache-write",
       "from": "api",
       "to": "redis",
-      "y": 470,
-      "label": "cache result, TTL 1 hour",
+      "y": 535,
+      "label": "SET grid TTL",
       "variant": "dashed"
     },
     {
       "id": "reply",
       "from": "api",
       "to": "client",
-      "y": 540,
-      "label": "200 open time windows",
+      "y": 565,
+      "label": "200 OK slot windows",
       "variant": "return"
     }
   ],
   "activations": [
     {
       "participant": "client",
-      "from": 160,
-      "to": 200,
+      "from": 120,
+      "to": 650,
       "type": "external"
     },
     {
       "participant": "api",
-      "from": 165,
-      "to": 550,
+      "from": 125,
+      "to": 645,
       "type": "backend"
     },
     {
       "participant": "auth",
-      "from": 195,
-      "to": 230,
+      "from": 162,
+      "to": 215,
       "type": "security"
     },
     {
-      "participant": "constraints",
-      "from": 305,
-      "to": 345,
+      "participant": "redis",
+      "from": 242,
+      "to": 320,
+      "type": "database"
+    },
+    {
+      "participant": "compute",
+      "from": 338,
+      "to": 560,
       "type": "backend"
     },
     {
       "participant": "pg",
-      "from": 390,
-      "to": 430,
+      "from": 398,
+      "to": 510,
       "type": "database"
     }
   ],
   "cards": [
     {
       "dot": "emerald",
-      "title": "Dual Resource Gating",
+      "title": "Dual Resource Gate — Both Must Pass",
       "items": [
-        "The constraint evaluator returns allowed bay types and required technician skill levels",
-        "Both gates must pass: a compatible bay is free AND qualified technicians are available",
-        "The answer returns available time windows across the global dealership grid"
+        "Bay gate: at least one active bay matching allowed_bay_types has no overlapping active service_job",
+        "Technician gate: every required role slot in service_type_technician_requirements can be filled by a distinct, qualified, unassigned technician",
+        "Slots failing either gate have available=false in the response"
       ]
     },
     {
       "dot": "cyan",
-      "title": "Cache rules",
+      "title": "Augmenting-Path Matching",
       "items": [
-        "The cache key combines dealership, date, and service type with a default 1-hour TTL",
-        "Any booking, cancellation, check-in adjustment, or overlap error evicts the date-level slot cache",
-        "The cache never holds booking truth; the database holds the reservation"
+        "Build bipartite graph: role slots and available technicians",
+        "Find augmenting paths; assign technicians without sorting by candidate count",
+        "Excluded when no augmenting path connects all required role slots"
       ]
     },
     {
-      "dot": "orange",
-      "title": "Limits",
+      "dot": "amber",
+      "title": "Cache Strategy",
       "items": [
-        "This endpoint is rate limited per IP and user (100 req/min)",
-        "It returns 409 style conflict details as RFC 7807 Problem Details",
-        "It is a read-only query and writes no database rows"
+        "Key: slot:grid:{dealershipId}:{serviceTypeId}:{date} — per service type, per date",
+        "TTL: dealership.slotCacheTtlSeconds (default 1 hour)",
+        "Date-level eviction on: booking committed, cancelled, no-show, check-in slot adjustment",
+        "Dealership-level eviction on: bay change, technician change, config update"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Validation Limits",
+      "items": [
+        "HTTP 400 when date > today + dealership.maxAdvanceBookingDays (default 7 days)",
+        "Past dates return an empty slot list without querying the database",
+        "Rate limited: 100 requests per 60 seconds per IP"
       ]
     }
   ]

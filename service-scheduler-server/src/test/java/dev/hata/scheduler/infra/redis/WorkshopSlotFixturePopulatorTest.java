@@ -36,9 +36,9 @@ class WorkshopSlotFixturePopulatorTest {
         LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
         populator.populate(today);
 
-        String day1Key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + today.plusDays(1);
-        String day2Key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + today.plusDays(2);
-        String day3Key = "slot:grid:" + DEALERSHIP_ID + ":" + SERVICE_TYPE_ID + ":" + today.plusDays(3);
+        String day1Key = "slot:grid:" + DEALERSHIP_ID + ":" + today.plusDays(1) + ":" + SERVICE_TYPE_ID;
+        String day2Key = "slot:grid:" + DEALERSHIP_ID + ":" + today.plusDays(2) + ":" + SERVICE_TYPE_ID;
+        String day3Key = "slot:grid:" + DEALERSHIP_ID + ":" + today.plusDays(3) + ":" + SERVICE_TYPE_ID;
 
         assertThat(redis.hasKey(day1Key)).isTrue();
         assertThat(redis.hasKey(day2Key)).isTrue();
@@ -49,7 +49,8 @@ class WorkshopSlotFixturePopulatorTest {
         assertThat(day1Json).contains("\"available\":true");
         assertThat(day1Json).contains("08:00:00");
 
-        String brakeKey = "slot:grid:" + DEALERSHIP_ID + ":22222222-0000-0000-0000-000000000003:" + today.plusDays(1);
+        String brakeKey =
+                "slot:grid:" + DEALERSHIP_ID + ":" + today.plusDays(1) + ":22222222-0000-0000-0000-000000000003";
         assertThat(redis.hasKey(brakeKey)).isTrue();
         String brakeJson = redis.opsForValue().get(brakeKey);
         // 120-minute brake intervals: 08:00 to 10:00

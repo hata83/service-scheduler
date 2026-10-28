@@ -1,5 +1,8 @@
 package dev.hata.scheduler.common.config;
 
+import java.time.Clock;
+import java.time.ZoneId;
+
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -22,5 +25,15 @@ public class JacksonConfig {
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         mapper.disable(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE);
         return mapper;
+    }
+
+    /**
+     * System default-zone clock for time-sensitive services such as the slot
+     * availability grid, so production time reads are mockable in tests.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public Clock clock() {
+        return Clock.system(ZoneId.of("UTC"));
     }
 }
