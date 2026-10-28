@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +24,7 @@ import dev.hata.scheduler.appointment.model.JobStatus;
 import dev.hata.scheduler.appointment.model.ServiceJob;
 import dev.hata.scheduler.appointment.repository.AppointmentRepository;
 import dev.hata.scheduler.appointment.repository.JobTechnicianAssignmentRepository;
+import dev.hata.scheduler.common.event.AppointmentSlotModifiedEvent;
 import dev.hata.scheduler.common.event.NotificationDispatchEvent;
 import dev.hata.scheduler.common.provider.DealershipValidationProvider;
 import dev.hata.scheduler.common.provider.ServiceTypeMetadataProvider;
@@ -125,8 +127,37 @@ class AppointmentServiceTest {
         assertThat(response.startTime()).isEqualTo(start);
         assertThat(response.endTime()).isEqualTo(end);
 
-        verify(slotCacheEviction).evictSlots(any(), any());
+        verify(eventPublisher).publishEvent(any(AppointmentSlotModifiedEvent.class));
         verify(eventPublisher).publishEvent(any(NotificationDispatchEvent.class));
+    }
+
+    @Test
+    void bookImmediatelyEvictsSlotCacheWhenDataIntegrityViolationOccurs() {
+        when(dealershipValidation.existsActiveDealership(DEALERSHIP_ID)).thenReturn(true);
+        when(categoryValidation.existsCategoryInDealership(DEALERSHIP_ID, CATEGORY_ID))
+                .thenReturn(true);
+        when(dealershipValidation.existsActiveBay(DEALERSHIP_ID, BAY_1)).thenReturn(true);
+        when(dealershipValidation.isAutoConfirmEnabled(DEALERSHIP_ID)).thenReturn(true);
+        when(dealershipValidation.getDealershipTimezone(DEALERSHIP_ID)).thenReturn("Asia/Ho_Chi_Minh");
+        when(serviceTypeMetadataProvider.findServiceTypeMetadata(DEALERSHIP_ID, CATEGORY_ID, SERVICE_TYPE_1))
+                .thenReturn(Optional.of(new ServiceTypeMetadata(SERVICE_TYPE_1, 30, new BigDecimal("60.00"))));
+
+        Instant start = Instant.parse("2026-11-25T14:00:00Z");
+        Instant end = Instant.parse("2026-11-25T14:30:00Z");
+
+        CreateAppointmentRequest request = new CreateAppointmentRequest(
+                DEALERSHIP_ID,
+                CATEGORY_ID,
+                "1HGCR2F83HA000001",
+                List.of(new ServiceJobItemRequest(SERVICE_TYPE_1, BAY_1, start, end)));
+
+        when(appointmentRepository.saveAndFlush(any(Appointment.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("exclusion violation"));
+
+        assertThatThrownBy(() -> appointmentService.book(request, CUSTOMER_ID, CUSTOMER_PHONE, UUID.randomUUID()))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+
+        verify(slotCacheEviction).evictSlots(DEALERSHIP_ID, LocalDate.of(2026, 11, 25));
     }
 
     @Test
@@ -310,7 +341,7 @@ class AppointmentServiceTest {
         assertThat(job.getStatus()).isEqualTo(JobStatus.CANCELLED);
         assertThat(job.getUpdatedBy()).isEqualTo(CUSTOMER_ID);
         verify(jobTechnicianAssignmentRepository).deleteByJobIdIn(any());
-        verify(slotCacheEviction).evictSlots(any(), any());
+        verify(eventPublisher).publishEvent(any(AppointmentSlotModifiedEvent.class));
         verify(eventPublisher).publishEvent(any(NotificationDispatchEvent.class));
     }
 
@@ -477,5 +508,17 @@ class AppointmentServiceTest {
         CancelAppointmentResponse response = appointmentService.cancelAppointment(id, CUSTOMER_ID, CUSTOMER_PHONE);
 
         assertThat(response.status()).isEqualTo(AppointmentStatus.CANCELLED);
+    }
+
+    @Test
+    void cancelAppointmentThrowsNotFoundWhenMissing() {
+        UUID id = UUID.randomUUID();
+        when(appointmentRepository.findWithJobsByIdAndCustomerId(id, CUSTOMER_ID))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> appointmentService.cancelAppointment(id, CUSTOMER_ID, CUSTOMER_PHONE))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+                        .isEqualTo(org.springframework.http.HttpStatus.NOT_FOUND));
     }
 }

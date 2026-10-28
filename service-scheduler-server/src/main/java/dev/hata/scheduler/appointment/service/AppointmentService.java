@@ -23,6 +23,7 @@ import dev.hata.scheduler.appointment.model.JobStatus;
 import dev.hata.scheduler.appointment.model.ServiceJob;
 import dev.hata.scheduler.appointment.repository.AppointmentRepository;
 import dev.hata.scheduler.appointment.repository.JobTechnicianAssignmentRepository;
+import dev.hata.scheduler.common.event.AppointmentSlotModifiedEvent;
 import dev.hata.scheduler.common.event.NotificationDispatchEvent;
 import dev.hata.scheduler.common.provider.DealershipValidationProvider;
 import dev.hata.scheduler.common.provider.ServiceTypeMetadataProvider;
@@ -33,11 +34,10 @@ import dev.hata.scheduler.common.provider.VehicleCategoryValidationProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -194,7 +194,18 @@ public class AppointmentService {
         AppointmentStatus initialStatus = autoConfirm ? AppointmentStatus.CONFIRMED : AppointmentStatus.REQUESTED;
         appointment.setStatus(initialStatus);
 
-        Appointment saved = appointmentRepository.saveAndFlush(appointment);
+        Set<LocalDate> appointmentDates = extractAppointmentDates(dealershipId, sortedJobs);
+
+        Appointment saved;
+        try {
+            saved = appointmentRepository.saveAndFlush(appointment);
+        } catch (DataIntegrityViolationException ex) {
+            // SYSTEM_DESIGN §12.2: Immediately evict cached slot grids for that date on collision
+            for (LocalDate date : appointmentDates) {
+                slotCacheEviction.evictSlots(dealershipId, date);
+            }
+            throw ex;
+        }
 
         // Publish notification event
         String eventType =
@@ -212,8 +223,8 @@ public class AppointmentService {
                 saved.getId(),
                 payload));
 
-        // Evict slot availability cache for booking date
-        evictSlotCacheForAppointment(dealershipId, saved);
+        // Declarative event-driven eviction after transaction commits (SYSTEM_DESIGN §12.1)
+        eventPublisher.publishEvent(new AppointmentSlotModifiedEvent(dealershipId, appointmentDates));
 
         return AppointmentResponse.from(saved);
     }
@@ -294,13 +305,25 @@ public class AppointmentService {
                 saved.getId(),
                 payload));
 
-        // Evict slot cache
-        evictSlotCacheForAppointment(saved.getDealershipId(), saved);
+        // Declarative event-driven eviction after transaction commits (SYSTEM_DESIGN §12.1)
+        Set<LocalDate> dates = extractAppointmentDates(saved.getDealershipId(), saved);
+        eventPublisher.publishEvent(new AppointmentSlotModifiedEvent(saved.getDealershipId(), dates));
 
         return new CancelAppointmentResponse(saved.getId(), AppointmentStatus.CANCELLED, Instant.now());
     }
 
-    private void evictSlotCacheForAppointment(UUID dealershipId, Appointment appointment) {
+    private Set<LocalDate> extractAppointmentDates(UUID dealershipId, List<ServiceJobItemRequest> jobs) {
+        String timezone = dealershipValidation.getDealershipTimezone(dealershipId);
+        ZoneId zone = ZoneId.of(timezone);
+        Set<LocalDate> dates = new HashSet<>();
+        for (ServiceJobItemRequest job : jobs) {
+            dates.add(job.startTime().atZone(zone).toLocalDate());
+            dates.add(job.endTime().atZone(zone).toLocalDate());
+        }
+        return dates;
+    }
+
+    private Set<LocalDate> extractAppointmentDates(UUID dealershipId, Appointment appointment) {
         String timezone = dealershipValidation.getDealershipTimezone(dealershipId);
         ZoneId zone = ZoneId.of(timezone);
         Set<LocalDate> dates = new HashSet<>();
@@ -310,30 +333,6 @@ public class AppointmentService {
         if (appointment.getEndTime() != null) {
             dates.add(appointment.getEndTime().atZone(zone).toLocalDate());
         }
-        if (appointment.getServiceJobs() != null) {
-            for (ServiceJob job : appointment.getServiceJobs()) {
-                if (job.getStartTime() != null) {
-                    dates.add(job.getStartTime().atZone(zone).toLocalDate());
-                }
-                if (job.getEndTime() != null) {
-                    dates.add(job.getEndTime().atZone(zone).toLocalDate());
-                }
-            }
-        }
-        Runnable evictAction = () -> {
-            for (LocalDate date : dates) {
-                slotCacheEviction.evictSlots(dealershipId, date);
-            }
-        };
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    evictAction.run();
-                }
-            });
-        } else {
-            evictAction.run();
-        }
+        return dates;
     }
 }

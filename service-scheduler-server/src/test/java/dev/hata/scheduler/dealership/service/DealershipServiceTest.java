@@ -12,15 +12,14 @@ import java.util.UUID;
 import dev.hata.scheduler.common.provider.DealershipConfigPort.DealershipConfig;
 import dev.hata.scheduler.dealership.dto.DealershipResponse;
 import dev.hata.scheduler.dealership.model.Dealership;
-import dev.hata.scheduler.dealership.model.WorkshopBay;
 import dev.hata.scheduler.dealership.repository.DealershipRepository;
-import dev.hata.scheduler.dealership.repository.WorkshopBayRepository;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class DealershipServiceTest {
@@ -31,13 +30,13 @@ class DealershipServiceTest {
     private DealershipRepository repository;
 
     @Mock
-    private WorkshopBayRepository workshopBayRepository;
+    private JdbcTemplate jdbcTemplate;
 
     private DealershipService service;
 
     @BeforeEach
     void setUp() {
-        service = new DealershipService(repository, workshopBayRepository);
+        service = new DealershipService(repository, jdbcTemplate);
     }
 
     @Test
@@ -54,8 +53,7 @@ class DealershipServiceTest {
 
     @Test
     void findAllActiveReturnsMappedResponses() {
-        Dealership dealership = new Dealership();
-        dealership.setName("Active Dealer");
+        Dealership dealership = buildActiveDealership();
         when(repository.findByActiveTrue()).thenReturn(List.of(dealership));
 
         List<DealershipResponse> result = service.findAllActive();
@@ -154,12 +152,22 @@ class DealershipServiceTest {
     }
 
     @Test
-    void existsActiveBayChecksWorkshopBayRepository() {
+    void existsActiveBayChecksWorkshopBays() {
         UUID bayId = UUID.randomUUID();
-        when(workshopBayRepository.findByIdAndDealershipIdAndActiveTrue(bayId, DEALERSHIP_ID))
-                .thenReturn(Optional.of(new WorkshopBay()));
+        when(jdbcTemplate.queryForObject(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.eq(Boolean.class),
+                        org.mockito.ArgumentMatchers.eq(bayId),
+                        org.mockito.ArgumentMatchers.eq(DEALERSHIP_ID)))
+                .thenReturn(Boolean.TRUE);
 
         assertThat(service.existsActiveBay(DEALERSHIP_ID, bayId)).isTrue();
+    }
+
+    @Test
+    void existsActiveBayReturnsFalseOnNullInput() {
+        assertThat(service.existsActiveBay(null, UUID.randomUUID())).isFalse();
+        assertThat(service.existsActiveBay(DEALERSHIP_ID, null)).isFalse();
     }
 
     // --- builder ---

@@ -3,6 +3,15 @@ import { expect, test } from '@playwright/test';
 
 import { apiContext, freshVin, getCustomerSession } from '../support/api';
 
+function getCandidateBookingDate(daysAhead = 2): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysAhead);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 /**
  * End-to-end verification for customer appointment booking:
  * - Multi-job booking with two consecutive service types
@@ -179,7 +188,7 @@ test.describe('Customer appointment booking', () => {
     expect(problem.detail).toContain('overlap');
   });
 
-  test('customer booking flow: login, select dealership, vehicle category, input VIN, add 2 services, query slots, happy case pass all, and bad case overlap error with recovery', async ({
+  test('customer booking flow: login, select dealership, vehicle category, input VIN, add 2 services, query slots without stubs, happy case pass, overlap with existing booking rejects with 409 and cache evict, and recover successfully', async ({
     playwright,
     baseURL
   }) => {
@@ -195,6 +204,10 @@ test.describe('Customer appointment booking', () => {
     expect(dealerships.length).toBeGreaterThan(0);
     const dealership = dealerships[0];
     const dealershipId = dealership.id;
+
+    // Evict any pre-seeded slot cache fixtures to guarantee real DB-backed compute without stubs
+    const evictResp = await request.delete(`/api/v1/slots/cache?dealershipId=${dealershipId}`);
+    expect(evictResp.status()).toBe(204);
 
     // 3. Select vehicle category
     const catResp = await request.get(`/api/v1/dealerships/${dealershipId}/vehicle-categories`);
@@ -215,19 +228,30 @@ test.describe('Customer appointment booking', () => {
     const service1 = serviceTypes[0];
     const service2 = serviceTypes[1];
 
-    // 6. Call available slots for both service types on candidate date
-    const targetDate = '2026-12-05';
+    // 6. Call real available slots for both service types on candidate date (within 7-day advance booking window)
+    const targetDate = getCandidateBookingDate(2);
     const slots1Resp = await request.get(
       `/api/v1/slots/available?dealershipId=${dealershipId}&serviceTypeId=${service1.id}&date=${targetDate}`
     );
     expect(slots1Resp.status()).toBe(200);
+    const slots1 = await slots1Resp.json();
+    const available1 = slots1.filter((s: { available: boolean }) => s.available);
+    expect(available1.length).toBeGreaterThanOrEqual(1);
 
     const slots2Resp = await request.get(
       `/api/v1/slots/available?dealershipId=${dealershipId}&serviceTypeId=${service2.id}&date=${targetDate}`
     );
     expect(slots2Resp.status()).toBe(200);
+    const slots2 = await slots2Resp.json();
+    const available2 = slots2.filter((s: { available: boolean }) => s.available);
+    expect(available2.length).toBeGreaterThanOrEqual(1);
 
     // 7. Happy case: select 2 non-overlapping service jobs and submit booking
+    const slot1 = available1[0];
+    const slot2 = available2.find((s: { startTime: string }) =>
+      new Date(s.startTime).getTime() >= new Date(slot1.endTime).getTime()
+    ) || available2[available2.length - 1];
+
     const happyKey = randomUUID();
     const happyBookResp = await request.post('/api/v1/appointments', {
       headers: {
@@ -242,14 +266,14 @@ test.describe('Customer appointment booking', () => {
           {
             serviceTypeId: service1.id,
             bayId: '33333333-0000-0000-0000-000000000001',
-            startTime: `${targetDate}T08:00:00Z`,
-            endTime: `${targetDate}T08:30:00Z`
+            startTime: slot1.startTime,
+            endTime: slot1.endTime
           },
           {
             serviceTypeId: service2.id,
             bayId: '33333333-0000-0000-0000-000000000002',
-            startTime: `${targetDate}T08:30:00Z`,
-            endTime: `${targetDate}T09:30:00Z`
+            startTime: slot2.startTime,
+            endTime: slot2.endTime
           }
         ]
       }
@@ -262,40 +286,73 @@ test.describe('Customer appointment booking', () => {
     expect(happyAppointment.status).toBe('CONFIRMED');
     expect(happyAppointment.serviceJobs).toHaveLength(2);
 
-    // 8. Bad case: select 2 service jobs that overlap in time -> raises error
-    const badKey = randomUUID();
-    const overlapBookResp = await request.post('/api/v1/appointments', {
+    // 8. Bad case A: Overlap with existing booking for SAME vehicle VIN -> PostgreSQL no_vehicle_overlap raises 409
+    const overlapVinKey = randomUUID();
+    const overlapVinResp = await request.post('/api/v1/appointments', {
       headers: {
         'Cookie': `jwt=${cookie}`,
-        'X-Idempotency-Key': badKey
+        'X-Idempotency-Key': overlapVinKey
       },
       data: {
         dealershipId,
         vehicleCategoryId: vehicleCategory.id,
-        vehicleVin: testVin2,
+        vehicleVin: testVin, // SAME vehicle VIN
         serviceJobs: [
           {
             serviceTypeId: service1.id,
             bayId: '33333333-0000-0000-0000-000000000001',
-            startTime: `${targetDate}T10:00:00Z`,
-            endTime: `${targetDate}T10:30:00Z`
-          },
-          {
-            serviceTypeId: service2.id,
-            bayId: '33333333-0000-0000-0000-000000000002',
-            startTime: `${targetDate}T10:15:00Z`, // Overlaps job 1!
-            endTime: `${targetDate}T11:15:00Z`
+            startTime: slot1.startTime,
+            endTime: slot1.endTime
           }
         ]
       }
     });
 
-    expect(overlapBookResp.status()).toBe(400);
-    const overlapError = await overlapBookResp.json();
-    expect(overlapError.status).toBe(400);
-    expect(overlapError.detail).toContain('overlap');
+    expect(overlapVinResp.status()).toBe(409);
+    const vinProblem = await overlapVinResp.json();
+    expect(vinProblem.status).toBe(409);
+    expect(vinProblem.title).toBe('Vehicle schedule conflict');
 
-    // 9. Client receives error, selects new non-overlapping time slot, and resubmits successfully
+    // 9. Bad case B: Overlap with existing booking for SAME bay -> PostgreSQL no_bay_overlap raises 409
+    const overlapBayKey = randomUUID();
+    const overlapBayResp = await request.post('/api/v1/appointments', {
+      headers: {
+        'Cookie': `jwt=${cookie}`,
+        'X-Idempotency-Key': overlapBayKey
+      },
+      data: {
+        dealershipId,
+        vehicleCategoryId: vehicleCategory.id,
+        vehicleVin: testVin2, // DIFFERENT vehicle
+        serviceJobs: [
+          {
+            serviceTypeId: service1.id,
+            bayId: '33333333-0000-0000-0000-000000000001', // SAME bay and time as happy booking job 1
+            startTime: slot1.startTime,
+            endTime: slot1.endTime
+          }
+        ]
+      }
+    });
+
+    expect(overlapBayResp.status()).toBe(409);
+    const bayProblem = await overlapBayResp.json();
+    expect(bayProblem.status).toBe(409);
+    expect(bayProblem.title).toBe('Workshop bay conflict');
+
+    // 10. Recovery after collision eviction: re-fetch available slots and book a non-overlapping slot
+    const refreshedSlotsResp = await request.get(
+      `/api/v1/slots/available?dealershipId=${dealershipId}&serviceTypeId=${service2.id}&date=${targetDate}`
+    );
+    expect(refreshedSlotsResp.status()).toBe(200);
+    const refreshedSlots = await refreshedSlotsResp.json();
+    const newAvailable = refreshedSlots.filter((s: { available: boolean; startTime: string }) =>
+      s.available && new Date(s.startTime).getTime() > new Date(slot2.endTime).getTime()
+    );
+
+    const recoverySlot = newAvailable.length > 0 ? newAvailable[0] : refreshedSlots.find((s: { available: boolean }) => s.available);
+    expect(recoverySlot).toBeTruthy();
+
     const recoveredKey = randomUUID();
     const recoveredBookResp = await request.post('/api/v1/appointments', {
       headers: {
@@ -308,16 +365,10 @@ test.describe('Customer appointment booking', () => {
         vehicleVin: testVin2,
         serviceJobs: [
           {
-            serviceTypeId: service1.id,
-            bayId: '33333333-0000-0000-0000-000000000001',
-            startTime: `${targetDate}T10:00:00Z`,
-            endTime: `${targetDate}T10:30:00Z`
-          },
-          {
             serviceTypeId: service2.id,
             bayId: '33333333-0000-0000-0000-000000000002',
-            startTime: `${targetDate}T10:30:00Z`, // Adjusted to non-overlapping slot!
-            endTime: `${targetDate}T11:30:00Z`
+            startTime: recoverySlot.startTime,
+            endTime: recoverySlot.endTime
           }
         ]
       }
@@ -327,6 +378,5 @@ test.describe('Customer appointment booking', () => {
     const recoveredAppointment = await recoveredBookResp.json();
     expect(recoveredAppointment.id).toBeTruthy();
     expect(recoveredAppointment.status).toBe('CONFIRMED');
-    expect(recoveredAppointment.serviceJobs).toHaveLength(2);
   });
 });

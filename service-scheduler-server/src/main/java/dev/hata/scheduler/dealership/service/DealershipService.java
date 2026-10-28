@@ -9,8 +9,8 @@ import dev.hata.scheduler.common.provider.DealershipValidationProvider;
 import dev.hata.scheduler.dealership.dto.DealershipResponse;
 import dev.hata.scheduler.dealership.model.Dealership;
 import dev.hata.scheduler.dealership.repository.DealershipRepository;
-import dev.hata.scheduler.dealership.repository.WorkshopBayRepository;
 
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,12 +20,23 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DealershipService implements DealershipValidationProvider, DealershipConfigPort {
 
-    private final DealershipRepository dealerships;
-    private final WorkshopBayRepository workshopBays;
+    private static final String BAY_EXISTS_SQL =
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM workshop_bays
+                WHERE id = ?
+                  AND dealership_id = ?
+                  AND is_active = true
+            )
+            """;
 
-    public DealershipService(DealershipRepository dealerships, WorkshopBayRepository workshopBays) {
+    private final DealershipRepository dealerships;
+    private final JdbcTemplate jdbcTemplate;
+
+    public DealershipService(DealershipRepository dealerships, JdbcTemplate jdbcTemplate) {
         this.dealerships = dealerships;
-        this.workshopBays = workshopBays;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional(readOnly = true)
@@ -86,8 +97,10 @@ public class DealershipService implements DealershipValidationProvider, Dealersh
     @Override
     @Transactional(readOnly = true)
     public boolean existsActiveBay(UUID dealershipId, UUID bayId) {
-        return workshopBays
-                .findByIdAndDealershipIdAndActiveTrue(bayId, dealershipId)
-                .isPresent();
+        if (dealershipId == null || bayId == null) {
+            return false;
+        }
+        Boolean exists = jdbcTemplate.queryForObject(BAY_EXISTS_SQL, Boolean.class, bayId, dealershipId);
+        return Boolean.TRUE.equals(exists);
     }
 }
