@@ -148,12 +148,19 @@ public class ScheduleService {
     }
 
     private static String customerName(String firstName, String lastName) {
-        if (firstName == null && lastName == null) {
-            return null;
+        String first;
+        if (firstName == null) {
+            first = "";
+        } else {
+            first = firstName.trim();
         }
-        String first = firstName == null ? "" : firstName.trim();
-        String last = lastName == null ? "" : lastName.trim();
-        if (first.isEmpty() && last.isEmpty()) {
+        String last;
+        if (lastName == null) {
+            last = "";
+        } else {
+            last = lastName.trim();
+        }
+        if (first.isEmpty() & last.isEmpty()) {
             return null;
         }
         return first + " " + last;

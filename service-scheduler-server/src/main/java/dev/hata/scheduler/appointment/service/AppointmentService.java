@@ -430,10 +430,10 @@ public class AppointmentService {
                 .orElseThrow(
                         () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service job not found: " + jobId));
 
-        if (isManager && managerDealershipScope != null) {
-            if (!managerDealershipScope.equals(job.getAppointment().getDealershipId())) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Service job not found: " + jobId);
-            }
+        if (isManager
+                && managerDealershipScope != null
+                && !managerDealershipScope.equals(job.getAppointment().getDealershipId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Service job not found: " + jobId);
         }
 
         boolean assigned = jobTechnicianAssignmentRepository.findByJobId(jobId).stream()

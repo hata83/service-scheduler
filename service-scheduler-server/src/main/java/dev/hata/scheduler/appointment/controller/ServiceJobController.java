@@ -104,7 +104,7 @@ public class ServiceJobController {
         }
 
         UUID managerDealershipScope = null;
-        if ("MANAGER".equals(role)) {
+        if (StaffScope.ROLE_MANAGER.equals(role)) {
             managerDealershipScope = StaffScope.dealershipScope(principal, null);
         }
 

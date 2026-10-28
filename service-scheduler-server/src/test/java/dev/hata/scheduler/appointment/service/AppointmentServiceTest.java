@@ -706,6 +706,50 @@ class AppointmentServiceTest {
     }
 
     @Test
+    void appendJobNoteAllowsManagerWithMatchingDealershipScope() {
+        UUID jobId = UUID.randomUUID();
+        UUID managerId = UUID.randomUUID();
+        UUID dealershipId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        String note = "Manager scoped note";
+
+        ServiceJob job = new ServiceJob();
+        job.setId(jobId);
+        Appointment appointment = new Appointment();
+        appointment.setDealershipId(dealershipId);
+        job.setAppointment(appointment);
+
+        when(serviceJobRepository.findById(jobId)).thenReturn(Optional.of(job));
+        when(serviceJobRepository.appendNoteAtomic(jobId, note)).thenReturn(1);
+
+        AppointmentService.JobNoteResult result =
+                appointmentService.appendJobNote(jobId, managerId, note, true, dealershipId);
+
+        assertThat(result.appended()).isEqualTo(note);
+        verify(serviceJobRepository).appendNoteAtomic(jobId, note);
+    }
+
+    @Test
+    void appendJobNoteRejectsManagerWithForeignDealershipScope() {
+        UUID jobId = UUID.randomUUID();
+        UUID managerId = UUID.randomUUID();
+        UUID foreignDealershipId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        UUID jobDealershipId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        String note = "Foreign note";
+
+        ServiceJob job = new ServiceJob();
+        job.setId(jobId);
+        Appointment appointment = new Appointment();
+        appointment.setDealershipId(jobDealershipId);
+        job.setAppointment(appointment);
+
+        when(serviceJobRepository.findById(jobId)).thenReturn(Optional.of(job));
+
+        assertThatThrownBy(() -> appointmentService.appendJobNote(jobId, managerId, note, true, foreignDealershipId))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasFieldOrPropertyWithValue("status", HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     void appendJobNoteRejectsCustomerRole() {
         UUID jobId = UUID.randomUUID();
         when(serviceJobRepository.findById(jobId)).thenReturn(Optional.of(new ServiceJob()));

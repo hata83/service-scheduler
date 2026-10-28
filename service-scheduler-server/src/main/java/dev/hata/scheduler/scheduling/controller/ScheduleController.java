@@ -39,6 +39,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/schedule")
 public class ScheduleController {
 
+    private static final String DEFAULT_GLOBAL_TIMEZONE = "UTC";
+
     private final ScheduleService scheduleService;
 
     public ScheduleController(ScheduleService scheduleService) {
@@ -175,6 +177,7 @@ public class ScheduleController {
         }
     }
 
+    @SuppressWarnings("PMD.PreserveStackTrace")
     private static java.time.Instant parseInstant(String value, String timezone) {
         if (value == null || value.isBlank()) {
             return null;
@@ -184,17 +187,18 @@ public class ScheduleController {
         } catch (java.time.format.DateTimeParseException ex) {
             try {
                 LocalDate date = java.time.LocalDate.parse(value);
-                ZoneId zone = timezone == null ? ZoneId.of("UTC") : ZoneId.of(timezone);
+                ZoneId zone = timezone == null ? ZoneId.of(DEFAULT_GLOBAL_TIMEZONE) : ZoneId.of(timezone);
                 return date.atStartOfDay(zone).toInstant();
             } catch (java.time.format.DateTimeParseException innerEx) {
                 throw new org.springframework.web.server.ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
                         "filter must use the ISO-8601 instant or yyyy-MM-dd format: " + value,
-                        ex);
+                        innerEx);
             }
         }
     }
 
+    @SuppressWarnings("PMD.PreserveStackTrace")
     private static java.time.Instant parseInstantExclusive(String value, String timezone) {
         if (value == null || value.isBlank()) {
             return null;
@@ -204,13 +208,13 @@ public class ScheduleController {
         } catch (java.time.format.DateTimeParseException ex) {
             try {
                 LocalDate date = java.time.LocalDate.parse(value);
-                ZoneId zone = timezone == null ? ZoneId.of("UTC") : ZoneId.of(timezone);
+                ZoneId zone = timezone == null ? ZoneId.of(DEFAULT_GLOBAL_TIMEZONE) : ZoneId.of(timezone);
                 return date.plusDays(1).atStartOfDay(zone).toInstant();
             } catch (java.time.format.DateTimeParseException innerEx) {
                 throw new org.springframework.web.server.ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
                         "filter must use the ISO-8601 instant or yyyy-MM-dd format: " + value,
-                        ex);
+                        innerEx);
             }
         }
     }
