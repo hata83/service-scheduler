@@ -2,10 +2,14 @@ package dev.hata.scheduler.notification.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -263,6 +267,80 @@ class SseEmitterRegistryTest {
             barrier.await(5, TimeUnit.SECONDS);
         } catch (Exception ex) {
             failure.compareAndSet(null, ex);
+        }
+    }
+
+    @Test
+    void fanOutNeverDeliversAPriorScopeEventToAReconnectedStream() throws Exception {
+        RecordingRegistry recording = new RecordingRegistry();
+        UUID dealershipA = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID dealershipB = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        String phone = "+84900000002";
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+
+        for (int round = 0; round < 2000; round++) {
+            recording.registerStaff(phone, dealershipA);
+            CyclicBarrier start = new CyclicBarrier(2);
+
+            Thread registrar = new Thread(() -> {
+                awaitBarrier(start, failure);
+                recording.registerStaff(phone, dealershipB);
+            });
+            Thread fanout = new Thread(() -> {
+                awaitBarrier(start, failure);
+                recording.sendToDealershipStaff(dealershipA, "appointment.requested", Map.of());
+            });
+            registrar.start();
+            fanout.start();
+            registrar.join();
+            fanout.join();
+
+            RecordingEmitter replacement = recording.created.get(recording.created.size() - 1);
+            if (replacement.sentCount() > 0) {
+                failure.compareAndSet(
+                        null,
+                        new IllegalStateException("the replacement stream received the event of the prior scope"));
+                break;
+            }
+        }
+
+        assertThat(failure.get()).isNull();
+    }
+
+    /**
+     * Registry that records the emitter of every session.
+     */
+    private static final class RecordingRegistry extends SseEmitterRegistry {
+
+        private final List<RecordingEmitter> created = new CopyOnWriteArrayList<>();
+
+        @Override
+        SseEmitter createEmitter() {
+            RecordingEmitter emitter = new RecordingEmitter();
+            created.add(emitter);
+            return emitter;
+        }
+    }
+
+    /**
+     * Emitter that counts the delivered events.
+     */
+    private static final class RecordingEmitter extends SseEmitter {
+
+        private final AtomicInteger sent = new AtomicInteger();
+
+        RecordingEmitter() {
+            super(0L);
+        }
+
+        int sentCount() {
+            return sent.get();
+        }
+
+        @Override
+        public void send(SseEmitter.SseEventBuilder builder) throws IOException {
+            sent.incrementAndGet();
+            super.send(builder);
         }
     }
 }

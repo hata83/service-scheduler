@@ -28,7 +28,7 @@ public class SseEmitterRegistry {
      * One connected client. A staff session with a null dealership is a global ADMIN session
      * that receives the events of every dealership.
      */
-    private record Session(SseEmitter emitter, UUID dealershipId, boolean staff) {
+    private record Session(String phone, SseEmitter emitter, UUID dealershipId, boolean staff) {
 
         boolean matchesDealership(UUID id) {
             return staff && (dealershipId == null || dealershipId.equals(id));
@@ -56,8 +56,8 @@ public class SseEmitterRegistry {
         if (phone == null || phone.isBlank()) {
             throw new IllegalArgumentException("Phone must not be blank");
         }
-        SseEmitter emitter = new SseEmitter(DEFAULT_TIMEOUT_MS);
-        Session previous = sessions.put(phone, new Session(emitter, dealershipId, staff));
+        SseEmitter emitter = createEmitter();
+        Session previous = sessions.put(phone, new Session(phone, emitter, dealershipId, staff));
         if (previous != null) {
             try {
                 previous.emitter().complete();
@@ -84,6 +84,14 @@ public class SseEmitterRegistry {
     }
 
     /**
+     * Creates the emitter of one session. The method stays visible to the package so that the
+     * registry tests can record which session received an event.
+     */
+    SseEmitter createEmitter() {
+        return new SseEmitter(DEFAULT_TIMEOUT_MS);
+    }
+
+    /**
      * Dispatches a named event with payload data to the active emitter for the given phone.
      */
     public boolean send(String phone, String eventName, Object data) {
@@ -94,14 +102,24 @@ public class SseEmitterRegistry {
         if (session == null) {
             return false;
         }
+        return send(session, eventName, data);
+    }
 
+    /**
+     * Dispatches a named event with payload data through the given session. The delivery uses
+     * the emitter of the session, so a session keeps the scope that matched the event.
+     */
+    private boolean send(Session session, String eventName, Object data) {
         try {
             session.emitter().send(SseEmitter.event().name(eventName).data(data));
             return true;
         } catch (Exception e) {
             log.warn(
-                    "Failed to dispatch SSE event '{}' to phone {}. Removing emitter.", eventName, maskPhone(phone), e);
-            evict(phone, session.emitter(), "send failed");
+                    "Failed to dispatch SSE event '{}' to phone {}. Removing emitter.",
+                    eventName,
+                    maskPhone(session.phone()),
+                    e);
+            evict(session, "send failed");
             return false;
         }
     }
@@ -115,10 +133,11 @@ public class SseEmitterRegistry {
     public Map<String, Boolean> sendToDealershipStaff(UUID dealershipId, String eventName, Object data) {
         Map<String, Boolean> results = new LinkedHashMap<>();
         for (Map.Entry<String, Session> entry : sessions.entrySet()) {
-            if (!entry.getValue().matchesDealership(dealershipId)) {
+            Session session = entry.getValue();
+            if (!session.matchesDealership(dealershipId)) {
                 continue;
             }
-            results.put(entry.getKey(), send(entry.getKey(), eventName, data));
+            results.put(session.phone(), send(session, eventName, data));
         }
         return results;
     }
@@ -138,13 +157,12 @@ public class SseEmitterRegistry {
     @Scheduled(fixedRate = 25000)
     public void sendHeartbeats() {
         for (Map.Entry<String, Session> entry : sessions.entrySet()) {
-            String phone = entry.getKey();
-            SseEmitter emitter = entry.getValue().emitter();
+            Session session = entry.getValue();
             try {
-                emitter.send(SseEmitter.event().comment("ping"));
+                session.emitter().send(SseEmitter.event().comment("ping"));
             } catch (Exception e) {
-                log.debug("Heartbeat failed for phone {}. Evicting.", maskPhone(phone));
-                evict(phone, emitter, "heartbeat failed");
+                log.debug("Heartbeat failed for phone {}. Evicting.", maskPhone(session.phone()));
+                evict(session, "heartbeat failed");
             }
         }
     }
@@ -164,8 +182,15 @@ public class SseEmitterRegistry {
         if (session == null || session.emitter() != emitter) {
             return;
         }
-        if (sessions.remove(phone, session)) {
-            log.debug("Evicted SSE emitter {} for phone: {}", reason, maskPhone(phone));
+        evict(session, reason);
+    }
+
+    /**
+     * Removes the session when it still owns the phone. A replacement session stays.
+     */
+    private void evict(Session session, String reason) {
+        if (sessions.remove(session.phone(), session)) {
+            log.debug("Evicted SSE emitter {} for phone: {}", reason, maskPhone(session.phone()));
         }
     }
 

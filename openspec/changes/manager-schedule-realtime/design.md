@@ -82,6 +82,10 @@ identity, so a replaced emitter never clears the routing of the newer session of
 The fan-out derives its routing from the session entries, so a routing and its emitter can not
 drift apart.
 
+The fan-out delivers through the session whose dealership matched. It does not resolve the phone
+again, so a stream that reconnects with another dealership during the fan-out never receives the
+event of the prior dealership.
+
 Event names on the manager board:
 
 | Event | Trigger | Effect on board |

@@ -338,3 +338,61 @@ CHANGE manager-schedule-realtime BRANCH feature/manager-schedule-realtime
 STATES 14 done 10 current 11 next 11 skipped 0 failed 0 pending 3
 TASKS 16 done 16 open 0
 `
+
+---
+
+## 8. PR Review Loop (State 11) — Round 4, 1 Unresolved Thread
+
+Commit `4f744b6` closed every thread of round 3. The next review round carried one new Qodo
+finding on the fan-out delivery path.
+
+### 8.1 Thread Inventory and Disposition
+
+| Thread | Author | Severity | File | Disposition |
+|---|---|---|---|---|
+| `PRRT_kwDOVXYfxc6xZNL4` | qodo-code-review | Medium | `SseEmitterRegistry.java` | Fixed. Delivery through the matched session. |
+
+### 8.2 Fix Detail
+
+**Qodo Medium — reassigned staff see old dealership events** (`SseEmitterRegistry.java`): the
+fan-out filtered the iterated session by its dealership but delivered through a second lookup of
+the phone. A manager that was reassigned and reconnected during the fan-out could receive the
+event of the prior dealership, and the delivery was logged against that event.
+
+The fan-out now delivers through the session whose dealership matched. The session keeps the phone
+number, so the eviction of a failed delivery still uses one atomic map operation. The public
+`send(phone, ...)` method stays for the customer leg.
+
+The registry gained a package visible method `createEmitter()`. The registry tests use it to
+record the delivery of an event, so the test can prove which session received an event.
+
+Regression test `fanOutNeverDeliversAPriorScopeEventToAReconnectedStream` runs the registration
+and the fan-out of the same phone on two threads behind a barrier over 2000 rounds. It proves that
+the replacement stream never receives an event of the prior scope.
+
+```
+Proof of the regression test:
+  Buggy delivery path -> the test failed in 6 of 6 runs
+  Fixed delivery path  -> the test passed in 6 of 6 runs
+```
+
+### 8.3 Verification Proofs
+
+| Gate | Command | Result |
+|---|---|---|
+| OpenSpec | `openspec validate manager-schedule-realtime --strict` | SUCCESS |
+| Build | `./gradlew clean build` | SUCCESS |
+| Unit and integration tests | `./gradlew test` | SUCCESS, 0 failures |
+| Coverage | `./gradlew jacocoTestCoverageVerification` | SUCCESS |
+| Lint | `checkstyleMain`, `checkstyleTest`, `pmdMain`, `pmdTest` | SUCCESS, 0 violations |
+| Format | `./gradlew :service-scheduler-server:spotlessCheck` | SUCCESS |
+| Bruno API | `npx --yes @usebruno/cli@2.14.1 run -r --env local --disable-cookies` | PASS, 86 of 86 requests, 98 of 98 tests |
+| Playwright E2E | `npx playwright test` | PASS, 50 of 50 tests |
+
+### 8.4 State Block After Round 4
+
+`
+CHANGE manager-schedule-realtime BRANCH feature/manager-schedule-realtime
+STATES 14 done 10 current 11 next 11 skipped 0 failed 0 pending 3
+TASKS 16 done 16 open 0
+`

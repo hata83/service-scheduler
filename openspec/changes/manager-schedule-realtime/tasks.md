@@ -92,3 +92,12 @@ TASKS    16   done 16  open 0
 - Added the concurrent reconnect-and-eviction test. It fails against the previous registry and
       passes against the new one.
 - `./gradlew clean build`: SUCCESS. Bruno: 86/86 requests, 98/98 tests. Playwright: 50/50 tests.
+
+--- PR Loop Update (State 11, Round 4) ---
+- Resolved 1 new Qodo Medium thread on PR #6: the staff fan-out filtered one session but
+      delivered through a second lookup of the phone, so a reconnected stream could receive an
+      event of the prior dealership.
+- The fan-out now delivers through the session whose dealership matched.
+- Added the concurrent reconnect and fan-out test. It failed in 6 of 6 runs against the previous
+      delivery path and passed in 6 of 6 runs with the fix.
+- `./gradlew clean build`: SUCCESS. Bruno: 86/86 requests, 98/98 tests. Playwright: 50/50 tests.
