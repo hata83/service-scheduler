@@ -2,7 +2,6 @@ package dev.hata.scheduler.notification.service;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -16,6 +15,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 /**
  * Registry for active Server-Sent Event (SSE) emitters scoped by user phone number.
  * Enforces a single active connection per phone number and issues 25-second heartbeats.
+ * The emitter and its staff scope live in one session entry, so that the routing and the
+ * emitter of a phone change together and a reconnect can not lose its routing.
  */
 @Component
 public class SseEmitterRegistry {
@@ -23,11 +24,18 @@ public class SseEmitterRegistry {
     private static final Logger log = LoggerFactory.getLogger(SseEmitterRegistry.class);
     private static final long DEFAULT_TIMEOUT_MS = 0L;
 
-    private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
+    /**
+     * One connected client. A staff session with a null dealership is a global ADMIN session
+     * that receives the events of every dealership.
+     */
+    private record Session(SseEmitter emitter, UUID dealershipId, boolean staff) {
 
-    private final Map<String, UUID> staffDealerships = new ConcurrentHashMap<>();
+        boolean matchesDealership(UUID id) {
+            return staff && (dealershipId == null || dealershipId.equals(id));
+        }
+    }
 
-    private final Set<String> globalStaffPhones = ConcurrentHashMap.newKeySet();
+    private final Map<String, Session> sessions = new ConcurrentHashMap<>();
 
     /**
      * Registers an SSE emitter for the given phone number, evicting any existing emitter.
@@ -49,26 +57,13 @@ public class SseEmitterRegistry {
             throw new IllegalArgumentException("Phone must not be blank");
         }
         SseEmitter emitter = new SseEmitter(DEFAULT_TIMEOUT_MS);
-        SseEmitter previous = emitters.put(phone, emitter);
+        Session previous = sessions.put(phone, new Session(emitter, dealershipId, staff));
         if (previous != null) {
             try {
-                previous.complete();
+                previous.emitter().complete();
             } catch (Exception e) {
                 log.debug("Error completing superseded emitter for phone: {}", maskPhone(phone), e);
             }
-        }
-
-        if (staff) {
-            if (dealershipId == null) {
-                globalStaffPhones.add(phone);
-                staffDealerships.remove(phone);
-            } else {
-                globalStaffPhones.remove(phone);
-                staffDealerships.put(phone, dealershipId);
-            }
-        } else {
-            globalStaffPhones.remove(phone);
-            staffDealerships.remove(phone);
         }
 
         Consumer<String> cleanup = reason -> evict(phone, emitter, reason);
@@ -83,7 +78,7 @@ public class SseEmitterRegistry {
         log.info(
                 "Registered SSE emitter for phone: {}. Active count: {}. Staff scope: {}",
                 maskPhone(phone),
-                emitters.size(),
+                sessions.size(),
                 staff ? (dealershipId == null ? "GLOBAL" : dealershipId.toString()) : "none");
         return emitter;
     }
@@ -95,18 +90,18 @@ public class SseEmitterRegistry {
         if (phone == null) {
             return false;
         }
-        SseEmitter emitter = emitters.get(phone);
-        if (emitter == null) {
+        Session session = sessions.get(phone);
+        if (session == null) {
             return false;
         }
 
         try {
-            emitter.send(SseEmitter.event().name(eventName).data(data));
+            session.emitter().send(SseEmitter.event().name(eventName).data(data));
             return true;
         } catch (Exception e) {
             log.warn(
                     "Failed to dispatch SSE event '{}' to phone {}. Removing emitter.", eventName, maskPhone(phone), e);
-            evict(phone, emitter, "send failed");
+            evict(phone, session.emitter(), "send failed");
             return false;
         }
     }
@@ -119,11 +114,8 @@ public class SseEmitterRegistry {
      */
     public Map<String, Boolean> sendToDealershipStaff(UUID dealershipId, String eventName, Object data) {
         Map<String, Boolean> results = new LinkedHashMap<>();
-        for (String phone : globalStaffPhones) {
-            results.put(phone, send(phone, eventName, data));
-        }
-        for (Map.Entry<String, UUID> entry : staffDealerships.entrySet()) {
-            if (!entry.getValue().equals(dealershipId)) {
+        for (Map.Entry<String, Session> entry : sessions.entrySet()) {
+            if (!entry.getValue().matchesDealership(dealershipId)) {
                 continue;
             }
             results.put(entry.getKey(), send(entry.getKey(), eventName, data));
@@ -135,10 +127,9 @@ public class SseEmitterRegistry {
      * Returns the staff session count of one dealership. Global ADMIN sessions count for all.
      */
     public int getStaffSessionCount(UUID dealershipId) {
-        int scoped = (int) staffDealerships.entrySet().stream()
-                .filter(entry -> entry.getValue().equals(dealershipId))
+        return (int) sessions.values().stream()
+                .filter(session -> session.matchesDealership(dealershipId))
                 .count();
-        return scoped + globalStaffPhones.size();
     }
 
     /**
@@ -146,9 +137,9 @@ public class SseEmitterRegistry {
      */
     @Scheduled(fixedRate = 25000)
     public void sendHeartbeats() {
-        for (Map.Entry<String, SseEmitter> entry : emitters.entrySet()) {
+        for (Map.Entry<String, Session> entry : sessions.entrySet()) {
             String phone = entry.getKey();
-            SseEmitter emitter = entry.getValue();
+            SseEmitter emitter = entry.getValue().emitter();
             try {
                 emitter.send(SseEmitter.event().comment("ping"));
             } catch (Exception e) {
@@ -159,16 +150,21 @@ public class SseEmitterRegistry {
     }
 
     /**
-     * Removes an emitter and its staff routing metadata when the emitter is still the active one
-     * of the phone. A replaced emitter never clears the scope of a newer session.
+     * Removes the session of a phone when its emitter still owns the phone. The removal is one
+     * atomic map operation, so a reconnect that installed a new session keeps its routing.
      * The method is the single eviction path for send failures, heartbeat failures, and
      * emitter callbacks. It stays visible to the package so that the registry tests can
      * simulate a late callback of a replaced emitter.
      */
+    // The identity comparison is intentional. The eviction must target the exact emitter that
+    // failed. A value comparison could match another emitter of the same phone.
+    @SuppressWarnings("PMD.CompareObjectsWithEquals")
     void evict(String phone, SseEmitter emitter, String reason) {
-        if (emitters.remove(phone, emitter)) {
-            globalStaffPhones.remove(phone);
-            staffDealerships.remove(phone);
+        Session session = sessions.get(phone);
+        if (session == null || session.emitter() != emitter) {
+            return;
+        }
+        if (sessions.remove(phone, session)) {
             log.debug("Evicted SSE emitter {} for phone: {}", reason, maskPhone(phone));
         }
     }
@@ -180,12 +176,10 @@ public class SseEmitterRegistry {
         if (phone == null) {
             return;
         }
-        staffDealerships.remove(phone);
-        globalStaffPhones.remove(phone);
-        SseEmitter emitter = emitters.remove(phone);
-        if (emitter != null) {
+        Session session = sessions.remove(phone);
+        if (session != null) {
             try {
-                emitter.complete();
+                session.emitter().complete();
             } catch (Exception e) {
                 log.debug("Error completing emitter on remove for phone: {}", maskPhone(phone), e);
             }
@@ -203,6 +197,6 @@ public class SseEmitterRegistry {
      * Returns the current number of active registered emitters.
      */
     public int getActiveCount() {
-        return emitters.size();
+        return sessions.size();
     }
 }

@@ -280,3 +280,61 @@ CHANGE manager-schedule-realtime BRANCH feature/manager-schedule-realtime
 STATES 14 done 10 current 11 next 11 skipped 0 failed 0 pending 3
 TASKS 16 done 16 open 0
 `
+
+---
+
+## 7. PR Review Loop (State 11) — Round 3, 1 Unresolved Thread
+
+Commit `e58d297` closed every thread of round 2. The next review round carried one new Qodo
+finding.
+
+### 7.1 Thread Inventory and Disposition
+
+| Thread | Author | Severity | File | Disposition |
+|---|---|---|---|---|
+| `PRRT_kwDOVXYfxc6xY7BD` | qodo-code-review | High | `SseEmitterRegistry.java` | Fixed. One session entry per phone. |
+
+### 7.2 Fix Detail
+
+**Qodo High — reconnected staff boards lose updates** (`SseEmitterRegistry.java`): the registry kept
+the emitter in one map and the staff routing in two more maps. The eviction removed the emitter and
+then cleared the routing in separate operations. A reconnect that installed a new emitter and its
+routing between those two steps lost its routing, so later appointment events skipped the board.
+
+The registry now keeps one session entry per phone number. The entry holds the emitter, the staff
+flag, and the dealership scope. The fan-out derives its routing from the session entries. The
+eviction removes the session entry in one atomic map operation after it compares the emitter
+identity. A reconnect that installed a new session keeps its routing, and a replaced emitter never
+clears it.
+
+Regression test `concurrentReconnectAndEvictionKeepTheRoutingOfTheActiveSession` runs the
+registration and the eviction of the same phone on two threads behind a barrier over 300 rounds.
+The test fails against the previous implementation and passes against the new one.
+
+```
+Proof of the regression test:
+  Old registry  -> SseEmitterRegistryTest > concurrentReconnectAndEvictionKeepTheRoutingOfTheActiveSession() FAILED
+                   AssertionFailedError at SseEmitterRegistryTest.java:255
+  New registry  -> BUILD SUCCESSFUL, 21 tests completed, 0 failed
+```
+
+### 7.3 Verification Proofs
+
+| Gate | Command | Result |
+|---|---|---|
+| OpenSpec | `openspec validate manager-schedule-realtime --strict` | SUCCESS |
+| Build | `./gradlew clean build` | SUCCESS |
+| Unit and integration tests | `./gradlew test` | SUCCESS, 0 failures |
+| Coverage | `./gradlew jacocoTestCoverageVerification` | SUCCESS |
+| Lint | `checkstyleMain`, `checkstyleTest`, `pmdMain`, `pmdTest` | SUCCESS, 0 violations |
+| Format | `./gradlew :service-scheduler-server:spotlessCheck` | SUCCESS |
+| Bruno API | `npx --yes @usebruno/cli@2.14.1 run -r --env local --disable-cookies` | PASS, 86 of 86 requests, 98 of 98 tests |
+| Playwright E2E | `npx playwright test` | PASS, 50 of 50 tests |
+
+### 7.4 State Block After Round 3
+
+`
+CHANGE manager-schedule-realtime BRANCH feature/manager-schedule-realtime
+STATES 14 done 10 current 11 next 11 skipped 0 failed 0 pending 3
+TASKS 16 done 16 open 0
+`

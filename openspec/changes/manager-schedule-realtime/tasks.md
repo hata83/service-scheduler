@@ -84,3 +84,11 @@ TASKS    16   done 16  open 0
 - Added Bruno contracts for the page limit, the size limit, and the OpenAPI response schema.
 - `./gradlew clean build`: SUCCESS. Bruno: 86/86 requests, 98/98 tests. Playwright: 50/50 tests.
 - Pushed to PR #6, waiting for the next review round before archive (State 12).
+
+--- PR Loop Update (State 11, Round 3) ---
+- Resolved 1 new Qodo High thread on PR #6: the SSE registry kept the emitter and the staff
+      routing in separate maps, so a reconnect during a stream failure lost its routing.
+- The registry now keeps one session entry per phone with the emitter and the staff scope.
+- Added the concurrent reconnect-and-eviction test. It fails against the previous registry and
+      passes against the new one.
+- `./gradlew clean build`: SUCCESS. Bruno: 86/86 requests, 98/98 tests. Playwright: 50/50 tests.

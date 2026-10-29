@@ -72,13 +72,15 @@ adds a second dispatch leg after commit:
 4. `GET /api/v1/notifications/my` reads logs for a staff phone. A MANAGER receives events for its
    dealership. An ADMIN receives events for all dealerships.
 
-The registry must know the role and dealership of each connection. `register` gains a
-`StaffSession(dealershipId, phone)` map next to the existing phone map. The single-stream rule evicts
-a staff connection exactly like a customer connection.
+The registry must know the role and dealership of each connection. The registry keeps one session
+entry per phone number. The entry holds the emitter and the staff scope together. The single-stream
+rule evicts a staff connection exactly like a customer connection.
 
 Every eviction path uses one method. A send failure, a heartbeat failure, and the emitter callbacks
-all remove the emitter and its staff routing. The removal compares the emitter identity, so a
-replaced emitter never clears the routing of the newer session of the same phone.
+all remove the session entry. The removal is one atomic map operation that compares the emitter
+identity, so a replaced emitter never clears the routing of the newer session of the same phone.
+The fan-out derives its routing from the session entries, so a routing and its emitter can not
+drift apart.
 
 Event names on the manager board:
 

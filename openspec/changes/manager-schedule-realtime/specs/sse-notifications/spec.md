@@ -49,6 +49,10 @@ broadcast keeps the single active stream per phone number.
 - **WHEN** the callback of a replaced stream runs after a new stream of the same phone started
 - **THEN** the dealership routing of the new stream stays unchanged
 
+#### Scenario: A reconnect during a stream failure keeps the new routing
+- **WHEN** a stream fails while a new stream of the same phone registers
+- **THEN** the new stream keeps its dealership routing and receives later events
+
 ### Requirement: Staff notification history and delivery logging
 
 The system SHALL record each staff fan-out dispatch in `communication_logs` with the staff phone as

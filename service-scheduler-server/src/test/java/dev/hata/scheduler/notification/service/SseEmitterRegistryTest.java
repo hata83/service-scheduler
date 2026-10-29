@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -222,5 +225,44 @@ class SseEmitterRegistryTest {
         assertThat(registry.getStaffSessionCount(dealershipB)).isEqualTo(1);
         assertThat(registry.getStaffSessionCount(dealershipA)).isZero();
         assertThat(registry.getActiveCount()).isEqualTo(1);
+    }
+
+    @Test
+    void concurrentReconnectAndEvictionKeepTheRoutingOfTheActiveSession() throws Exception {
+        UUID dealershipA = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID dealershipB = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        String phone = "+84900000002";
+
+        for (int round = 0; round < 300; round++) {
+            SseEmitter first = registry.registerStaff(phone, dealershipA);
+            CyclicBarrier start = new CyclicBarrier(2);
+            AtomicReference<Throwable> failure = new AtomicReference<>();
+
+            Thread registrar = new Thread(() -> {
+                awaitBarrier(start, failure);
+                registry.registerStaff(phone, dealershipB);
+            });
+            Thread evictor = new Thread(() -> {
+                awaitBarrier(start, failure);
+                registry.evict(phone, first, "concurrent eviction");
+            });
+            registrar.start();
+            evictor.start();
+            registrar.join();
+            evictor.join();
+
+            assertThat(failure.get()).isNull();
+            assertThat(registry.getStaffSessionCount(dealershipB)).isEqualTo(1);
+            assertThat(registry.getStaffSessionCount(dealershipA)).isZero();
+            assertThat(registry.getActiveCount()).isEqualTo(1);
+        }
+    }
+
+    private static void awaitBarrier(CyclicBarrier barrier, AtomicReference<Throwable> failure) {
+        try {
+            barrier.await(5, TimeUnit.SECONDS);
+        } catch (Exception ex) {
+            failure.compareAndSet(null, ex);
+        }
     }
 }
