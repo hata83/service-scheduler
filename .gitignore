@@ -77,9 +77,6 @@ Desktop.ini
 # openspec/changes/ stays tracked: proposals are reviewed at the HIL-1 gate and
 # validated by ci.yml. Only openspec/archive/ content is travel-neutral.
 
-# ─── OpenWiki generated output ────────────────────────────────────────────────
-openwiki/
-
 # ─── Logs ─────────────────────────────────────────────────────────────────────
 *.log
 logs/

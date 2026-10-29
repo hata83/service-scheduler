@@ -3,11 +3,9 @@
 ## Onboarding Reference (load first)
 
 1. This file (`AGENTS.md`) — Agentic SDLC, skills, verification ladder, architecture rules.
-2. `README.md` — OpenWiki and AI onboarding sections.
-3. `.agents/skills/openwiki/openwiki/quickstart.md` — OpenWiki orientation and task routing.
-4. `.agents/skills/openwiki/openwiki/integrations/coding-agents.md` — Host-driven generation.
-5. `docs/SYSTEM_DESIGN.md` — Design source of truth.
-6. Skill bundles (`.agents/skills/`): `asd-ste100-skill`, `springboot-patterns`, `java-coding-standards`, `open-code-review-delegate`, `archify`, `karpathy-ponytail`, `vue-patterns`, `e2e-testing`, `verification-loop`.
+2. `README.md` — AI onboarding and project overview.
+3. `docs/SYSTEM_DESIGN.md` — Design source of truth.
+4. Skill bundles (`.agents/skills/`): `asd-ste100-skill`, `springboot-patterns`, `java-coding-standards`, `open-code-review-delegate`, `archify`, `karpathy-ponytail`, `vue-patterns`, `e2e-testing`, `verification-loop`.
 
 You are an AI engineer working in this repository. Read the section that matches your task.
 
@@ -79,13 +77,13 @@ OpenSpec Artifact Lifecycle:
 
 When you load this project, check skills in this order:
 
-1. Global install: `~/.agents/skills/` (openspec, code review, ECC, archify, openwiki).
+1. Global install: `~/.agents/skills/` (openspec, code review, ECC, archify).
 2. Local project: `.agents/skills/` (asd-ste100-skill, karpathy-ponytail-skills).
 
 If a skill exists in either location, use it and ignore the other. If it is missing from both, install it:
 
 ```sh
-# Global skills (openspec, code review, ECC, archify, openwiki)
+# Global skills (openspec, code review, ECC, archify)
 npm install -g @fission-ai/openspec
 npx skills add affaan-m/ecc -s agent-architecture-audit -y --agent '*'
 npx skills add affaan-m/ecc -s verification-loop -y --agent '*'
@@ -95,7 +93,6 @@ npx skills add affaan-m/ecc -s java-coding-standards -y --agent '*'
 npx skills add affaan-m/ecc -s vue-patterns -y --agent '*'
 git clone https://github.com/tt-a1i/archify ~/.agents/skills/archify
 git clone https://github.com/alibaba/open-code-review ~/.agents/skills/open-code-review
-git clone https://github.com/langchain-ai/openwiki ~/.agents/skills/openwiki
 
 # Local project skills (asd-ste100, karpathy-ponytail)
 cd <project>/.agents/skills
@@ -473,16 +470,6 @@ Enforce Spring Boot and Java coding standards: naming conventions, immutability,
 
 Enforce Vue 3 Composition API patterns, Pinia state stores, Vue Router navigation, component decoupling, and TypeScript type safety.
 
-### `openwiki` (Code Wiki)
-
-After the final build passes, generate the code wiki:
-```sh
-# openwiki generates searchable documentation from source
-cd .agents/skills/openwiki
-npm install
-node index.js --root ../../../ --out ../../../openwiki/
-```
-
 ---
 
 ## 8. Local Fix Commands
@@ -505,23 +492,6 @@ npm run format
 - Never expose Actuator endpoints on a public network. They have no authentication.
 
 ---
-
-<!-- OPENWIKI:START -->
-
-## OpenWiki
-
-This repository has a generated `openwiki/` evidence index. It is optional just-in-time context, not required startup reading.
-
-- Do not enumerate, preload, or search wikis at task start. Use retrieval when the user asks for it, when unfamiliar architecture or dependency behavior materially affects the task, or when source inspection leaves an important uncertainty. Stop once the question is grounded.
-- When those conditions apply and OpenWiki retrieval tools are available, use `openwiki_search` for just-in-time context and `openwiki_read` for the relevant complete sections. If search returns `workspace_required`, ask which listed workspace to use and retry with its ID.
-- Use `openwiki_list_workspaces` or `openwiki_list_wikis` when workspace membership itself needs to be discovered.
-- If the retrieval tools are unavailable, read `openwiki/quickstart.md` and follow its links to the relevant pages.
-- Treat source code and tests as authoritative. A brief's unknowns and review items are verification gaps, not automatic requirements.
-- Prefer the narrowest quiet validation that proves the changed behavior. Preserve complete failure output.
-
-The scheduled OpenWiki GitHub Actions workflow refreshes the repository wiki. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
-
-<!-- OPENWIKI:END -->
 
 ## AI Collaboration Narrative
 
