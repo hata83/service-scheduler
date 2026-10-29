@@ -1,5 +1,7 @@
 package dev.hata.scheduler.notification.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -86,7 +88,13 @@ class NotificationControllerTest {
         UUID userId = UUID.randomUUID();
         AuthPrincipal principal = new AuthPrincipal(userId, "CUSTOMER", "+84900000004", null, "jti-1");
         CommunicationLogResponse logResp = new CommunicationLogResponse(
-                UUID.randomUUID(), "SSE", "appointment.confirmed", "DELIVERED", Instant.now());
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "+84900000004",
+                "SSE",
+                "appointment.confirmed",
+                "DELIVERED",
+                Instant.now());
         when(notificationService.findCustomerLogs(userId)).thenReturn(List.of(logResp));
 
         mockMvc.perform(get("/api/v1/notifications/my")
@@ -97,5 +105,81 @@ class NotificationControllerTest {
                 .andExpect(jsonPath("$[0].eventType").value("appointment.confirmed"));
 
         verify(notificationService).findCustomerLogs(userId);
+    }
+
+    @Test
+    void myReturnsDealershipLogsForManager() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID dealershipId = UUID.randomUUID();
+        AuthPrincipal principal = new AuthPrincipal(userId, "MANAGER", "+84900000002", dealershipId, "jti-1");
+        CommunicationLogResponse logResp = new CommunicationLogResponse(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "+84900000002",
+                "SSE",
+                "appointment.requested",
+                "DELIVERED",
+                Instant.now());
+        when(notificationService.findStaffLogs(dealershipId, "+84900000002")).thenReturn(List.of(logResp));
+
+        mockMvc.perform(get("/api/v1/notifications/my")
+                        .requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].eventType").value("appointment.requested"))
+                .andExpect(jsonPath("$[0].recipient").value("+84900000002"));
+
+        verify(notificationService).findStaffLogs(dealershipId, "+84900000002");
+    }
+
+    @Test
+    void myReturnsAllLogsForAdmin() throws Exception {
+        UUID userId = UUID.randomUUID();
+        AuthPrincipal principal = new AuthPrincipal(userId, "ADMIN", "+84900000001", null, "jti-1");
+        when(notificationService.findStaffLogs(null, "+84900000001")).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/notifications/my")
+                        .requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        verify(notificationService).findStaffLogs(null, "+84900000001");
+    }
+
+    @Test
+    void myRejectsManagerWithoutDealershipAssignment() throws Exception {
+        AuthPrincipal principal = new AuthPrincipal(UUID.randomUUID(), "MANAGER", "+84900000002", null, "jti-1");
+
+        mockMvc.perform(get("/api/v1/notifications/my")
+                        .requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
+
+        verify(notificationService, never()).findStaffLogs(any(), any());
+    }
+
+    @Test
+    void myRejectsTechnicianRole() throws Exception {
+        UUID userId = UUID.randomUUID();
+        AuthPrincipal principal = new AuthPrincipal(userId, "TECHNICIAN", "+84900000003", UUID.randomUUID(), "jti-1");
+
+        mockMvc.perform(get("/api/v1/notifications/my")
+                        .requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void streamRegistersStaffSessionWithDealershipScope() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID dealershipId = UUID.randomUUID();
+        AuthPrincipal principal = new AuthPrincipal(userId, "MANAGER", "+84900000002", dealershipId, "jti-1");
+        SseEmitter emitter = new SseEmitter(60_000L);
+        when(sseEmitterRegistry.registerStaff("+84900000002", dealershipId)).thenReturn(emitter);
+
+        mockMvc.perform(get("/api/v1/notifications/stream").requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal))
+                .andExpect(status().isOk());
+
+        verify(sseEmitterRegistry).registerStaff("+84900000002", dealershipId);
     }
 }

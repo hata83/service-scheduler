@@ -16,13 +16,17 @@ import java.util.UUID;
 import dev.hata.scheduler.appointment.dto.AppointmentResponse;
 import dev.hata.scheduler.appointment.dto.CancelAppointmentResponse;
 import dev.hata.scheduler.appointment.dto.CreateAppointmentRequest;
+import dev.hata.scheduler.appointment.dto.JobNoteResponse;
 import dev.hata.scheduler.appointment.dto.ServiceJobItemRequest;
+import dev.hata.scheduler.appointment.dto.StaffAppointmentResponse;
 import dev.hata.scheduler.appointment.model.Appointment;
 import dev.hata.scheduler.appointment.model.AppointmentStatus;
 import dev.hata.scheduler.appointment.model.JobStatus;
 import dev.hata.scheduler.appointment.model.ServiceJob;
 import dev.hata.scheduler.appointment.repository.AppointmentRepository;
 import dev.hata.scheduler.appointment.repository.JobTechnicianAssignmentRepository;
+import dev.hata.scheduler.appointment.repository.ServiceJobRepository;
+import dev.hata.scheduler.appointment.repository.StaffAppointmentQueryRepository;
 import dev.hata.scheduler.common.event.AppointmentSlotModifiedEvent;
 import dev.hata.scheduler.common.event.NotificationDispatchEvent;
 import dev.hata.scheduler.common.provider.DealershipValidationProvider;
@@ -51,6 +55,8 @@ public class AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final JobTechnicianAssignmentRepository jobTechnicianAssignmentRepository;
+    private final ServiceJobRepository serviceJobRepository;
+    private final StaffAppointmentQueryRepository staffAppointmentQueryRepository;
     private final DealershipValidationProvider dealershipValidation;
     private final VehicleCategoryValidationProvider categoryValidation;
     private final ServiceTypeMetadataProvider serviceTypeMetadataProvider;
@@ -60,6 +66,8 @@ public class AppointmentService {
     public AppointmentService(
             AppointmentRepository appointmentRepository,
             JobTechnicianAssignmentRepository jobTechnicianAssignmentRepository,
+            ServiceJobRepository serviceJobRepository,
+            StaffAppointmentQueryRepository staffAppointmentQueryRepository,
             DealershipValidationProvider dealershipValidation,
             VehicleCategoryValidationProvider categoryValidation,
             ServiceTypeMetadataProvider serviceTypeMetadataProvider,
@@ -67,12 +75,86 @@ public class AppointmentService {
             ApplicationEventPublisher eventPublisher) {
         this.appointmentRepository = appointmentRepository;
         this.jobTechnicianAssignmentRepository = jobTechnicianAssignmentRepository;
+        this.serviceJobRepository = serviceJobRepository;
+        this.staffAppointmentQueryRepository = staffAppointmentQueryRepository;
         this.dealershipValidation = dealershipValidation;
         this.categoryValidation = categoryValidation;
         this.serviceTypeMetadataProvider = serviceTypeMetadataProvider;
         this.slotCacheEviction = slotCacheEviction;
         this.eventPublisher = eventPublisher;
     }
+
+    @Transactional(readOnly = true)
+    public JobNoteResponse readJobNotes(UUID jobId) {
+        ServiceJob job = serviceJobRepository
+                .findById(jobId)
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service job not found: " + jobId));
+        return JobNoteResponse.of(jobId, job.getNotes());
+    }
+
+    /**
+     * Retrieves the manager booking detail for an appointment inside the role scope.
+     * Out-of-scope appointments return HTTP 404 like customer cross-access.
+     */
+    @Transactional(readOnly = true)
+    public StaffAppointmentResponse findStaffAppointment(UUID id, UUID scopeDealershipId) {
+        StaffAppointmentQueryRepository.StaffAppointmentRow row = staffAppointmentQueryRepository
+                .findStaffAppointment(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Appointment not found: " + id));
+
+        if (scopeDealershipId != null && !scopeDealershipId.equals(row.getDealershipId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Appointment not found: " + id);
+        }
+
+        List<StaffAppointmentResponse.StaffJobView> jobs = staffAppointmentQueryRepository.findStaffJobs(id).stream()
+                .map(job -> new StaffAppointmentResponse.StaffJobView(
+                        job.getJobId(),
+                        job.getServiceName(),
+                        job.getBayName(),
+                        job.getStatus(),
+                        job.getStartTime(),
+                        job.getEndTime(),
+                        splitNotes(job.getNotes()),
+                        job.getEstimateCost(),
+                        job.getFinalCost()))
+                .toList();
+
+        List<StaffAppointmentResponse.StaffCommunicationView> communications =
+                staffAppointmentQueryRepository.findStaffCommunications(id).stream()
+                        .map(log -> new StaffAppointmentResponse.StaffCommunicationView(
+                                log.getEventType(), log.getChannel(), log.getDeliveryStatus(), log.getDispatchedAt()))
+                        .toList();
+
+        StaffAppointmentResponse.StaffView staffView = new StaffAppointmentResponse.StaffView(
+                row.getCustomerId().toString(),
+                row.getCustomerName(),
+                row.getCustomerPhone(),
+                row.getVehicleVin(),
+                row.getVehicleCategory(),
+                jobs,
+                communications);
+
+        return new StaffAppointmentResponse(
+                row.getId(),
+                row.getDealershipId(),
+                row.getStatus(),
+                row.getStartTime(),
+                row.getEndTime(),
+                row.getEstimateCost(),
+                row.getTotalCost(),
+                row.getCreatedAt(),
+                staffView);
+    }
+
+    private static List<String> splitNotes(String notes) {
+        return JobNoteResponse.of(new UUID(0L, 0L), notes).notes();
+    }
+
+    /**
+     * Result of a technician or manager inspection note append.
+     */
+    public record JobNoteResult(UUID jobId, String appended) {}
 
     /**
      * Books a customer appointment with itemized service jobs and transactional outbox event.
@@ -315,6 +397,56 @@ public class AppointmentService {
         eventPublisher.publishEvent(new AppointmentSlotModifiedEvent(saved.getDealershipId(), dates));
 
         return new CancelAppointmentResponse(saved.getId(), AppointmentStatus.CANCELLED, Instant.now());
+    }
+
+    /**
+     * Appends an inspection note to a service job. Only the assigned technician or a manager may
+     * append notes. Notes surface as feedback data in the staff booking detail view.
+     */
+    @Transactional
+    public JobNoteResult appendJobNote(UUID jobId, UUID callerId, String note) {
+        return appendJobNote(jobId, callerId, note, false, null);
+    }
+
+    /**
+     * Appends an inspection note to a service job when the caller is permitted.
+     * Manager overrides the technician assignment check when {@code isManager} is true.
+     */
+    @Transactional
+    public JobNoteResult appendJobNote(UUID jobId, UUID callerId, String note, boolean isManager) {
+        return appendJobNote(jobId, callerId, note, isManager, null);
+    }
+
+    /**
+     * Appends an inspection note to a service job when the caller is permitted.
+     * Enforces dealership scope for manager callers to prevent cross-dealership modifications.
+     * Performs an atomic native update to prevent concurrent note appends from dropping notes.
+     */
+    @Transactional
+    public JobNoteResult appendJobNote(
+            UUID jobId, UUID callerId, String note, boolean isManager, UUID managerDealershipScope) {
+        ServiceJob job = serviceJobRepository
+                .findById(jobId)
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service job not found: " + jobId));
+
+        if (isManager
+                && managerDealershipScope != null
+                && !managerDealershipScope.equals(job.getAppointment().getDealershipId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Service job not found: " + jobId);
+        }
+
+        boolean assigned = jobTechnicianAssignmentRepository.findByJobId(jobId).stream()
+                .anyMatch(a -> a.getTechnicianId().equals(callerId));
+
+        if (!isManager && !assigned) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Only the assigned technician may append notes to job " + jobId);
+        }
+
+        serviceJobRepository.appendNoteAtomic(jobId, note);
+
+        return new JobNoteResult(jobId, note);
     }
 
     private Set<LocalDate> extractAppointmentDates(UUID dealershipId, List<ServiceJobItemRequest> jobs) {

@@ -1,0 +1,28 @@
+meta {
+  name: schedule-history
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/schedule/history?status=CONFIRMED
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Cookie: jwt={{JWT_MANAGER}}
+}
+
+tests {
+  test("manager history responds 200 with confirmed appointments only", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.be.an('array');
+    res.getBody().forEach(function (item) {
+      expect(item.status).to.equal('CONFIRMED');
+      expect(item.id).to.be.a('string');
+      expect(item.customerPhone).to.be.a('string');
+    });
+  });
+}

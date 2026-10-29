@@ -1,0 +1,22 @@
+meta {
+  name: schedule-day-admin-without-dealership
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/schedule/day?date=2026-11-20
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Cookie: jwt={{JWT_ADMIN}}
+}
+
+tests {
+  test("admin day schedule without a dealership is rejected with 400", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
+}

@@ -1,0 +1,30 @@
+meta {
+  name: job-notes-customer-forbidden
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{BASE_URL}}/api/v1/jobs/66666666-0000-0000-0000-000000000001/notes
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+  Cookie: jwt={{JWT_CUSTOMER}}
+  X-Idempotency-Key: 6a000002-0000-0000-0000-000000000002
+}
+
+body:json {
+  {
+    "note": "Customer comment"
+  }
+}
+
+tests {
+  test("customer note append is rejected with 403", function() {
+    expect(res.getStatus()).to.equal(403);
+  });
+}

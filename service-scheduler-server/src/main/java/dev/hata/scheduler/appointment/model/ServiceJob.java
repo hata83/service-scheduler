@@ -54,6 +54,9 @@ public class ServiceJob {
     @Column(name = "final_cost", precision = 12, scale = 2)
     private BigDecimal finalCost;
 
+    @Column(name = "notes")
+    private String notes;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -146,6 +149,14 @@ public class ServiceJob {
 
     public void setFinalCost(BigDecimal finalCost) {
         this.finalCost = finalCost;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
     }
 
     public Instant getCreatedAt() {

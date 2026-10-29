@@ -17,4 +17,11 @@ public interface CommunicationLogRepository extends JpaRepository<CommunicationL
     List<CommunicationLog> findByCustomerIdOrderByDispatchedAtDesc(UUID customerId);
 
     List<CommunicationLog> findByDealershipIdOrderByDispatchedAtDesc(UUID dealershipId);
+
+    List<CommunicationLog> findAllByOrderByDispatchedAtDesc();
+
+    List<CommunicationLog> findTop200ByDealershipIdAndRecipientAndChannelOrderByDispatchedAtDesc(
+            UUID dealershipId, String recipient, String channel);
+
+    List<CommunicationLog> findTop200ByRecipientAndChannelOrderByDispatchedAtDesc(String recipient, String channel);
 }

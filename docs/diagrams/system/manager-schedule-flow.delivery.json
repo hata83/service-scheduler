@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "e8bf54cc-5867-4b99-9371-b0cf86105534",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\src\\system\\manager-schedule-flow.sequence.json",
+  "output": "C:\\Users\\Hata\\workspace\\service-scheduler\\docs\\diagrams\\system\\manager-schedule-flow.html",
+  "specification": {
+    "sha256": "014ca6d318ee0c16cba4645b8277290bd5b36a6cf22a6aaccf5c91d730371be5",
+    "bytes": 6251
+  },
+  "artifact": {
+    "sha256": "8d5e5207ebd4e25c1ba8bf0475d37b879c3d5bfbf4eae60f4263c5b1bf7ff1c2",
+    "bytes": 852294
+  }
+}

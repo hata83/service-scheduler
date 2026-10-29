@@ -1,0 +1,28 @@
+meta {
+  name: notifications-my-staff
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/notifications/my
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Cookie: jwt={{JWT_MANAGER}}
+}
+
+tests {
+  test("manager notification list responds 200 with dealership notification records", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.be.an('array');
+    res.getBody().forEach(function (record) {
+      expect(record.eventType).to.be.a('string');
+      expect(record.recipient).to.be.a('string');
+      expect(record.deliveryStatus).to.be.a('string');
+    });
+  });
+}

@@ -1,0 +1,23 @@
+meta {
+  name: schedule-history-invalid-page
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/schedule/history?page=2147483647&size=200
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Cookie: jwt={{JWT_MANAGER}}
+}
+
+tests {
+  test("manager history with an out of range page is rejected with 400", function() {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getHeader('content-type')).to.include('application/problem+json');
+  });
+}

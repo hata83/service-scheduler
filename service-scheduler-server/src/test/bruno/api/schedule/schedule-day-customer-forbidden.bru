@@ -1,0 +1,22 @@
+meta {
+  name: schedule-day-customer-forbidden
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/schedule/day?date=2026-11-20
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Cookie: jwt={{JWT_CUSTOMER}}
+}
+
+tests {
+  test("customer day schedule is rejected with 403", function() {
+    expect(res.getStatus()).to.equal(403);
+  });
+}

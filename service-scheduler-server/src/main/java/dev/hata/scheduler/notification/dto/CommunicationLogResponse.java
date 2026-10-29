@@ -9,10 +9,22 @@ import dev.hata.scheduler.notification.model.CommunicationLog;
  * DTO response representing a dispatched notification record.
  */
 public record CommunicationLogResponse(
-        UUID id, String channel, String eventType, String deliveryStatus, Instant dispatchedAt) {
+        UUID id,
+        UUID appointmentId,
+        String recipient,
+        String channel,
+        String eventType,
+        String deliveryStatus,
+        Instant dispatchedAt) {
 
     public static CommunicationLogResponse from(CommunicationLog log) {
         return new CommunicationLogResponse(
-                log.getId(), log.getChannel(), log.getEventType(), log.getDeliveryStatus(), log.getDispatchedAt());
+                log.getId(),
+                log.getAppointmentId(),
+                log.getRecipient(),
+                log.getChannel(),
+                log.getEventType(),
+                log.getDeliveryStatus(),
+                log.getDispatchedAt());
     }
 }

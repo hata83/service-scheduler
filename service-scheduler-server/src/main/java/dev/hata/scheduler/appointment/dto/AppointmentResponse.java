@@ -8,13 +8,17 @@ import java.util.UUID;
 import dev.hata.scheduler.appointment.model.Appointment;
 import dev.hata.scheduler.appointment.model.AppointmentStatus;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * Response DTO representing an appointment with itemized service jobs.
+ * The customer id and the service job list always hold a value. They mark this schema
+ * apart from the staff detail schema.
  */
 public record AppointmentResponse(
         UUID id,
         UUID dealershipId,
-        UUID customerId,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UUID customerId,
         UUID vehicleCategoryId,
         String vehicleVin,
         Instant startTime,
@@ -22,7 +26,7 @@ public record AppointmentResponse(
         AppointmentStatus status,
         BigDecimal estimateCost,
         BigDecimal totalCost,
-        List<ServiceJobResponse> serviceJobs,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ServiceJobResponse> serviceJobs,
         Instant createdAt) {
 
     public static AppointmentResponse from(Appointment a) {
