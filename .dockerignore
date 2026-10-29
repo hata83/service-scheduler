@@ -14,5 +14,4 @@ skills-lock.json
 node_modules/
 logs/
 *.log
-.openwiki/
 .archify/
