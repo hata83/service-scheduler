@@ -71,3 +71,16 @@ TASKS    16   done 16  open 0
 - Committed 11d07cb, pushed to PR #6.
 - ./gradlew test: 344 pass. Bruno: pass (83/83 previous). Playwright: connection refused (env, not code).
 - Waiting for PR #6 review comments before archive (State 12).
+
+--- PR Loop Update (State 11, Round 2) ---
+- Resolved 13 open review threads on PR #6 (5 Qodo, 8 Kilo).
+- Qodo High: centralized SSE emitter eviction, stable history page order, local date of every
+      dealership for a global date filter.
+- Qodo Medium: page and size validation with long offset arithmetic, OpenAPI `anyOf` with
+      required distinguishing properties.
+- Kilo: conditional customer name build, logical `&&`, identity checked eviction, manager scope
+      and job note tenancy verified.
+- Added `ScheduleQueryRepositoryTest` for the page order and the per-dealership date filter.
+- Added Bruno contracts for the page limit, the size limit, and the OpenAPI response schema.
+- `./gradlew clean build`: SUCCESS. Bruno: 86/86 requests, 98/98 tests. Playwright: 50/50 tests.
+- Pushed to PR #6, waiting for the next review round before archive (State 12).

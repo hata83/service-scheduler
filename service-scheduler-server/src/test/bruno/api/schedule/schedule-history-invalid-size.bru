@@ -1,0 +1,23 @@
+meta {
+  name: schedule-history-invalid-size
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/schedule/history?size=0
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Cookie: jwt={{JWT_MANAGER}}
+}
+
+tests {
+  test("manager history with an out of range size is rejected with 400", function() {
+    expect(res.getStatus()).to.equal(400);
+    expect(res.getHeader('content-type')).to.include('application/problem+json');
+  });
+}

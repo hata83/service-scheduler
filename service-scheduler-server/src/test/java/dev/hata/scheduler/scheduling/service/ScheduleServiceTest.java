@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
@@ -22,6 +24,7 @@ import dev.hata.scheduler.scheduling.repository.ScheduleQueryRepository.Schedule
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
@@ -134,15 +137,32 @@ class ScheduleServiceTest {
         when(rowPartialName.getVehicleVin()).thenReturn("1HGCR2F83HA000001");
         when(rowPartialName.getServiceTypeName()).thenReturn("EXPRESS_SERVICE");
 
+        ScheduleRow rowLastNameOnly = org.mockito.Mockito.mock(ScheduleRow.class);
+        when(rowLastNameOnly.getBayId()).thenReturn(BAY_2);
+        when(rowLastNameOnly.getBayName()).thenReturn("Bay 2");
+        when(rowLastNameOnly.getBayTypes()).thenReturn(new String[] {"STANDARD"});
+        when(rowLastNameOnly.isActive()).thenReturn(true);
+        when(rowLastNameOnly.getJobId()).thenReturn(UUID.randomUUID());
+        when(rowLastNameOnly.getAppointmentId()).thenReturn(UUID.randomUUID());
+        when(rowLastNameOnly.getStatus()).thenReturn("REQUESTED");
+        when(rowLastNameOnly.getStartTime()).thenReturn(Instant.parse("2026-10-28T06:00:00Z"));
+        when(rowLastNameOnly.getEndTime()).thenReturn(Instant.parse("2026-10-28T07:00:00Z"));
+        when(rowLastNameOnly.getFirstName()).thenReturn(null);
+        when(rowLastNameOnly.getLastName()).thenReturn("Family");
+        when(rowLastNameOnly.getPhone()).thenReturn("+84900000004");
+        when(rowLastNameOnly.getVehicleVin()).thenReturn("1HGCR2F83HA000001");
+        when(rowLastNameOnly.getServiceTypeName()).thenReturn("EXPRESS_SERVICE");
+
         when(scheduleQueryRepository.findDayRows(any(), any(), any()))
-                .thenReturn(List.of(rowNullTypes, rowPartialName));
+                .thenReturn(List.of(rowNullTypes, rowPartialName, rowLastNameOnly));
 
         ScheduleDayResponse response = scheduleService.findDaySchedule(DEALERSHIP_ID, DATE);
 
         assertThat(response.bays()).hasSize(2);
         assertThat(response.bays().get(0).bayTypes()).isEmpty();
         assertThat(response.bays().get(0).jobs().get(0).customerName()).isNull();
-        assertThat(response.bays().get(1).jobs().get(0).customerName()).isEqualTo("Single ");
+        assertThat(response.bays().get(1).jobs().get(0).customerName()).isEqualTo("Single");
+        assertThat(response.bays().get(1).jobs().get(1).customerName()).isEqualTo("Family");
     }
 
     @Test
@@ -164,16 +184,60 @@ class ScheduleServiceTest {
         UUID appointmentId = UUID.fromString("11111111-1111-1111-1111-111111111111");
         HistoryRow row = mockHistoryRow(appointmentId);
         List<HistoryRow> rows = List.of(row);
-        when(scheduleQueryRepository.findHistoryRows(any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+        when(scheduleQueryRepository.findHistoryRows(
+                        any(), any(), any(), any(), any(), any(), any(), any(), anyLong(), anyInt()))
                 .thenReturn(rows);
 
         List<ScheduleHistoryItem> items = scheduleService.findHistory(
-                new ScheduleHistoryQuery(DEALERSHIP_ID, "CANCELLED", null, null, null, null, 0, 50));
+                new ScheduleHistoryQuery(DEALERSHIP_ID, "CANCELLED", null, null, null, null, null, null, 0, 50));
 
         assertThat(items).hasSize(1);
         assertThat(items.get(0).id()).isEqualTo(appointmentId);
         assertThat(items.get(0).status()).isEqualTo("CANCELLED");
         assertThat(items.get(0).customerPhone()).isEqualTo("+84900000004");
+    }
+
+    @Test
+    void findHistoryUsesLongOffsetForLargePageNumbers() {
+        when(scheduleQueryRepository.findHistoryRows(
+                        any(), any(), any(), any(), any(), any(), any(), any(), anyLong(), anyInt()))
+                .thenReturn(List.of());
+
+        scheduleService.findHistory(
+                new ScheduleHistoryQuery(DEALERSHIP_ID, null, null, null, null, null, null, null, 5_000, 200));
+
+        ArgumentCaptor<Long> offset = ArgumentCaptor.forClass(Long.class);
+        verify(scheduleQueryRepository)
+                .findHistoryRows(any(), any(), any(), any(), any(), any(), any(), any(), offset.capture(), anyInt());
+        assertThat(offset.getValue()).isEqualTo(1_000_000L);
+    }
+
+    @Test
+    void findHistoryRejectsPageAboveTheSupportedRange() {
+        assertThatThrownBy(() -> scheduleService.findHistory(new ScheduleHistoryQuery(
+                        DEALERSHIP_ID, null, null, null, null, null, null, null, 2_147_483_647, 200)))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasFieldOrPropertyWithValue("status", HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void findHistoryRejectsNegativePage() {
+        assertThatThrownBy(() -> scheduleService.findHistory(
+                        new ScheduleHistoryQuery(DEALERSHIP_ID, null, null, null, null, null, null, null, -1, 50)))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasFieldOrPropertyWithValue("status", HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void findHistoryRejectsSizeOutsideTheSupportedRange() {
+        assertThatThrownBy(() -> scheduleService.findHistory(
+                        new ScheduleHistoryQuery(DEALERSHIP_ID, null, null, null, null, null, null, null, 0, 0)))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasFieldOrPropertyWithValue("status", HttpStatus.BAD_REQUEST);
+        assertThatThrownBy(() -> scheduleService.findHistory(
+                        new ScheduleHistoryQuery(DEALERSHIP_ID, null, null, null, null, null, null, null, 0, 201)))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasFieldOrPropertyWithValue("status", HttpStatus.BAD_REQUEST);
     }
 
     private static ScheduleRow row(UUID bayId, String bayName, UUID jobId, UUID appointmentId, String status) {

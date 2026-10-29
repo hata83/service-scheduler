@@ -71,13 +71,7 @@ public class SseEmitterRegistry {
             staffDealerships.remove(phone);
         }
 
-        Consumer<String> cleanup = reason -> {
-            if (emitters.remove(phone, emitter)) {
-                globalStaffPhones.remove(phone);
-                staffDealerships.remove(phone);
-                log.debug("SSE emitter {} for phone: {}", reason, maskPhone(phone));
-            }
-        };
+        Consumer<String> cleanup = reason -> evict(phone, emitter, reason);
 
         emitter.onCompletion(() -> cleanup.accept("completed"));
         emitter.onTimeout(() -> cleanup.accept("timed out"));
@@ -112,7 +106,7 @@ public class SseEmitterRegistry {
         } catch (Exception e) {
             log.warn(
                     "Failed to dispatch SSE event '{}' to phone {}. Removing emitter.", eventName, maskPhone(phone), e);
-            emitters.remove(phone, emitter);
+            evict(phone, emitter, "send failed");
             return false;
         }
     }
@@ -159,8 +153,23 @@ public class SseEmitterRegistry {
                 emitter.send(SseEmitter.event().comment("ping"));
             } catch (Exception e) {
                 log.debug("Heartbeat failed for phone {}. Evicting.", maskPhone(phone));
-                emitters.remove(phone, emitter);
+                evict(phone, emitter, "heartbeat failed");
             }
+        }
+    }
+
+    /**
+     * Removes an emitter and its staff routing metadata when the emitter is still the active one
+     * of the phone. A replaced emitter never clears the scope of a newer session.
+     * The method is the single eviction path for send failures, heartbeat failures, and
+     * emitter callbacks. It stays visible to the package so that the registry tests can
+     * simulate a late callback of a replaced emitter.
+     */
+    void evict(String phone, SseEmitter emitter, String reason) {
+        if (emitters.remove(phone, emitter)) {
+            globalStaffPhones.remove(phone);
+            staffDealerships.remove(phone);
+            log.debug("Evicted SSE emitter {} for phone: {}", reason, maskPhone(phone));
         }
     }
 

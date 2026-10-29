@@ -41,11 +41,20 @@ broadcast keeps the single active stream per phone number.
 - **WHEN** a manager reconnects the staff stream while broadcasts are in flight
 - **THEN** the system terminates the prior stream and delivers later events to the new stream only
 
+#### Scenario: A closed staff stream stops its dealership routing
+- **WHEN** the staff stream of a phone fails during a broadcast or a heartbeat
+- **THEN** the system removes the staff routing of that phone and later broadcasts skip it
+
+#### Scenario: A late callback of a replaced stream keeps the new routing
+- **WHEN** the callback of a replaced stream runs after a new stream of the same phone started
+- **THEN** the dealership routing of the new stream stays unchanged
+
 ### Requirement: Staff notification history and delivery logging
 
 The system SHALL record each staff fan-out dispatch in `communication_logs` with the staff phone as
 recipient, and SHALL return the log list via `GET /api/v1/notifications/my` for staff roles. A
-MANAGER reads logs of its dealership. An ADMIN reads logs of all dealerships.
+MANAGER reads logs of its dealership. An ADMIN reads logs of all dealerships. A MANAGER without a
+dealership assignment SHALL receive HTTP 403 Forbidden.
 
 #### Scenario: Manager reads notification list via API
 - **WHEN** a MANAGER requests `GET /api/v1/notifications/my`
@@ -55,3 +64,7 @@ MANAGER reads logs of its dealership. An ADMIN reads logs of all dealerships.
 #### Scenario: Admin reads all dealership logs
 - **WHEN** an ADMIN requests `GET /api/v1/notifications/my`
 - **THEN** response status is 200 OK and body carries notification records across dealerships
+
+#### Scenario: Manager without a dealership reads no logs
+- **WHEN** a MANAGER without a dealership assignment requests `GET /api/v1/notifications/my`
+- **THEN** response status is 403 Forbidden with an `application/problem+json` body

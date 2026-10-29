@@ -108,17 +108,30 @@ public class ScheduleService {
 
     /**
      * Returns the filtered appointment history for the manager history list.
-     * The result is capped so one wide query cannot load the whole table.
+     * The page and size are validated so that the SQL offset never overflows.
      */
     @Transactional(readOnly = true)
     public List<ScheduleHistoryItem> findHistory(ScheduleHistoryQuery query) {
-        int size = Math.min(Math.max(query.size(), 1), ScheduleHistoryQuery.MAX_SIZE);
-        int offset = Math.max(query.page(), ScheduleHistoryQuery.DEFAULT_PAGE) * size;
+        int page = query.page();
+        if (page < ScheduleHistoryQuery.DEFAULT_PAGE || page > ScheduleHistoryQuery.MAX_PAGE) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "page must be between " + ScheduleHistoryQuery.DEFAULT_PAGE + " and "
+                            + ScheduleHistoryQuery.MAX_PAGE);
+        }
+        int size = query.size();
+        if (size < 1 || size > ScheduleHistoryQuery.MAX_SIZE) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "size must be between 1 and " + ScheduleHistoryQuery.MAX_SIZE);
+        }
+        long offset = (long) page * size;
         List<HistoryRow> rows = scheduleQueryRepository.findHistoryRows(
                 query.dealershipId(),
                 query.status(),
                 query.from(),
                 query.to(),
+                query.fromDate(),
+                query.toDate(),
                 query.bayId(),
                 query.customerPhone(),
                 offset,
@@ -148,20 +161,13 @@ public class ScheduleService {
     }
 
     private static String customerName(String firstName, String lastName) {
-        String first;
-        if (firstName == null) {
-            first = "";
-        } else {
-            first = firstName.trim();
+        String first = firstName == null ? "" : firstName.trim();
+        String last = lastName == null ? "" : lastName.trim();
+        if (first.isEmpty()) {
+            return last.isEmpty() ? null : last;
         }
-        String last;
-        if (lastName == null) {
-            last = "";
-        } else {
-            last = lastName.trim();
-        }
-        if (first.isEmpty() & last.isEmpty()) {
-            return null;
+        if (last.isEmpty()) {
+            return first;
         }
         return first + " " + last;
     }

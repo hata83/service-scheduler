@@ -5,6 +5,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * Manager booking detail response (change manager-schedule-realtime).
  * Carries the appointment header plus the staff view with customer, vehicle,
@@ -19,7 +21,7 @@ public record StaffAppointmentResponse(
         BigDecimal estimateCost,
         BigDecimal totalCost,
         Instant createdAt,
-        StaffView staffView) {
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) StaffView staffView) {
 
     /**
      * Staff view data of one appointment.

@@ -1,5 +1,7 @@
 package dev.hata.scheduler.notification.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -142,6 +144,18 @@ class NotificationControllerTest {
                 .andExpect(status().isOk());
 
         verify(notificationService).findStaffLogs(null, "+84900000001");
+    }
+
+    @Test
+    void myRejectsManagerWithoutDealershipAssignment() throws Exception {
+        AuthPrincipal principal = new AuthPrincipal(UUID.randomUUID(), "MANAGER", "+84900000002", null, "jti-1");
+
+        mockMvc.perform(get("/api/v1/notifications/my")
+                        .requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
+
+        verify(notificationService, never()).findStaffLogs(any(), any());
     }
 
     @Test

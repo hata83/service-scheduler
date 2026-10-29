@@ -183,7 +183,7 @@ public class AppointmentController {
                 content =
                         @Content(
                                 mediaType = "application/json",
-                                schema = @Schema(oneOf = {AppointmentResponse.class, StaffAppointmentResponse.class}))),
+                                schema = @Schema(anyOf = {AppointmentResponse.class, StaffAppointmentResponse.class}))),
         @ApiResponse(
                 responseCode = "401",
                 description = "Unauthorized - authentication required",

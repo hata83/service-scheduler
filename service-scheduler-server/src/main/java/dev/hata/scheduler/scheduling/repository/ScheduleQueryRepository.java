@@ -1,6 +1,7 @@
 package dev.hata.scheduler.scheduling.repository;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -112,28 +113,35 @@ public interface ScheduleQueryRepository extends JpaRepository<WorkshopBay, UUID
     /**
      * Loads appointments for the manager history list. Every filter is optional.
      * A null {@code dealershipId} reads all dealerships for the ADMIN role.
+     * The date bounds compare the local date of every appointment in the timezone of its own
+     * dealership. The order adds the appointment id so that pages with equal start times stay stable.
      */
     @Query(
             value =
                     """
             SELECT a.id AS id, a.dealership_id AS dealershipId, a.customer_id AS customerId,
                    u.phone AS customerPhone,
-                   p.first_name || ' ' || p.last_name AS customerName,
+                   NULLIF(BTRIM(CONCAT_WS(' ', p.first_name, p.last_name)), '') AS customerName,
                    a.vehicle_vin AS vehicleVin, a.status AS status,
                    a.start_time AS startTime, a.end_time AS endTime,
                    a.estimate_cost AS estimateCost, a.total_cost AS totalCost
             FROM appointments a
             JOIN users u ON u.id = a.customer_id
             JOIN profiles p ON p.user_id = a.customer_id
+            JOIN dealerships d ON d.id = a.dealership_id
              WHERE (CAST(:dealershipId AS UUID) IS NULL OR a.dealership_id = CAST(:dealershipId AS UUID))
                AND (CAST(:status AS VARCHAR) IS NULL OR a.status = CAST(:status AS VARCHAR))
                AND (CAST(:from AS TIMESTAMPTZ) IS NULL OR a.start_time >= CAST(:from AS TIMESTAMPTZ))
-                AND (CAST(:to AS TIMESTAMPTZ) IS NULL OR a.start_time < CAST(:to AS TIMESTAMPTZ))
+               AND (CAST(:to AS TIMESTAMPTZ) IS NULL OR a.start_time < CAST(:to AS TIMESTAMPTZ))
+               AND (CAST(:fromDate AS DATE) IS NULL
+                    OR (a.start_time AT TIME ZONE d.timezone)::date >= CAST(:fromDate AS DATE))
+               AND (CAST(:toDate AS DATE) IS NULL
+                    OR (a.start_time AT TIME ZONE d.timezone)::date <= CAST(:toDate AS DATE))
                AND (CAST(:customerPhone AS VARCHAR) IS NULL OR u.phone = CAST(:customerPhone AS VARCHAR))
                AND (CAST(:bayId AS UUID) IS NULL OR EXISTS (
                      SELECT 1 FROM service_jobs j
                      WHERE j.appointment_id = a.id AND j.bay_id = CAST(:bayId AS UUID)))
-             ORDER BY a.start_time DESC
+             ORDER BY a.start_time DESC, a.id DESC
              LIMIT :size OFFSET :offset
              """,
             nativeQuery = true)
@@ -142,8 +150,10 @@ public interface ScheduleQueryRepository extends JpaRepository<WorkshopBay, UUID
             @Param("status") String status,
             @Param("from") Instant from,
             @Param("to") Instant to,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
             @Param("bayId") UUID bayId,
             @Param("customerPhone") String customerPhone,
-            @Param("offset") int offset,
+            @Param("offset") long offset,
             @Param("size") int size);
 }

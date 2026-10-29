@@ -76,6 +76,10 @@ The registry must know the role and dealership of each connection. `register` ga
 `StaffSession(dealershipId, phone)` map next to the existing phone map. The single-stream rule evicts
 a staff connection exactly like a customer connection.
 
+Every eviction path uses one method. A send failure, a heartbeat failure, and the emitter callbacks
+all remove the emitter and its staff routing. The removal compares the emitter identity, so a
+replaced emitter never clears the routing of the newer session of the same phone.
+
 Event names on the manager board:
 
 | Event | Trigger | Effect on board |
@@ -90,8 +94,14 @@ date grid or patches one block by `appointmentId`.
 ## History and Detail
 
 `GET /api/v1/schedule/history` parameters: `status`, `from`, `to`, `bayId`, `customerPhone`,
-`dealershipId` (ADMIN only), `page`, `size`. Default order is start time descending. Each item keeps
-the unique `id` key rule from `appointment-history`.
+`dealershipId` (ADMIN only), `page`, `size`. Default order is start time descending with the
+appointment id as tie-breaker, so pages with equal start times stay stable. The page range is 0 to
+10000 and the size range is 1 to 200. A request outside those ranges answers HTTP 400.
+
+A date-only `from` or `to` filter of a scoped request converts to the local day bounds of the
+dealership. A date-only filter of a global request keeps the calendar date. The database compares
+that date with the local date of every appointment in the timezone of its own dealership. Each item
+keeps the unique `id` key rule from `appointment-history`.
 
 `GET /api/v1/appointments/{id}` keeps the customer contract unchanged. For staff the response row
 returns one extra object `staffView`:

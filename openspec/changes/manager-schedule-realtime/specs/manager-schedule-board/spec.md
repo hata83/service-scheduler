@@ -61,7 +61,11 @@ for ADMIN; a global all-dealership day board is not supported.
 
 The system SHALL return a filtered appointment history via `GET /api/v1/schedule/history` with
 optional `status`, `from`, `to`, `bayId`, and `customerPhone` filters, sorted by start time
-descending, with a unique `id` on every item.
+descending, with a unique `id` on every item. Appointments with an equal start time SHALL keep
+one stable order across pages. A date-only filter of a request that reads every dealership SHALL
+compare the local date of each appointment in the timezone of its own dealership. The system
+SHALL reject a `page` outside the range 0 to 10000 and a `size` outside the range 1 to 200 with
+HTTP 400 and an `application/problem+json` body.
 
 #### Scenario: Filter history by status and date range
 - **WHEN** a MANAGER requests `GET /api/v1/schedule/history?status=CANCELLED&from=2026-10-01&to=2026-10-31`
@@ -70,6 +74,18 @@ descending, with a unique `id` on every item.
 #### Scenario: Filter history by bay
 - **WHEN** a MANAGER requests `GET /api/v1/schedule/history?bayId=B`
 - **THEN** response status is 200 OK and body contains only appointments that hold a job in bay B
+
+#### Scenario: Read every page of appointments with the same start time
+- **WHEN** a MANAGER reads two consecutive pages of `GET /api/v1/schedule/history` and several appointments share a start time
+- **THEN** every appointment appears in exactly one page
+
+#### Scenario: Read the history of every dealership with a date filter
+- **WHEN** an ADMIN requests `GET /api/v1/schedule/history?from=2026-10-28&to=2026-10-28` without a dealership
+- **THEN** response status is 200 OK and body contains the appointments whose local date in their own dealership is 2026-10-28
+
+#### Scenario: Reject an out of range page
+- **WHEN** a MANAGER requests `GET /api/v1/schedule/history?page=2147483647&size=200`
+- **THEN** response status is 400 Bad Request with an `application/problem+json` body
 
 ### Requirement: Staff booking detail
 

@@ -170,4 +170,57 @@ class SseEmitterRegistryTest {
         registry.sendHeartbeats();
         assertThat(registry.getActiveCount()).isZero();
     }
+
+    @Test
+    void failedSendClearsTheStaffRoutingMetadata() {
+        UUID dealershipA = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
+        SseEmitter emitter = registry.registerStaff("+84900000002", dealershipA);
+        emitter.complete();
+
+        boolean sent = registry.send("+84900000002", "test.event", "data");
+
+        assertThat(sent).isFalse();
+        assertThat(registry.getActiveCount()).isZero();
+        assertThat(registry.getStaffSessionCount(dealershipA)).isZero();
+    }
+
+    @Test
+    void failedHeartbeatClearsTheStaffRoutingMetadata() {
+        UUID dealershipA = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
+        SseEmitter emitter = registry.registerStaff("+84900000002", dealershipA);
+        emitter.complete();
+
+        registry.sendHeartbeats();
+
+        assertThat(registry.getActiveCount()).isZero();
+        assertThat(registry.getStaffSessionCount(dealershipA)).isZero();
+    }
+
+    @Test
+    void failedGlobalAdminSendClearsTheGlobalStaffScope() {
+        SseEmitter emitter = registry.registerStaff("+84900000001", null);
+        emitter.complete();
+
+        registry.send("+84900000001", "test.event", "data");
+
+        assertThat(registry.getStaffSessionCount(UUID.fromString("00000000-0000-0000-0000-000000000001")))
+                .isZero();
+    }
+
+    @Test
+    void lateCallbackOfAReplacedEmitterKeepsTheScopeOfTheNewSession() {
+        UUID dealershipA = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID dealershipB = UUID.fromString("00000000-0000-0000-0000-000000000002");
+
+        SseEmitter first = registry.registerStaff("+84900000002", dealershipA);
+        registry.registerStaff("+84900000002", dealershipB);
+
+        registry.evict("+84900000002", first, "late callback");
+
+        assertThat(registry.getStaffSessionCount(dealershipB)).isEqualTo(1);
+        assertThat(registry.getStaffSessionCount(dealershipA)).isZero();
+        assertThat(registry.getActiveCount()).isEqualTo(1);
+    }
 }

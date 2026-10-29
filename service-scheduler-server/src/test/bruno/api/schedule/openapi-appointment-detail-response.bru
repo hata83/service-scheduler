@@ -1,0 +1,32 @@
+meta {
+  name: openapi-appointment-detail-response
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{BASE_URL}}/v3/api-docs
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("the appointment detail response documents the customer and the staff schema", function() {
+    expect(res.getStatus()).to.equal(200);
+    const doc = res.getBody();
+    const response = doc.paths['/api/v1/appointments/{id}'].get.responses['200'];
+    const schema = response.content['application/json'].schema;
+    expect(schema.anyOf).to.be.an('array');
+    expect(schema.anyOf.length).to.equal(2);
+    const refs = schema.anyOf.map(function (entry) { return entry.$ref; });
+    expect(refs).to.include('#/components/schemas/AppointmentResponse');
+    expect(refs).to.include('#/components/schemas/StaffAppointmentResponse');
+    expect(doc.components.schemas.AppointmentResponse.required).to.include('customerId');
+    expect(doc.components.schemas.AppointmentResponse.required).to.include('serviceJobs');
+    expect(doc.components.schemas.StaffAppointmentResponse.required).to.include('staffView');
+  });
+}

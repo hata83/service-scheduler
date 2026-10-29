@@ -1,5 +1,6 @@
 package dev.hata.scheduler.scheduling.controller;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -38,8 +39,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/schedule")
 public class ScheduleController {
-
-    private static final String DEFAULT_GLOBAL_TIMEZONE = "UTC";
 
     private final ScheduleService scheduleService;
 
@@ -105,6 +104,12 @@ public class ScheduleController {
     }
 
     /**
+     * One parsed history bound. A date-only bound of a global request keeps the local date so
+     * that the query compares it with the local date of every dealership.
+     */
+    private record DateBound(Instant instant, LocalDate date) {}
+
+    /**
      * Returns the filtered appointment history list for managers.
      */
     @Operation(
@@ -118,6 +123,13 @@ public class ScheduleController {
                         @Content(
                                 mediaType = MediaType.APPLICATION_JSON_VALUE,
                                 array = @ArraySchema(schema = @Schema(implementation = ScheduleHistoryItem.class)))),
+        @ApiResponse(
+                responseCode = "400",
+                description = "Bad request - invalid filter, page, or size",
+                content =
+                        @Content(
+                                mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                                schema = @Schema(implementation = ApiProblem.class))),
         @ApiResponse(
                 responseCode = "401",
                 description = "Unauthorized - authentication required",
@@ -152,11 +164,15 @@ public class ScheduleController {
         }
         UUID scope = StaffScope.dealershipScope(principal, dealershipId);
         String timezone = scope == null ? null : dealershipTimezone(scope);
+        DateBound fromBound = parseBound(from, false, timezone);
+        DateBound toBound = parseBound(to, true, timezone);
         ScheduleHistoryQuery query = new ScheduleHistoryQuery(
                 scope,
                 status,
-                parseInstant(from, timezone),
-                parseInstantExclusive(to, timezone),
+                fromBound == null ? null : fromBound.instant(),
+                toBound == null ? null : toBound.instant(),
+                fromBound == null ? null : fromBound.date(),
+                toBound == null ? null : toBound.date(),
                 bayId,
                 customerPhone,
                 page,
@@ -178,38 +194,20 @@ public class ScheduleController {
     }
 
     @SuppressWarnings("PMD.PreserveStackTrace")
-    private static java.time.Instant parseInstant(String value, String timezone) {
+    private static DateBound parseBound(String value, boolean exclusiveEnd, String timezone) {
         if (value == null || value.isBlank()) {
             return null;
         }
         try {
-            return java.time.Instant.parse(value);
+            return new DateBound(Instant.parse(value), null);
         } catch (java.time.format.DateTimeParseException ex) {
             try {
-                LocalDate date = java.time.LocalDate.parse(value);
-                ZoneId zone = timezone == null ? ZoneId.of(DEFAULT_GLOBAL_TIMEZONE) : ZoneId.of(timezone);
-                return date.atStartOfDay(zone).toInstant();
-            } catch (java.time.format.DateTimeParseException innerEx) {
-                throw new org.springframework.web.server.ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "filter must use the ISO-8601 instant or yyyy-MM-dd format: " + value,
-                        innerEx);
-            }
-        }
-    }
-
-    @SuppressWarnings("PMD.PreserveStackTrace")
-    private static java.time.Instant parseInstantExclusive(String value, String timezone) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        try {
-            return java.time.Instant.parse(value);
-        } catch (java.time.format.DateTimeParseException ex) {
-            try {
-                LocalDate date = java.time.LocalDate.parse(value);
-                ZoneId zone = timezone == null ? ZoneId.of(DEFAULT_GLOBAL_TIMEZONE) : ZoneId.of(timezone);
-                return date.plusDays(1).atStartOfDay(zone).toInstant();
+                LocalDate date = LocalDate.parse(value);
+                if (timezone == null) {
+                    return new DateBound(null, date);
+                }
+                LocalDate boundDate = exclusiveEnd ? date.plusDays(1) : date;
+                return new DateBound(boundDate.atStartOfDay(ZoneId.of(timezone)).toInstant(), null);
             } catch (java.time.format.DateTimeParseException innerEx) {
                 throw new org.springframework.web.server.ResponseStatusException(
                         HttpStatus.BAD_REQUEST,

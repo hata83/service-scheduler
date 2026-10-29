@@ -171,3 +171,112 @@ CHANGE manager-schedule-realtime BRANCH feature/manager-schedule-realtime
 STATES 14 done 10 current 11 next 11 skipped 0 failed 0 pending 3
 TASKS 16 done 16 open 0
 `
+
+---
+
+## 6. PR Review Loop (State 11) — Round 2, 13 Unresolved Threads
+
+The pull request carried 13 open review threads after commit `ef69913`. The pull request panel
+listed Qodo findings 1, 2, 3, 8, and 9 plus Kilo warnings and suggestions. Each thread received a
+code fix, a regression test, and a verification proof.
+
+### 6.1 Thread Inventory and Disposition
+
+| Thread | Author | Severity | File | Disposition |
+|---|---|---|---|---|
+| `PRRT_kwDOVXYfxc6xNLB9` | qodo-code-review | High | `SseEmitterRegistry.java` | Fixed. Centralized eviction. |
+| `PRRT_kwDOVXYfxc6xNLCB` | qodo-code-review | High | `ScheduleQueryRepository.java` | Fixed. Stable page order. |
+| `PRRT_kwDOVXYfxc6xNLCH` | qodo-code-review | High | `ScheduleController.java` | Fixed. Local date of every dealership. |
+| `PRRT_kwDOVXYfxc6xPBZc` | qodo-code-review | Medium | `ScheduleService.java` | Fixed. Page and size validation. |
+| `PRRT_kwDOVXYfxc6xXyFk` | qodo-code-review | Medium | `AppointmentController.java` | Fixed. `anyOf` plus required fields. |
+| `PRRT_kwDOVXYfxc6xHKsF` | kilo-code-bot | Warning | `SseEmitterRegistry.java` | Fixed. Identity checked eviction. |
+| `PRRT_kwDOVXYfxc6xHKsL` | kilo-code-bot | Warning | `NotificationController.java` | Verified. Scope applied. |
+| `PRRT_kwDOVXYfxc6xHKsQ` | kilo-code-bot | Warning | `AppointmentService.java` | Verified. Dealership tenancy enforced. |
+| `PRRT_kwDOVXYfxc6xHKsW` | kilo-code-bot | Suggestion | `ScheduleService.java` | Fixed. Conditional name build. |
+| `PRRT_kwDOVXYfxc6xNLY8` | kilo-code-bot | Suggestion | `ScheduleService.java` | Fixed. Conditional name build. |
+| `PRRT_kwDOVXYfxc6xNLZr` | kilo-code-bot | Suggestion | `ScheduleQueryRepository.java` | Verified. Strict boundary present. |
+| `PRRT_kwDOVXYfxc6xQPCR` | kilo-code-bot | Suggestion | `ScheduleService.java` | Fixed. Logical `&&`. |
+| `PRRT_kwDOVXYfxc6xQujD` | kilo-code-bot | Suggestion | `AppointmentController.java` | Fixed. One response entry. |
+
+### 6.2 Fix Details
+
+1. **Qodo High — disconnected staff keep receiving audit rows**
+   (`SseEmitterRegistry.java`): send failures and heartbeat failures removed the emitter but left
+   the staff routing metadata. The registry now uses one method `evict(phone, emitter, reason)`.
+   The method removes the emitter with an identity check and clears `staffDealerships` and
+   `globalStaffPhones` only when the removed emitter was the active one of the phone.
+   The emitter callbacks use the same method. A replaced emitter never clears the routing of a
+   newer session, which also closes the Kilo warning `PRRT_kwDOVXYfxc6xHKsF`.
+   Regression tests: `failedSendClearsTheStaffRoutingMetadata`,
+   `failedHeartbeatClearsTheStaffRoutingMetadata`,
+   `failedGlobalAdminSendClearsTheGlobalStaffScope`,
+   `lateCallbackOfAReplacedEmitterKeepsTheScopeOfTheNewSession`.
+
+2. **Qodo High — paged history can skip appointments** (`ScheduleQueryRepository.java`):
+   the order used only `a.start_time DESC`. The order now adds `a.id DESC` as tie-breaker.
+   Regression test: `historyPagesKeepAStableOrderForAppointmentsWithTheSameStartTime` reads two
+   consecutive pages of three appointments with an equal start time and proves that every
+   appointment appears in exactly one page.
+
+3. **Qodo High — global history uses the server date** (`ScheduleController.java`): the date-only
+   filter of a global request used the server timezone. A global request now keeps the calendar
+   date. The query joins `dealerships` and compares the date with the local date of every
+   appointment in the timezone of its own dealership.
+   Regression test: `globalDateFilterUsesTheLocalDateOfEveryDealership` places one appointment in
+   `Asia/Ho_Chi_Minh` and one in `America/New_York` at the same instant and proves that each
+   date filter selects the appointment of its own dealership.
+
+4. **Qodo Medium — large history page numbers cause errors** (`ScheduleService.java`): the offset
+   used 32-bit arithmetic. The service now rejects a page outside 0 to 10000 and a size outside 1
+   to 200 with HTTP 400. The offset uses `long` arithmetic and the repository parameter is `long`.
+   Regression tests: `findHistoryRejectsPageAboveTheSupportedRange`,
+   `findHistoryRejectsNegativePage`, `findHistoryRejectsSizeOutsideTheSupportedRange`,
+   `findHistoryUsesLongOffsetForLargePageNumbers`.
+   Bruno contracts: `schedule-history-invalid-page.bru`, `schedule-history-invalid-size.bru`.
+
+5. **Qodo Medium — valid booking details fail validation** (`AppointmentController.java`): the
+   `oneOf` alternatives had no required property, so every response matched both schemas. The
+   response now uses `anyOf`. The distinguishing properties are marked as required, so the
+   `AppointmentResponse` requires `customerId` and `serviceJobs` and the `StaffAppointmentResponse`
+   requires `staffView`.
+   Bruno contract `openapi-appointment-detail-response.bru` reads the generated document and
+   proves that the response lists both schemas and that the required properties are present.
+
+6. **Kilo suggestions — customer name** (`ScheduleService.java`): the name build inserted a space
+   for a missing part. The method now returns the only present part and uses `&&` for the empty
+   check. The history query uses `NULLIF(BTRIM(CONCAT_WS(' ', ...)), '')`.
+   Regression test: `findDayScheduleHandlesNullBayTypesAndNullNames` covers the null, first only,
+   and last only name parts.
+
+7. **Kilo warning — manager notification history scope** (`NotificationController.java`): the
+   controller already resolved the scope with `StaffScope.dealershipScope`, which answers HTTP 403
+   for a manager without a dealership. The regression test
+   `myRejectsManagerWithoutDealershipAssignment` proves that no log row is read.
+
+8. **Kilo warning — job note append tenancy** (`AppointmentService.java`): the service compares
+   the manager scope with the dealership of the appointment and answers HTTP 404 on a mismatch.
+   The tests `appendJobNoteAllowsManagerWithMatchingDealershipScope` and
+   `appendJobNoteRejectsManagerWithForeignDealershipScope` prove both paths.
+
+### 6.3 Verification Proofs
+
+| Gate | Command | Result |
+|---|---|---|
+| OpenSpec | `openspec validate manager-schedule-realtime --strict` | SUCCESS |
+| Build | `./gradlew clean build` | SUCCESS |
+| Unit and integration tests | `./gradlew test` | SUCCESS, 0 failures |
+| Coverage | `./gradlew jacocoTestCoverageVerification` | SUCCESS, `ScheduleService` 87 of 87 lines |
+| Lint | `checkstyleMain`, `checkstyleTest`, `pmdMain`, `pmdTest` | SUCCESS, 0 violations |
+| Format | `./gradlew :service-scheduler-server:spotlessCheck` | SUCCESS |
+| Bruno API | `npx --yes @usebruno/cli@2.14.1 run -r --env local --disable-cookies` | PASS, 86 of 86 requests, 98 of 98 tests |
+| Playwright E2E | `npx playwright test` | PASS, 50 of 50 tests |
+| OpenAPI document | `GET /v3/api-docs` | `anyOf` with both schemas, required properties present |
+| Review gate | `./gradlew :service-scheduler-server:verifyCodeReviewDelegate` | SUCCESS |
+
+### 6.4 State Block After Round 2
+
+`
+CHANGE manager-schedule-realtime BRANCH feature/manager-schedule-realtime
+STATES 14 done 10 current 11 next 11 skipped 0 failed 0 pending 3
+TASKS 16 done 16 open 0
+`

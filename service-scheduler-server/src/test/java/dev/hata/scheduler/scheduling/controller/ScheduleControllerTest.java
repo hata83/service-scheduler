@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -187,6 +188,7 @@ class ScheduleControllerTest {
     void historyAcceptsDateOnlyFromFilter() throws Exception {
         AuthPrincipal principal = new AuthPrincipal(UUID.randomUUID(), "MANAGER", "+84900000002", DEALERSHIP_ID, "jti");
 
+        when(scheduleService.dealershipTimezone(DEALERSHIP_ID)).thenReturn("Asia/Ho_Chi_Minh");
         when(scheduleService.findHistory(any())).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/schedule/history")
@@ -201,6 +203,49 @@ class ScheduleControllerTest {
         assertThat(query.from()).isNotNull();
         assertThat(query.to()).isNotNull();
         assertThat(query.to()).isAfter(query.from());
+        assertThat(query.fromDate()).isNull();
+        assertThat(query.toDate()).isNull();
+    }
+
+    @Test
+    void globalHistoryUsesTheLocalDateOfEveryDealership() throws Exception {
+        AuthPrincipal principal = new AuthPrincipal(UUID.randomUUID(), "ADMIN", "+84900000001", null, "jti");
+
+        when(scheduleService.findHistory(any())).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/schedule/history")
+                        .param("from", "2026-10-01")
+                        .param("to", "2026-10-28")
+                        .requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<ScheduleHistoryQuery> captor = ArgumentCaptor.forClass(ScheduleHistoryQuery.class);
+        verify(scheduleService).findHistory(captor.capture());
+        ScheduleHistoryQuery query = captor.getValue();
+        assertThat(query.dealershipId()).isNull();
+        assertThat(query.from()).isNull();
+        assertThat(query.to()).isNull();
+        assertThat(query.fromDate()).isEqualTo(LocalDate.of(2026, 10, 1));
+        assertThat(query.toDate()).isEqualTo(LocalDate.of(2026, 10, 28));
+    }
+
+    @Test
+    void globalHistoryAcceptsIsoInstantFilter() throws Exception {
+        AuthPrincipal principal = new AuthPrincipal(UUID.randomUUID(), "ADMIN", "+84900000001", null, "jti");
+
+        when(scheduleService.findHistory(any())).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/schedule/history")
+                        .param("from", "2026-10-01T00:00:00Z")
+                        .requestAttr(AuthFilter.PRINCIPAL_ATTRIBUTE, principal))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<ScheduleHistoryQuery> captor = ArgumentCaptor.forClass(ScheduleHistoryQuery.class);
+        verify(scheduleService).findHistory(captor.capture());
+        ScheduleHistoryQuery query = captor.getValue();
+        assertThat(query.from()).isEqualTo(Instant.parse("2026-10-01T00:00:00Z"));
+        assertThat(query.fromDate()).isNull();
+        assertThat(query.toDate()).isNull();
     }
 
     @Test
