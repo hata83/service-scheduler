@@ -179,18 +179,11 @@ public class AppointmentController {
     @ApiResponses({
         @ApiResponse(
                 responseCode = "200",
-                description = "Appointment details retrieved successfully (customer view)",
+                description = "Appointment details retrieved successfully",
                 content =
                         @Content(
                                 mediaType = "application/json",
-                                schema = @Schema(implementation = AppointmentResponse.class))),
-        @ApiResponse(
-                responseCode = "200",
-                description = "Appointment details retrieved successfully (staff view)",
-                content =
-                        @Content(
-                                mediaType = "application/json",
-                                schema = @Schema(implementation = StaffAppointmentResponse.class))),
+                                schema = @Schema(oneOf = {AppointmentResponse.class, StaffAppointmentResponse.class}))),
         @ApiResponse(
                 responseCode = "401",
                 description = "Unauthorized - authentication required",
