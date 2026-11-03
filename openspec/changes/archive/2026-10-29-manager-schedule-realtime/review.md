@@ -396,3 +396,80 @@ CHANGE manager-schedule-realtime BRANCH feature/manager-schedule-realtime
 STATES 14 done 10 current 11 next 11 skipped 0 failed 0 pending 3
 TASKS 16 done 16 open 0
 `
+
+## 9. Archive Round (Backfill, 2026-11-03)
+
+PR #6 merged through squash commit `fb057da` before the archive step ran. The Round 4 CI proofs
+close State 11. Round 9 archives the change on the branch `feature/manager-schedule-realtime-archive`.
+
+### 9.1 Pre-Archive Mapping Path Audit
+
+The archive guidance in `openspec/config.yaml` requires every path cited in a `## Mapping` table
+to resolve before the archive. The auditor checked all 11 cited paths with `Test-Path`.
+
+| File | Path Patterns | Cited Paths | Resolved | Broken | Skipped | Coverage |
+|---|---|---|---|---|---|---|
+| `specs/manager-schedule-board/spec.md` | `*.bru`, `*.spec.ts`, `*.html` | 8 | 6 | 2 | 0 | 75% before fix, 100% after fix |
+| `specs/appointment-history/spec.md` | `*.bru`, `*.spec.ts`, `*.html` | 2 | 1 | 1 | 0 | |
+| `specs/sse-notifications/spec.md` | `*.bru`, `*.spec.ts`, `*.html` | 1 (unique repeat) | all | 0 | 0 | |
+
+### 9.2 Findings and Fixes
+
+| Severity | Finding | Fix |
+|---|---|---|
+| High | `specs/appointment-history/spec.md` cites `api/appointment/appointment-get-staff.bru`. The file does not exist. | Point the row to the real file `api/schedule/appointment-get-staff.bru` |
+| High | `specs/manager-schedule-board/spec.md` cites `api/schedule/job-notes.bru`. The file does not exist. | Point the row to the real file `api/schedule/job-notes-technician.bru` |
+| Low | `specs/manager-schedule-board/spec.md` cites `api/appointment/appointment-get-staff.bru`. The file does not exist. | Point the row to the real file `api/schedule/appointment-get-staff.bru` |
+| Info | The Playwright spec name `manager-realtime-board.spec.ts` differs from the capability slug `manager-schedule-board`. The config rule wants `<capability>.spec.ts`. | Record for a follow-up rename. A rename touches the UI test tree and its CI run. Keep this PR to docs only |
+| Info | No spec carries an `## Endpoint Contracts` section, repo wide. The config rule wants one. | Record for a follow-up. A retrofit touches all 12 specs. Do not mix it into an archival change |
+
+Reproduction steps for the two HIGH findings: run `Test-Path
+service-scheduler-server/src/test/bruno/api/appointment/appointment-get-staff.bru`
+and `Test-Path service-scheduler-server/src/test/bruno/api/schedule/job-notes.bru`. Both print
+`False` on the pre-fix tree. The fixed rows print `True`.
+
+### 9.3 Fix Diffs
+
+```diff
+--- a/openspec/changes/manager-schedule-realtime/specs/appointment-history/spec.md
++++ b/openspec/changes/manager-schedule-realtime/specs/appointment-history/spec.md
+@@ -14 +14 @@
+-| `/api/v1/appointments/{id}` | GET | `.../api/appointment/appointment-get-staff.bru` | Staff enriched detail view |
++| `/api/v1/appointments/{id}` | GET | `.../api/schedule/appointment-get-staff.bru` | Staff enriched detail view |
+```
+
+```diff
+--- a/openspec/changes/manager-schedule-realtime/specs/manager-schedule-board/spec.md
++++ b/openspec/changes/manager-schedule-realtime/specs/manager-schedule-board/spec.md
+@@ -16,2 +16,2 @@
+-| `/api/v1/appointments/{id}` | GET | `.../api/appointment/appointment-get-staff.bru` | Staff enriched detail |
+-| `/api/v1/jobs/{id}/notes` | POST | `.../api/schedule/job-notes.bru` | Technician appends inspection note |
++| `/api/v1/appointments/{id}` | GET | `.../api/schedule/appointment-get-staff.bru` | Staff enriched detail |
++| `/api/v1/jobs/{id}/notes` | POST | `.../api/schedule/job-notes-technician.bru` | Technician appends inspection note |
+```
+
+### 9.4 Archive Outcome
+
+| Item | Result |
+|---|---|
+| Archive command | `openspec archive manager-schedule-realtime --yes` |
+| Archive record | `openspec/changes/archive/2026-10-29-manager-schedule-realtime` (renamed from the CLI date to the true PR #6 delivery date) |
+| Spec promotion | 9 requirements added. New spec `openspec/specs/manager-schedule-board/`. Updates to `openspec/specs/appointment-history/` and `openspec/specs/sse-notifications/` |
+| Promotion warnings | 2 INFO notes. The delta `## Purpose` of `appointment-history` and `sse-notifications` was ignored because each canonical spec keeps its own. No action needed |
+
+### 9.5 Verification Proofs (Archive Round)
+
+| Gate | Command | Result |
+|---|---|---|
+| Delta | `openspec validate manager-schedule-realtime --strict` | VALID |
+| Archive | `openspec archive manager-schedule-realtime --yes` | SUCCESS, `specsUpdated: true`, 9 added |
+| Full tree | `openspec validate --all --strict` | 12 passed, 0 failed (2 INFO notes on long requirement text) |
+| Review record gate | `./gradlew :service-scheduler-server:verifyCodeReviewDelegate` | BUILD SUCCESSFUL |
+
+### 9.6 State Block After Archive
+
+`
+CHANGE manager-schedule-realtime BRANCH feature/manager-schedule-realtime-archive
+STATES 14 done 13 current 1 next 0 skipped 0 failed 0 pending 1
+TASKS 16 done 16 open 0
+`

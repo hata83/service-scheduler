@@ -36,3 +36,29 @@ The system SHALL reject access with HTTP 404 Problem Details when a customer req
 #### Scenario: Unauthorized appointment access
 - **WHEN** customer requests `GET /api/v1/appointments/{id}` for an appointment belonging to another customer
 - **THEN** response status is 404 Not Found with an `application/problem+json` body
+
+### Requirement: Staff detail access scope
+
+The system SHALL allow MANAGER and ADMIN roles to read `GET /api/v1/appointments/{id}` for any
+appointment inside the role scope. A MANAGER reads appointments of its dealership only. Out-of-scope
+reads return the same HTTP 404 Problem Details as customer cross-access.
+
+#### Scenario: Admin reads any dealership booking
+- **WHEN** an ADMIN requests `GET /api/v1/appointments/{id}` for any appointment
+- **THEN** response status is 200 OK and body carries the appointment and the staff view
+
+#### Scenario: Customer response stays unchanged
+- **WHEN** a CUSTOMER requests `GET /api/v1/appointments/{id}` for an owned appointment
+- **THEN** response status is 200 OK and body keeps the existing customer detail shape without the
+  staff view
+
+### Requirement: Feedback data in staff detail
+
+The system SHALL surface feedback data in the staff detail view from per-job inspection notes and
+from the estimate cost versus final cost comparison. Notes live in the `notes` column of
+`service_jobs`.
+
+#### Scenario: Detail shows completed job feedback
+- **WHEN** a MANAGER reads the detail of an appointment with a DONE job that holds notes and final
+  cost
+- **THEN** the staff view shows the note text and shows estimate cost and final cost for the job
