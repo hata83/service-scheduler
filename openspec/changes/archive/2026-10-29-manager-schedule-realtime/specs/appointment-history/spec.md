@@ -11,7 +11,7 @@ current shape and behavior.
 
 | Endpoint | Method | Contract / Bruno File | Description |
 |---|---|---|---|
-| `/api/v1/appointments/{id}` | GET | `service-scheduler-server/src/test/bruno/api/appointment/appointment-get-staff.bru` | Staff enriched detail view |
+| `/api/v1/appointments/{id}` | GET | `service-scheduler-server/src/test/bruno/api/schedule/appointment-get-staff.bru` | Staff enriched detail view |
 
 ### Capacity Mapping
 

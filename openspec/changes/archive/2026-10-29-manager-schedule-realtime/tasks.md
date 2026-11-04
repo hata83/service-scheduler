@@ -1,7 +1,7 @@
 # Tasks: Manager Real-Time Schedule Board
 
 CHANGE   manager-schedule-realtime     BRANCH   feature/manager-schedule-realtime
-STATES   14   done 10  current 1  next 1  skipped 0  failed 0  pending 3
+STATES   14   done 13  current 1  next 0  skipped 0  failed 0  pending 0
 TASKS    16   done 16  open 0
 
   #   state                     mark     proof
@@ -15,10 +15,10 @@ TASKS    16   done 16  open 0
   8   Verify                    done     openspec validate strict, clean build, Bruno (83/83), Playwright (50/50)
   9   Request approval          done     HIL-2 human gate: approved by human
  10   Publish                   done     committed bdc614c, pushed origin, opened PR #6
- 11   PR verify                 current  CI in progress, monitoring Qodo and Kilo reviews
- 12   Archive                   next     /opsx-archive, diagram moved to docs/diagrams
- 13   Review archive            pending  archive pushed to same pull request
- 14   Merge                     pending  human answers how to proceed
+ 11   PR verify                 done     PR #6 merged (squash fb057da): build, Bruno (86/86), Playwright (50/50), Qodo and Kilo green; 14 review threads resolved (R2: 5 Qodo + 8 Kilo; R3: 1 Qodo High; R4: 1 Qodo Medium)
+ 12   Archive                   done     openspec archive: valid; archived as openspec/changes/archive/2026-10-29-manager-schedule-realtime; 9 requirements promoted to openspec/specs/
+ 13   Review archive            current  archival branch feature/manager-schedule-realtime-archive; push and PR open await approval
+ 14   Merge                     pending  HIL-3 human gate: present results, then ask how to proceed
 
 ## Backend Tasks
 
@@ -101,3 +101,19 @@ TASKS    16   done 16  open 0
 - Added the concurrent reconnect and fan-out test. It failed in 6 of 6 runs against the previous
       delivery path and passed in 6 of 6 runs with the fix.
 - `./gradlew clean build`: SUCCESS. Bruno: 86/86 requests, 98/98 tests. Playwright: 50/50 tests.
+
+--- Archive Update (State 12, backfill on PR #6) ---
+- PR #6 merged through squash commit fb057da before the archive step ran. The Round 4 CI proofs
+      close State 11. The archival branch is feature/manager-schedule-realtime-archive.
+- Pre-archive path audit checked all 11 cited Mapping paths. Two rows cited Bruno paths that do
+      not exist. Fixed both rows: `api/schedule/appointment-get-staff.bru` (two deltas) and
+      `api/schedule/job-notes-technician.bru` (replaces `api/schedule/job-notes.bru`).
+      See review.md section 9.
+- `openspec validate manager-schedule-realtime --strict`: valid.
+- `openspec archive manager-schedule-realtime --yes`: SUCCESS. The archive record is
+      `openspec/changes/archive/2026-10-29-manager-schedule-realtime`. The date matches the true
+      delivery date of fb057da, not the archive date. Promotion added 9 requirements: a new spec
+      `manager-schedule-board` plus updates to `appointment-history` and `sse-notifications`.
+- `openspec validate --all --strict`: 12 passed, 0 failed.
+- `./gradlew :service-scheduler-server:verifyCodeReviewDelegate`: BUILD SUCCESSFUL.
+- Push and PR open await approval (State 13).

@@ -1,32 +1,10 @@
-# Spec Delta: manager-schedule-board
+# manager-schedule-board Specification
 
 ## Purpose
-
 The manager schedule board shows the full dealership day schedule in real time and reads history,
 filtered lists, and full booking details for staff roles MANAGER and ADMIN.
 
-## Mapping
-
-### API Mapping
-
-| Endpoint | Method | Contract / Bruno File | Description |
-|---|---|---|---|
-| `/api/v1/schedule/day` | GET | `service-scheduler-server/src/test/bruno/api/schedule/schedule-day.bru` | Full day schedule by bay |
-| `/api/v1/schedule/history` | GET | `service-scheduler-server/src/test/bruno/api/schedule/schedule-history.bru` | Filtered appointment history |
-| `/api/v1/appointments/{id}` | GET | `service-scheduler-server/src/test/bruno/api/appointment/appointment-get-staff.bru` | Staff enriched detail |
-| `/api/v1/jobs/{id}/notes` | POST | `service-scheduler-server/src/test/bruno/api/schedule/job-notes.bru` | Technician appends inspection note |
-
-### Capacity Mapping
-
-| Requirement | Playwright Spec | Archify Diagram |
-|---|---|---|
-| Day schedule view | `service-scheduler-ui/tests/e2e/manager-realtime-board.spec.ts` | `docs/diagrams/system/manager-schedule-flow.html` |
-| Filtered history list | `service-scheduler-ui/tests/e2e/manager-realtime-board.spec.ts` | `docs/diagrams/system/manager-schedule-flow.html` |
-| Staff booking detail | `service-scheduler-ui/tests/e2e/manager-realtime-board.spec.ts` | `docs/diagrams/system/manager-schedule-flow.html` |
-| Job inspection notes | `service-scheduler-ui/tests/e2e/manager-realtime-board.spec.ts` | `docs/diagrams/system/manager-schedule-flow.html` |
-| Role scope enforcement | `service-scheduler-ui/tests/e2e/manager-realtime-board.spec.ts` | `docs/diagrams/system/manager-schedule-flow.html` |
-
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Day schedule view
 
