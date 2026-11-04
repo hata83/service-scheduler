@@ -473,3 +473,22 @@ CHANGE manager-schedule-realtime BRANCH feature/manager-schedule-realtime-archiv
 STATES 14 done 13 current 1 next 0 skipped 0 failed 0 pending 1
 TASKS 16 done 16 open 0
 `
+
+### 9.7 Runtime Observation During Local Verification
+
+The local verification ran a live server on the test profile. All suites passed. The server log
+shows one ERROR per SSE client that a test suite disconnects:
+
+- Endpoint: `GET /api/v1/notifications/stream`
+- Failure 1: `AsyncRequestNotUsableException` from the Tomcat async error dispatch when the
+  heartbeat write hits the closed client socket inside `SseEmitterRegistry#sendHeartbeats`
+- Failure 2: the global `#handleOther` handler then tries to write `ApiProblem` on the preset
+  `text/event-stream` and fails with `HttpMessageNotWritableException`
+
+Proof: backend bootRun log of the 2026-11-04 local run, entries after the Playwright suite.
+No test failed. Client disconnects are normal for SSE tests. The finding is log noise, not a
+behavior bug.
+
+Follow-up (separate change): convert the SSE disconnect to an INFO log and mark the emitter
+failed, so `#handleOther` never serializes onto an event-stream response. Do not fold it into
+this archival PR.
